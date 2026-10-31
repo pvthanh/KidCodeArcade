@@ -43,6 +43,13 @@ const RETRO_SOUNDS = {
   ] }
 };
 
+const BACKGROUND_MELODY = [
+  659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 587.33, 659.25,
+  783.99, 880, 783.99, 659.25, 523.25, 392, 523.25, 659.25
+];
+const BACKGROUND_MUSIC_VOLUME = 0.25;
+const BACKGROUND_NOTE_INTERVAL = 220;
+
 export class SoundManager {
   constructor(eventBus, soundEffects = {}) {
     this.eventBus = eventBus;
@@ -50,6 +57,73 @@ export class SoundManager {
     this.activeAudio = new Set();
     this.activeSynths = new Set();
     this.audioContext = null;
+    this.musicGain = null;
+    this.musicTimer = null;
+    this.musicNoteIndex = 0;
+  }
+
+  startMusic() {
+    if (this.musicGain) return true;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      const error = new Error('This browser does not support background music.');
+      console.error(error.message);
+      this.eventBus.emit('status', error.message);
+      return false;
+    }
+
+    try {
+      this.audioContext ||= new AudioContextClass();
+      this.musicGain = this.audioContext.createGain();
+      this.musicGain.gain.value = BACKGROUND_MUSIC_VOLUME;
+      this.musicGain.connect(this.audioContext.destination);
+      this.musicNoteIndex = 0;
+      const startLoop = () => {
+        if (this.musicGain && this.audioContext?.state === 'running') {
+          this.playNextMusicNote();
+        }
+      };
+
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().then(startLoop).catch(error => {
+          console.error('Could not start background music:', error);
+          this.eventBus.emit('status', 'Could not start background music in this browser.');
+        });
+      } else {
+        startLoop();
+      }
+      return true;
+    } catch (error) {
+      console.error('Could not create background music:', error);
+      this.eventBus.emit('status', 'Could not start background music in this browser.');
+      return false;
+    }
+  }
+
+  playNextMusicNote() {
+    if (!this.musicGain || !this.audioContext || this.audioContext.state !== 'running') return;
+
+    const context = this.audioContext;
+    const noteStart = context.currentTime + 0.01;
+    const noteEnd = noteStart + 0.17;
+    const oscillator = context.createOscillator();
+    const envelope = context.createGain();
+    oscillator.type = this.musicNoteIndex % 4 === 2 ? 'square' : 'triangle';
+    oscillator.frequency.setValueAtTime(
+      BACKGROUND_MELODY[this.musicNoteIndex % BACKGROUND_MELODY.length],
+      noteStart
+    );
+    envelope.gain.setValueAtTime(0.0001, noteStart);
+    envelope.gain.exponentialRampToValueAtTime(0.36, noteStart + 0.015);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+    oscillator.connect(envelope);
+    envelope.connect(this.musicGain);
+    this.activeSynths.add(oscillator);
+    oscillator.addEventListener('ended', () => this.activeSynths.delete(oscillator), { once: true });
+    oscillator.start(noteStart);
+    oscillator.stop(noteEnd);
+    this.musicNoteIndex += 1;
+    this.musicTimer = setTimeout(() => this.playNextMusicNote(), BACKGROUND_NOTE_INTERVAL);
   }
 
   play(event) {
@@ -130,6 +204,9 @@ export class SoundManager {
   }
 
   stopAll() {
+    clearTimeout(this.musicTimer);
+    this.musicTimer = null;
+    this.musicGain = null;
     for (const audio of this.activeAudio) {
       audio.pause();
       audio.currentTime = 0;

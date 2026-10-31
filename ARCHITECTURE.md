@@ -71,18 +71,18 @@ when play starts; it does not edit the live editor grid.
 | Area | Module | Responsibility |
 |---|---|---|
 | Application | `src/main.js` | Creates the shared editor services, wires events, prepares the two demo campaign levels, and opens/restarts Phaser play sessions. |
-| Core | `src/core/StateManager.js` | Owns the editable grid, dimensions, tile catalog, demo data, sprite/audio metadata, level snapshot serialization, and validation. |
-| Core | `src/core/CommandManager.js` | Implements tile placement, erasing, resizing, clearing, and bounded undo/redo history. |
+| Core | `src/core/StateManager.js` | Owns the editable grid, dimensions, tile catalog, per-cell visual variants, demo data, sprite/audio metadata, level snapshot serialization, and validation. |
+| Core | `src/core/CommandManager.js` | Implements tile placement, erasing, bulk visual changes, resizing, clearing, and bounded undo/redo history. |
 | Core | `src/core/EventBus.js` | Provides `on`, `once`, `off`, `emit`, and listener cleanup around Phaser's `Events.EventEmitter`. |
-| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, and handles sprite/animation upload interactions. |
-| Editor | `src/editor/GridCanvas.js` | Renders the non-gridded board, draws tile previews, and translates pointer painting into editor events. |
+| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards and static-tile appearances, and handles image/animation uploads. |
+| Editor | `src/editor/GridCanvas.js` | Renders the non-gridded board and selected per-cell appearances, and translates pointer painting into editor events. |
 | Editor | `src/editor/UIOverlayEditor.js` | Handles level/campaign management, world resizing, file import/export, toolbar actions, and status messages. |
 | Editor | `src/editor/SoundEffectsEditor.js` | Uploads, validates, previews, enables, removes, and adjusts per-event audio. |
 | Runtime | `src/engine/GameScene.js` | Creates play-mode entities and colliders; processes movement, combat, collectibles, puzzles, checkpoints, scoring, particles, and level completion. |
 | Runtime | `src/engine/EntityFactory.js` | Maps tile IDs to Phaser entities and creates fallback textures for built-in objects. |
 | Runtime | `src/engine/SpriteAnimator.js` | Creates Phaser animations and chooses uploaded animation/fallback frames for entities. |
 | Runtime | `src/engine/SoundManager.js` | Plays uploaded audio overrides or synthesizes built-in retro tones with Web Audio. |
-| Assets | `src/assets/demo/` | Original bundled SVG sprites and per-action character sprite sheets. |
+| Assets | `src/assets/demo/` | Original crisp-edge SVG pixel art, the Sunny Hero and Bumble Bug animation sheets, and per-object appearance variants. |
 | Presentation | `src/styles/main.css`, `index.html` | Editor, palette, toolbar, canvas, dialogs, game modal, and touch-control layout. |
 
 ## 4. Runtime startup and data flow
@@ -94,8 +94,9 @@ when play starts; it does not edit the live editor grid.
 2. The module creates one `EventBus`, `CommandManager`, `PaletteView`,
    `GridCanvas`, `UIOverlayEditor`, `SoundEffectsEditor`, `EntityFactory`, and
    `SpriteAnimator`.
-3. DOM input emits events such as `tileSelected`, `paintTile`, `undo`, `redo`,
-   `spriteUploaded`, `openSoundSettings`, and `play`.
+3. DOM input emits events such as `tileSelected`, `tileVariantSelected`,
+   `applyTileVariantToAll`, `paintTile`, `undo`, `redo`, `spriteUploaded`,
+   `openSoundSettings`, and `play`.
 4. `StateManager` updates the editable world; the canvas redraws it. Commands
    retain prior values to support undo and redo.
 
@@ -108,6 +109,14 @@ when play starts; it does not edit the live editor grid.
    level-specific record ID to `GameScene`.
 3. `GameScene` creates textures, world/camera bounds, entity groups, physics
    colliders and overlaps, keyboard input, HUD, animations, and sound handling.
+   Play mode uses a 1.35× follow-camera zoom and Phaser's pixel-art rendering
+   to make the original SVG sprites appear larger with crisp edges; physics
+   body sizes and the editor's tile dimensions remain unchanged. The score,
+   best score, lives, and power HUD counter-scales and offsets for the camera
+   zoom so it remains visible at its normal screen-space size.
+   `main.js` starts a synthesized looping background melody at 25% master
+   volume when play mode launches. Touch controls are hidden by default and
+   can be shown or hidden with the game-header toggle.
 4. Gameplay events update the scene and emit `gameMessage` when a run ends.
    `main.js` presents replay, next-level, or replay-campaign actions.
 5. Closing the modal destroys the Phaser instance and stops its active sounds.
@@ -147,6 +156,21 @@ The editor uses a 32-pixel tile size. The initial demo has 96 columns by 18
 rows; the other built-in level has 72 columns by 18 rows. Users can resize
 levels from 8–256 columns and 8–40 rows. Coordinates are stored as
 `tiles[row][column]`; empty cells are `null`.
+
+Static-object appearances are separate from tile behavior. `tileVariants` is
+the same shape as `tiles` and stores a visual-variant ID per occupied cell;
+`tileVariantCatalog` stores each supported appearance's label and optional
+image data URL. `selectedTileVariants` remembers the appearance to use when
+painting each object type. Older snapshots that omit these fields use the
+Classic appearance. Ground provides a built-in Ice variant and Brick a Mossy
+variant; other static-object types can add custom images from the palette.
+
+Selecting an appearance affects newly painted instances. **Apply all** updates
+matching objects in the current level through `SetTileVariantCommand`, so the
+operation participates in undo/redo. Variants change rendering only; physics
+and gameplay rules continue to use the original tile ID. The runtime loads
+variant textures under keys separate from gameplay entity types and renders
+them in the same tile cell.
 
 The supported tile IDs are:
 
@@ -197,6 +221,8 @@ fit its container.
 - `SoundManager` synthesizes a built-in tone for known events. When a sound
   entry exists in the level, it overrides the built-in tone; disabled or muted
   uploaded entries intentionally remain silent.
+- `SoundManager` also synthesizes a looping playful chiptune at 25% master
+  volume during play mode and stops it when the game is destroyed.
 - The sound editor supports uploaded audio, preview, enable/disable, volume,
   and removal. Uploads are limited to 10 MB.
 - `GameScene.emitBurst` creates short-lived tweened particles for key gameplay
@@ -213,18 +239,23 @@ fit its container.
   "cols": 72,
   "rows": 18,
   "tiles": [["..."]],
+  "tileVariants": [["..."]],
   "activeTileType": "Ground",
   "spriteMetadata": {},
+  "tileVariantCatalog": {},
+  "selectedTileVariants": {},
   "soundEffects": {},
   "mysteryBoxReward": "Mushroom"
 }
 ```
 
-The abbreviated `tiles` value above is illustrative; a real file contains one
-array per row and one nullable tile ID per cell. Uploaded sprite/audio data URLs
-are stored inline. `validateWorld()` checks dimensions, matrix shape, supported
-tile IDs, mystery-box reward, and audio metadata. Older files may omit
-`soundEffects` or `mysteryBoxReward`; defaults are applied when restoring.
+The abbreviated grid values above are illustrative; real files contain one
+array per row and one nullable tile ID / visual-variant ID per cell. Uploaded
+sprite, variant, and audio data URLs are stored inline. `validateWorld()` checks
+dimensions, matrix shape, supported tile IDs and visual variants, mystery-box
+reward, and audio metadata. Older files may omit visual variants,
+`soundEffects`, or `mysteryBoxReward`; Classic appearances and other defaults
+are applied when restoring.
 
 ### Campaigns
 

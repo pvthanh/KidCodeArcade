@@ -25,25 +25,25 @@ export class EntityFactory {
     this.registry = new Map([
       ['Player', (scene, x, y, options = {}) =>
         scene.physics.add.sprite(x, y, options.textureKey || 'Player')],
-      ['Ground', (scene, x, y) => this.createPlatform(scene, 'Ground', x, y)],
-      ['Brick', (scene, x, y) => this.createPlatform(scene, 'Brick', x, y)],
-      ['MysteryBox', (scene, x, y) => this.createPlatform(scene, 'MysteryBox', x, y)],
-      ['Pipe', (scene, x, y) => this.createPlatform(scene, 'Pipe', x, y)],
-      ['Spring', (scene, x, y) => this.createPlatform(scene, 'Spring', x, y)],
-      ['OneWayPlatform', (scene, x, y) => this.createPlatform(scene, 'OneWayPlatform', x, y)],
-      ['MovingPlatform', (scene, x, y) => this.createMovingPlatform(scene, x, y)],
-      ['Switch', (scene, x, y) => scene.physics.add.staticSprite(x, y, 'Switch')],
-      ['Door', (scene, x, y) => this.createPlatform(scene, 'Door', x, y)],
-      ['Checkpoint', (scene, x, y) => scene.physics.add.staticSprite(x, y, 'Checkpoint')],
+      ['Ground', (scene, x, y, options = {}) => this.createPlatform(scene, 'Ground', x, y, options)],
+      ['Brick', (scene, x, y, options = {}) => this.createPlatform(scene, 'Brick', x, y, options)],
+      ['MysteryBox', (scene, x, y, options = {}) => this.createPlatform(scene, 'MysteryBox', x, y, options)],
+      ['Pipe', (scene, x, y, options = {}) => this.createPlatform(scene, 'Pipe', x, y, options)],
+      ['Spring', (scene, x, y, options = {}) => this.createPlatform(scene, 'Spring', x, y, options)],
+      ['OneWayPlatform', (scene, x, y, options = {}) => this.createPlatform(scene, 'OneWayPlatform', x, y, options)],
+      ['MovingPlatform', (scene, x, y, options = {}) => this.createMovingPlatform(scene, x, y, options)],
+      ['Switch', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Switch', x, y, options)],
+      ['Door', (scene, x, y, options = {}) => this.createPlatform(scene, 'Door', x, y, options)],
+      ['Checkpoint', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Checkpoint', x, y, options)],
       ['Goomba', (scene, x, y, options = {}) => this.createEnemy(scene, 'Goomba', x, y, options)],
       ['Koopa', (scene, x, y, options = {}) => this.createEnemy(scene, 'Koopa', x, y, options)],
       ['Bat', (scene, x, y, options = {}) => this.createEnemy(scene, 'Bat', x, y, options)],
-      ['Coin', (scene, x, y) => scene.physics.add.staticSprite(x, y, 'Coin')],
-      ['Flag', (scene, x, y) => scene.physics.add.staticSprite(x, y, 'Flag')],
-      ['Mushroom', (scene, x, y) => scene.physics.add.sprite(x, y, 'Mushroom')],
-      ['Star', (scene, x, y) => scene.physics.add.sprite(x, y, 'Star')],
-      ['ExtraLife', (scene, x, y) => scene.physics.add.sprite(x, y, 'ExtraLife')],
-      ['FireFlower', (scene, x, y) => scene.physics.add.sprite(x, y, 'FireFlower')]
+      ['Coin', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Coin', x, y, options)],
+      ['Flag', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Flag', x, y, options)],
+      ['Mushroom', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Mushroom').setDisplaySize(32, 32)],
+      ['Star', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Star').setDisplaySize(32, 32)],
+      ['ExtraLife', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'ExtraLife').setDisplaySize(32, 32)],
+      ['FireFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'FireFlower').setDisplaySize(32, 32)]
     ]);
   }
 
@@ -53,8 +53,15 @@ export class EntityFactory {
     return createEntity(scene, x, y, options);
   }
 
-  createPlatform(scene, type, x, y) {
-    const platform = scene.add.sprite(x, y, type);
+  createStaticSprite(scene, type, x, y, options = {}) {
+    const sprite = scene.physics.add.staticSprite(x, y, options.textureKey || type);
+    sprite.setDisplaySize(32, 32);
+    sprite.refreshBody();
+    return sprite;
+  }
+
+  createPlatform(scene, type, x, y, options = {}) {
+    const platform = scene.add.sprite(x, y, options.textureKey || type).setDisplaySize(32, 32);
     scene.physics.add.existing(platform, true);
     platform.setData('tileType', type);
     if (type === 'OneWayPlatform') {
@@ -66,8 +73,10 @@ export class EntityFactory {
     return platform;
   }
 
-  createMovingPlatform(scene, x, y) {
-    const platform = scene.physics.add.sprite(x, y, 'MovingPlatform');
+  createMovingPlatform(scene, x, y, options = {}) {
+    const platform = scene.physics.add.sprite(x, y, options.textureKey || 'MovingPlatform')
+      .setDisplaySize(64, 16);
+    platform.body.setSize(64, 16, true);
     platform.setData('tileType', 'MovingPlatform');
     platform.setData('minX', x - 64);
     platform.setData('maxX', x + 64);

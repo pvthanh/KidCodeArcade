@@ -22,21 +22,24 @@ export class Command {
 }
 
 export class PlaceTileCommand extends Command {
-  constructor(row, col, tileType) {
+  constructor(row, col, tileType, variantId = 'classic') {
     super('PlaceTile');
     this.row = row;
     this.col = col;
     this.tileType = tileType;
+    this.variantId = variantId;
     this.previousTileType = null;
+    this.previousVariantId = null;
   }
 
   execute(stateManager) {
     this.previousTileType = stateManager.getTile(this.row, this.col);
-    return stateManager.setTile(this.row, this.col, this.tileType);
+    this.previousVariantId = stateManager.getTileVariant(this.row, this.col);
+    return stateManager.setTile(this.row, this.col, this.tileType, this.variantId);
   }
 
   undo(stateManager) {
-    stateManager.setTile(this.row, this.col, this.previousTileType);
+    stateManager.setTile(this.row, this.col, this.previousTileType, this.previousVariantId || 'classic');
   }
 
   getSummary() {
@@ -54,15 +57,50 @@ export class RemoveTileCommand extends Command {
 
   execute(stateManager) {
     this.previousTileType = stateManager.getTile(this.row, this.col);
+    this.previousVariantId = stateManager.getTileVariant(this.row, this.col);
     return stateManager.setTile(this.row, this.col, null);
   }
 
   undo(stateManager) {
-    stateManager.setTile(this.row, this.col, this.previousTileType);
+    stateManager.setTile(this.row, this.col, this.previousTileType, this.previousVariantId || 'classic');
   }
 
   getSummary() {
     return `Erase tile at (${this.col}, ${this.row})`;
+  }
+}
+
+export class SetTileVariantCommand extends Command {
+  constructor(tileType, variantId, variantName = variantId) {
+    super('SetTileVariant');
+    this.tileType = tileType;
+    this.variantId = variantId;
+    this.variantName = variantName;
+    this.previousVariants = [];
+  }
+
+  execute(stateManager) {
+    this.previousVariants = [];
+    for (let row = 0; row < stateManager.rows; row++) {
+      for (let col = 0; col < stateManager.cols; col++) {
+        if (stateManager.getTile(row, col) !== this.tileType) continue;
+        const previousVariantId = stateManager.getTileVariant(row, col);
+        if (previousVariantId === this.variantId) continue;
+        this.previousVariants.push({ row, col, variantId: previousVariantId });
+        stateManager.setTileVariant(row, col, this.variantId);
+      }
+    }
+    return this.previousVariants.length > 0;
+  }
+
+  undo(stateManager) {
+    for (const cell of this.previousVariants) {
+      stateManager.setTileVariant(cell.row, cell.col, cell.variantId);
+    }
+  }
+
+  getSummary() {
+    return `Change ${this.tileType} appearance to ${this.variantName}`;
   }
 }
 

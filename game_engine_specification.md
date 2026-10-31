@@ -54,8 +54,22 @@ The selectable tools are:
 - **Goal**: Flag.
 - **Editor utility**: Eraser.
 
-Each tile has a built-in fallback preview. Creators can upload replacement
-images. Player and enemy tools provide action-specific sprite upload dialogs.
+Each tile has a built-in fallback preview. Player and enemy tools provide
+action-specific sprite upload dialogs. Static-object tools provide selectable
+visual variants without changing the object's physics or gameplay behavior.
+
+- Ground includes Classic and Ice appearances; Brick includes Classic and
+  Mossy. Other static-object tools start with Classic and support custom images.
+- Choose an appearance before painting to use it for newly placed tiles.
+  **Apply all** changes every matching object in the current level and supports
+  undo/redo.
+- Custom images are PNG, JPEG, or WebP, up to 5 MB and 4096 × 4096 pixels.
+  Images scale to the 32-pixel tile cell. A tile type supports up to 12
+  appearances; custom image data is limited to 20 MB per level.
+- Appearance IDs are stored per cell, while image data and labels live in the
+  level's variant catalog. Level and campaign exports include both, so uploaded
+  appearances survive export/import. Saves are explicit downloads; there is no
+  automatic browser or cloud save.
 
 ### Demo campaign
 
@@ -80,6 +94,10 @@ images. Player and enemy tools provide action-specific sprite upload dialogs.
   and Bat: idle/walk. Each action can have its own sprite sheet and frame
   dimensions/frame rate.
 - Uploaded images and their metadata are included in exported level JSON.
+- The default built-in art uses an original sunny pixel-art theme: an animated
+  chick adventurer, bumble-bug and flower-snail characters, pastel blocks,
+  garden collectibles, and flower-meadow ground. Tile appearance is independent
+  from physics and gameplay behavior.
 
 ## 4. Gameplay specification
 
@@ -89,14 +107,19 @@ images. Player and enemy tools provide action-specific sprite upload dialogs.
 - Jump: **W**, **Up arrow**, or **Space**.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
-- Touch controls provide left, right, and jump buttons and can be repositioned
-  by dragging their handle.
+- Optional touch controls provide left, right, and jump buttons. They are
+  hidden by default; use **Show touch controls** in the game header to enable
+  them. When shown, drag the control panel's handle to reposition it.
 - Escape, the close button, or clicking outside the game window closes play
   mode.
 
 ### Player movement
 
 - The player starts with three lives.
+- Play mode uses a 1.35× camera zoom and crisp pixel-art rendering to make
+  characters and objects easier to see. This changes only the view: tile
+  dimensions and gameplay collision sizes are unchanged. Score, best score,
+  lives, and power information stay visible in a fixed-size HUD.
 - Jump input is buffered for 120 ms and coyote time lasts 120 ms.
 - Releasing jump while rising reduces the remaining jump height; holding jump
   increases height.
@@ -133,6 +156,8 @@ campaign level when one exists, otherwise the campaign can be replayed.
 
 ### Feedback and audio
 
+- A playful synthesized background melody loops during play at 25% master
+  volume and stops when the game closes.
 - Built-in retro tones are synthesized for gameplay events. A configured
   uploaded sound overrides the built-in sound for that event.
 - The sound editor supports independent upload, preview, enable/disable, volume,
@@ -146,12 +171,14 @@ campaign level when one exists, otherwise the campaign can be replayed.
 ## 5. Save data and validation
 
 - An individual level is a JSON world snapshot containing dimensions, tile
-  matrix, active tool, sprite metadata/data URLs, sound metadata/data URLs, and
+  matrix, per-cell tile appearance IDs, visual-variant catalog/data URLs,
+  active tool, sprite metadata/data URLs, sound metadata/data URLs, and
   mystery-box reward.
 - A campaign is JSON with format `little-level-lab-campaign`, version `1`, and
   a `levels` array of `{name, snapshot}`. Campaigns contain 1–50 levels.
 - Import validation checks world dimensions (8–256 columns and 8–40 rows),
-  matrix dimensions, tile IDs, mystery-box reward IDs, and sound metadata.
+  matrix dimensions, tile IDs, visual-variant IDs and image limits,
+  mystery-box reward IDs, and sound metadata.
 - Older world files may omit audio settings or reward selection and use defaults.
 - Best scores are saved per campaign index and level name in browser
   `localStorage`; they are not included in exported files and do not sync across

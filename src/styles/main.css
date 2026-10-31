@@ -254,7 +254,18 @@ button {
   color: #155e9f;
 }
 
-.sprite-upload-input {
+.tile-variant-actions {
+  display: flex;
+  grid-area: action;
+  align-items: center;
+  gap: 5px;
+}
+
+.tile-variant-actions .upload-button {
+  white-space: nowrap;
+}
+
+.tile-variant-actions input[type="file"] {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -263,23 +274,21 @@ button {
   pointer-events: none;
 }
 
-.frame-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 8px;
-  min-width: 0;
-  margin: 0;
-  padding: 6px 0 0;
-  border-top: 1px solid #edf1f4;
-  color: #87949c;
-  font-size: 9px;
+.apply-variant-button {
+  padding: 6px 7px;
+  border: 1px solid #d5e5f1;
+  border-radius: 6px;
+  background: #f2f8fd;
+  color: #286b9f;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.frame-settings {
-  min-width: 0;
-  color: #687d89;
-  font-size: 10px;
+.apply-variant-button:hover {
+  border-color: #91bde0;
+  background: #e6f3fc;
 }
 
 .tile-settings {
@@ -288,6 +297,34 @@ button {
   min-width: 0;
   flex-direction: column;
   gap: 5px;
+}
+
+.variant-select-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: #687d89;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.variant-select-label select {
+  width: min(145px, 68%);
+  min-width: 0;
+  height: 25px;
+  padding: 0 5px;
+  border: 1px solid #e3e9ed;
+  border-radius: 5px;
+  background: #fff;
+  color: #526977;
+  font-size: 10px;
+}
+
+.variant-help {
+  color: #82919a;
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .mystery-reward-settings {
@@ -310,25 +347,6 @@ button {
   background: #fff;
   color: #526977;
   font-size: 10px;
-}
-
-.frame-settings summary {
-  width: fit-content;
-  cursor: pointer;
-  user-select: none;
-}
-
-.frame-settings[open] summary {
-  margin-bottom: 5px;
-}
-
-.frame-settings .frame-controls {
-  padding-top: 5px;
-}
-
-.frame-caption {
-  color: #72838e;
-  font-weight: 600;
 }
 
 .animation-configure {
@@ -524,10 +542,12 @@ button {
   background: #fff;
 }
 
-.game-header > div {
+.game-header > div:first-child {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
+  min-width: 0;
 }
 
 .game-header strong {
@@ -541,13 +561,62 @@ button {
   font-size: 10px;
 }
 
+.game-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-direction: row;
+}
+
+.touch-toggle {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #d6e0e5;
+  border-radius: 8px;
+  background: #f7fafb;
+  color: #294a5d;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .game-close {
+  display: grid;
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: #eff3f5;
   cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .game-header {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .game-header strong {
+    font-size: 13px;
+  }
+
+  .game-header span {
+    font-size: 9px;
+  }
+
+  .game-header-actions {
+    gap: 6px;
+  }
+
+  .touch-toggle {
+    padding: 0 8px;
+    font-size: 10px;
+  }
 }
 
 .game-stage {
@@ -577,6 +646,10 @@ button {
   background: rgb(18 42 57 / 70%);
   touch-action: none;
   user-select: none;
+}
+
+.touch-controls[hidden] {
+  display: none;
 }
 
 .touch-handle {

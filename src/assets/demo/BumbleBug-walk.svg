@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="32" viewBox="0 0 128 32" shape-rendering="crispEdges">
+  <defs><g id="bug">
+    <path fill="#62402d" d="M7 15h3v-4h4V8h9v3h4v4h3v8h-3v4h-5v2h-8v-2H9v-4H6v-5h1z"/>
+    <path fill="#557ea0" d="M9 15h3v-4h4V9h7v3h4v4h2v6h-2v3h-5v2h-7v-2h-4v-4H8v-4h1z"/>
+    <path fill="#8bb4c9" d="M12 15h4v-3h4v2h-2v4h-6zM22 13h3v4h-3z"/>
+    <path fill="#df873e" d="M9 18h5v3h3v4h-4v2h-4v-3H7v-4h2zM23 18h4v3h-2v4h-4v-3h2z"/>
+    <path fill="#62402d" d="M16 13h2v4h-2zM23 13h2v4h-2z"/>
+    <path fill="#fff4ce" d="M16 13h1v2h-1zM23 13h1v2h-1z"/>
+    <path fill="#62402d" d="M12 8h2V5h2v3h-2v2h-2zM21 8h2V5h2v3h-2v2h-2z"/>
+  </g></defs>
+  <use href="#bug" x="0" y="0"/>
+  <g transform="translate(32 0)"><use href="#bug"/><path fill="#62402d" d="M8 27h5v2h-1v2H7v-2h1zM23 26h4v2h2v2h-5v-2h-1z"/></g>
+  <g transform="translate(64 1)"><use href="#bug"/><path fill="#62402d" d="M8 27h5v2h-1v2H7v-2h1zM23 26h4v2h2v2h-5v-2h-1z"/></g>
+  <use href="#bug" x="96" y="0"/>
+</svg>

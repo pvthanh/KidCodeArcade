@@ -44,6 +44,14 @@ export class GameScene extends Scene {
       }
     }
 
+    for (const [tileType, variants] of Object.entries(this.worldSnapshot.tileVariantCatalog || {})) {
+      variants.forEach(variant => {
+        if (variant.dataUrl) {
+          this.load.image(`${tileType}--variant--${variant.id}`, variant.dataUrl);
+        }
+      });
+    }
+
     for (const [entityType, metadata] of Object.entries(this.worldSnapshot.spriteMetadata || {})) {
       for (const [animationType, animation] of Object.entries(metadata.animations || {})) {
         const key = `${entityType}-${animationType}`;
@@ -66,6 +74,7 @@ export class GameScene extends Scene {
     this.entityFactory.createTextures(this);
     this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+    this.cameras.main.setZoom(1.35);
     this.createBackdrop();
 
     const platforms = this.physics.add.staticGroup();
@@ -93,8 +102,17 @@ export class GameScene extends Scene {
         }
         const animations = this.worldSnapshot.spriteMetadata?.[tileType]?.animations || {};
         const animationType = animations.idle ? 'idle' : animations.walk ? 'walk' : null;
+        const variantId = this.worldSnapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic';
+        const variant = this.worldSnapshot.tileVariantCatalog?.[tileType]
+          ?.find(item => item.id === variantId);
+        const legacyCustomSprite = variantId === 'classic' &&
+          this.worldSnapshot.spriteMetadata?.[tileType]?.fileName;
         const entity = this.entityFactory.create(this, tileType, x, y, {
-          textureKey: animationType ? `${tileType}-${animationType}` : undefined
+          textureKey: legacyCustomSprite
+            ? tileType
+            : variant?.dataUrl
+            ? `${tileType}--variant--${variant.id}`
+            : animationType ? `${tileType}-${animationType}` : undefined
         });
         if (this.worldSnapshot.spriteMetadata?.[tileType]?.frames > 1) {
           animatedEntities.push({ entity, tileType });
@@ -199,13 +217,16 @@ export class GameScene extends Scene {
     });
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setRoundPixels(true);
-    this.scoreLabel = this.add.text(16, 16, '', {
+    const camera = this.cameras.main;
+    const hudX = camera.centerX + (16 - camera.centerX) / camera.zoom;
+    const hudY = camera.centerY + (16 - camera.centerY) / camera.zoom;
+    this.scoreLabel = this.add.text(hudX, hudY, '', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '18px',
       color: '#ffffff',
       backgroundColor: '#15334dcc',
       padding: { x: 10, y: 6 }
-    }).setScrollFactor(0).setDepth(10);
+    }).setScrollFactor(0).setScale(1 / camera.zoom).setDepth(10);
     this.updateHud();
     this.spriteAnimator.createAnimations(this, this.worldSnapshot.spriteMetadata || {});
     animatedEntities.forEach(({ entity, tileType }) => this.spriteAnimator.animate(entity, tileType));
@@ -231,12 +252,21 @@ export class GameScene extends Scene {
     context.beginPath();
     context.arc(760, 114, 42, 0, Math.PI * 2);
     context.fill();
+    context.fillStyle = '#ffe08a';
+    for (const [x, y] of [[760, 58], [760, 170], [704, 114], [816, 114], [720, 74], [800, 154], [800, 74], [720, 154]]) {
+      context.fillRect(x - 2, y - 2, 4, 4);
+    }
 
     context.fillStyle = 'rgb(255 255 255 / 72%)';
     for (const [x, y] of [[85, 100], [385, 145], [625, 72], [860, 178]]) {
       context.fillRect(x, y + 12, 72, 18);
       context.fillRect(x + 14, y, 44, 18);
       context.fillRect(x + 26, y + 26, 34, 8);
+      context.fillStyle = '#537e94';
+      context.fillRect(x + 28, y + 15, 3, 3);
+      context.fillRect(x + 40, y + 15, 3, 3);
+      context.fillRect(x + 33, y + 21, 6, 2);
+      context.fillStyle = 'rgb(255 255 255 / 72%)';
     }
 
     context.fillStyle = '#a4cfaa';
@@ -267,6 +297,23 @@ export class GameScene extends Scene {
       context.fillRect(x + 5, y, 18, 14);
       context.fillStyle = '#78b877';
       context.fillRect(x + 5, y + 10, 8, 5);
+    }
+
+    for (const [x, y, petal] of [
+      [48, 438, '#fff0bd'], [205, 460, '#f2a6bd'], [355, 437, '#fff0bd'],
+      [470, 466, '#f2a6bd'], [690, 440, '#fff0bd'], [925, 454, '#f2a6bd']
+    ]) {
+      context.fillStyle = '#4f945a';
+      context.fillRect(x + 5, y + 5, 2, 12);
+      context.fillRect(x + 1, y + 10, 5, 2);
+      context.fillRect(x + 7, y + 12, 5, 2);
+      context.fillStyle = petal;
+      context.fillRect(x + 3, y, 3, 3);
+      context.fillRect(x, y + 3, 3, 3);
+      context.fillRect(x + 6, y + 3, 3, 3);
+      context.fillRect(x + 3, y + 6, 3, 3);
+      context.fillStyle = '#f2c64f';
+      context.fillRect(x + 3, y + 3, 3, 3);
     }
 
     texture.refresh();

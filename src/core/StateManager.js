@@ -1,22 +1,24 @@
-import playerSprite from '../assets/demo/Player.svg?inline';
-import groundSprite from '../assets/demo/Ground.svg?inline';
-import brickSprite from '../assets/demo/Brick.svg?inline';
-import mysteryBoxSprite from '../assets/demo/MysteryBox.svg?inline';
+import playerSprite from '../assets/demo/SunnyHero.svg?inline';
+import groundSprite from '../assets/demo/MeadowGround.svg?inline';
+import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
+import mysteryBoxSprite from '../assets/demo/SunnyMysteryBox.svg?inline';
 import pipeSprite from '../assets/demo/Pipe.svg?inline';
-import goombaSprite from '../assets/demo/Goomba.svg?inline';
-import koopaSprite from '../assets/demo/Koopa.svg?inline';
+import goombaSprite from '../assets/demo/BumbleBug.svg?inline';
+import koopaSprite from '../assets/demo/FlowerSnail.svg?inline';
 import batSprite from '../assets/demo/Bat.svg?inline';
-import coinSprite from '../assets/demo/Coin.svg?inline';
+import coinSprite from '../assets/demo/SunnyCoin.svg?inline';
 import flagSprite from '../assets/demo/Flag.svg?inline';
-import mushroomSprite from '../assets/demo/Mushroom.svg?inline';
-import starSprite from '../assets/demo/Star.svg?inline';
-import extraLifeSprite from '../assets/demo/ExtraLife.svg?inline';
-import playerIdle from '../assets/demo/Player-idle.svg?inline';
-import playerWalk from '../assets/demo/Player-walk.svg?inline';
-import playerRun from '../assets/demo/Player-run.svg?inline';
-import playerJump from '../assets/demo/Player-jump.svg?inline';
-import goombaIdle from '../assets/demo/Goomba-idle.svg?inline';
-import goombaWalk from '../assets/demo/Goomba-walk.svg?inline';
+import mushroomSprite from '../assets/demo/SunnyMushroom.svg?inline';
+import starSprite from '../assets/demo/SunnyStar.svg?inline';
+import extraLifeSprite from '../assets/demo/SunnyHeart.svg?inline';
+import iceGroundSprite from '../assets/demo/Ground-Ice.svg?inline';
+import mossBrickSprite from '../assets/demo/Brick-Moss.svg?inline';
+import playerIdle from '../assets/demo/SunnyHero-idle.svg?inline';
+import playerWalk from '../assets/demo/SunnyHero-walk.svg?inline';
+import playerRun from '../assets/demo/SunnyHero-run.svg?inline';
+import playerJump from '../assets/demo/SunnyHero-jump.svg?inline';
+import goombaIdle from '../assets/demo/BumbleBug.svg?inline';
+import goombaWalk from '../assets/demo/BumbleBug-walk.svg?inline';
 
 const MIN_COLS = 8;
 const MAX_COLS = 256;
@@ -27,6 +29,10 @@ const TILE_TYPES = [
   'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', 'Goomba', 'Koopa', 'Bat', 'Coin', 'Flag',
   'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
+const TILE_VARIANT_TYPES = [
+  'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
+  'Switch', 'Door', 'Checkpoint', 'Coin', 'Flag', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
+];
 const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower'];
 const SOUND_EVENTS = [
   'jump', 'enemyStomp', 'playerHit', 'coin', 'powerUp', 'brickBreak', 'mysteryBox',
@@ -35,15 +41,15 @@ const SOUND_EVENTS = [
 const DEMO_COLS = 96;
 const DEMO_ROWS = 18;
 
-const builtinAnimation = (dataUrl, fileName, frameRate) => ({
+const builtinAnimation = (dataUrl, fileName, frameRate, imageWidth = 128, imageHeight = 32) => ({
   dataUrl,
   fileName,
   fileType: 'image/svg+xml',
-  imageWidth: 128,
-  imageHeight: 32,
+  imageWidth,
+  imageHeight,
   frameWidth: 32,
   frameHeight: 32,
-  frameCount: 4,
+  frameCount: imageWidth / 32,
   frameRate
 });
 
@@ -63,6 +69,46 @@ const BUILTIN_SPRITES = {
   ExtraLife: { dataUrl: extraLifeSprite }
 };
 
+const builtinVariant = (id, name, dataUrl, fileName = null) => ({
+  id,
+  name,
+  dataUrl,
+  fileName,
+  fileType: dataUrl ? 'image/svg+xml' : null,
+  imageWidth: 32,
+  imageHeight: 32,
+  frameWidth: 32,
+  frameHeight: 32
+});
+
+const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType => [
+  tileType,
+  [builtinVariant(
+    'classic',
+    tileType === 'Ground' ? 'Sunny meadow' : tileType === 'Brick' ? 'Pastel brick' : 'Classic',
+    BUILTIN_SPRITES[tileType]?.dataUrl || null
+  )]
+]));
+BUILTIN_TILE_VARIANTS.Ground.push(builtinVariant('ice', 'Ice', iceGroundSprite, 'Ground-Ice.svg'));
+BUILTIN_TILE_VARIANTS.Brick.push(builtinVariant('moss', 'Mossy', mossBrickSprite, 'Brick-Moss.svg'));
+
+const clone = value => JSON.parse(JSON.stringify(value));
+const mergeVariantCatalog = catalog => {
+  const merged = clone(BUILTIN_TILE_VARIANTS);
+  for (const [tileType, variants] of Object.entries(catalog || {})) {
+    if (!TILE_VARIANT_TYPES.includes(tileType) || !Array.isArray(variants)) continue;
+    const byId = new Map(merged[tileType].map(variant => [variant.id, variant]));
+    for (const variant of variants) {
+      if (!byId.has(variant.id)) byId.set(variant.id, variant);
+    }
+    merged[tileType] = [...byId.values()];
+  }
+  return merged;
+};
+const MAX_VARIANTS_PER_TILE = 12;
+const MAX_VARIANT_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_VARIANT_IMAGES_BYTES = 20 * 1024 * 1024;
+
 BUILTIN_SPRITES.Player.animations = {
   idle: builtinAnimation(playerIdle, 'Player-idle.svg', 4),
   walk: builtinAnimation(playerWalk, 'Player-walk.svg', 8),
@@ -70,8 +116,8 @@ BUILTIN_SPRITES.Player.animations = {
   jump: builtinAnimation(playerJump, 'Player-jump.svg', 8)
 };
 BUILTIN_SPRITES.Goomba.animations = {
-  idle: builtinAnimation(goombaIdle, 'Goomba-idle.svg', 4),
-  walk: builtinAnimation(goombaWalk, 'Goomba-walk.svg', 7)
+  idle: builtinAnimation(goombaIdle, 'BumbleBug.svg', 4, 32, 32),
+  walk: builtinAnimation(goombaWalk, 'BumbleBug-walk.svg', 7)
 };
 
 export class StateManager {
@@ -80,6 +126,9 @@ export class StateManager {
     this.rows = 15;
     this.tileSize = 32;
     this.tiles = [];
+    this.tileVariants = [];
+    this.tileVariantCatalog = clone(BUILTIN_TILE_VARIANTS);
+    this.selectedTileVariants = Object.fromEntries(TILE_VARIANT_TYPES.map(type => [type, 'classic']));
     this.spriteMetadata = JSON.parse(JSON.stringify(BUILTIN_SPRITES));
     this.soundEffects = {};
     this.mysteryBoxReward = 'Mushroom';
@@ -92,13 +141,17 @@ export class StateManager {
     this.tiles = Array.from({ length: this.rows }, (_, row) =>
       Array.from({ length: this.cols }, () => (row === this.rows - 1 ? 'Ground' : null))
     );
+    this.tileVariants = this.tiles.map(row => row.map(tile => tile ? 'classic' : null));
   }
 
   loadDemo() {
     this.cols = DEMO_COLS;
     this.rows = DEMO_ROWS;
     this.initGrid();
-    const put = (row, col, type) => { this.tiles[row][col] = type; };
+    const put = (row, col, type) => {
+      this.tiles[row][col] = type;
+      this.tileVariants[row][col] = type ? 'classic' : null;
+    };
 
     put(16, 2, 'Player');
     for (const col of [30, 31, 62, 63, 83, 84]) put(17, col, null);
@@ -140,7 +193,10 @@ export class StateManager {
     this.cols = 72;
     this.rows = 18;
     this.initGrid();
-    const put = (row, col, type) => { this.tiles[row][col] = type; };
+    const put = (row, col, type) => {
+      this.tiles[row][col] = type;
+      this.tileVariants[row][col] = type ? 'classic' : null;
+    };
 
     put(16, 2, 'Player');
     for (const col of [19, 20, 42, 43, 61]) put(17, col, null);
@@ -180,8 +236,16 @@ export class StateManager {
     }
 
     const previousTiles = this.tiles;
+    const previousTileVariants = this.tileVariants;
     this.tiles = Array.from({ length: rows }, (_, row) =>
       Array.from({ length: cols }, (_, col) => previousTiles[row]?.[col] ?? (row === rows - 1 ? 'Ground' : null))
+    );
+    this.tileVariants = this.tiles.map((tileRow, row) =>
+      tileRow.map((tile, col) => tile
+        ? previousTiles[row]?.[col]
+          ? previousTileVariants[row]?.[col] || 'classic'
+          : 'classic'
+        : null)
     );
     this.cols = cols;
     this.rows = rows;
@@ -192,11 +256,73 @@ export class StateManager {
     return this.tiles[row][col];
   }
 
-  setTile(row, col, type) {
+  setTile(row, col, type, variantId = 'classic') {
     if (!Number.isInteger(row) || !Number.isInteger(col) ||
       row < 0 || row >= this.rows || col < 0 || col >= this.cols) return false;
-    if (this.tiles[row][col] === type) return false;
+    const nextVariant = type ? variantId : null;
+    if (type && TILE_VARIANT_TYPES.includes(type) &&
+      !this.tileVariantCatalog[type]?.some(variant => variant.id === nextVariant)) {
+      throw new RangeError(`Unknown ${type} visual variant "${nextVariant}".`);
+    }
+    if (this.tiles[row][col] === type && this.tileVariants[row][col] === nextVariant) return false;
     this.tiles[row][col] = type;
+    this.tileVariants[row][col] = nextVariant;
+    return true;
+  }
+
+  getTileVariant(row, col) {
+    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols || !this.tiles[row][col]) return null;
+    return this.tileVariants[row]?.[col] || 'classic';
+  }
+
+  getSelectedTileVariant(tileType) {
+    return this.selectedTileVariants[tileType] || 'classic';
+  }
+
+  selectTileVariant(tileType, variantId) {
+    if (!TILE_VARIANT_TYPES.includes(tileType) ||
+      !this.tileVariantCatalog[tileType]?.some(variant => variant.id === variantId)) return false;
+    this.selectedTileVariants[tileType] = variantId;
+    return true;
+  }
+
+  registerTileVariant(tileType, metadata) {
+    if (!TILE_VARIANT_TYPES.includes(tileType)) throw new TypeError(`"${tileType}" does not support image variants.`);
+    if (typeof metadata?.id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(metadata.id)) {
+      throw new TypeError('The tile appearance needs a valid identifier.');
+    }
+    if (typeof metadata.name !== 'string' || !metadata.name.trim()) {
+      throw new TypeError('The tile appearance needs a name.');
+    }
+    if (typeof metadata.dataUrl !== 'string' || !metadata.dataUrl.startsWith('data:image/')) {
+      throw new TypeError('The uploaded tile appearance does not contain valid image data.');
+    }
+    const variants = this.tileVariantCatalog[tileType];
+    if (variants.some(variant => variant.id === metadata.id)) {
+      throw new RangeError(`The ${tileType} variant "${metadata.name}" already exists.`);
+    }
+    if (variants.length >= MAX_VARIANTS_PER_TILE) {
+      throw new RangeError(`A tile can have up to ${MAX_VARIANTS_PER_TILE} visual variants.`);
+    }
+    if (metadata.dataUrl.length > MAX_VARIANT_IMAGE_BYTES * 1.4) {
+      throw new RangeError('Each uploaded tile image must be 5 MB or smaller.');
+    }
+    const currentBytes = Object.values(this.tileVariantCatalog)
+      .flat()
+      .reduce((total, variant) => total + (variant.dataUrl?.length || 0), 0);
+    if (currentBytes + metadata.dataUrl.length > MAX_VARIANT_IMAGES_BYTES * 1.4) {
+      throw new RangeError('Uploaded tile images may use up to 20 MB in total per level.');
+    }
+    variants.push({ ...metadata, name: metadata.name.trim().slice(0, 40), registeredAt: Date.now() });
+    return true;
+  }
+
+  setTileVariant(row, col, variantId) {
+    const tileType = this.getTile(row, col);
+    if (!tileType || !TILE_VARIANT_TYPES.includes(tileType) ||
+      !this.tileVariantCatalog[tileType]?.some(variant => variant.id === variantId)) return false;
+    if (this.tileVariants[row][col] === variantId) return false;
+    this.tileVariants[row][col] = variantId;
     return true;
   }
 
@@ -266,8 +392,11 @@ export class StateManager {
       cols: this.cols,
       rows: this.rows,
       tiles: this.tiles.map(row => [...row]),
+      tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
       spriteMetadata: JSON.parse(JSON.stringify(this.spriteMetadata)),
+      tileVariantCatalog: clone(this.tileVariantCatalog),
+      selectedTileVariants: { ...this.selectedTileVariants },
       soundEffects: JSON.parse(JSON.stringify(this.soundEffects)),
       mysteryBoxReward: this.mysteryBoxReward
     };
@@ -278,6 +407,13 @@ export class StateManager {
     this.cols = snapshot.cols;
     this.rows = snapshot.rows;
     this.tiles = snapshot.tiles.map(row => [...row]);
+    this.tileVariantCatalog = mergeVariantCatalog(snapshot.tileVariantCatalog);
+    this.tileVariants = this.tiles.map((row, rowIndex) => row.map((tile, colIndex) =>
+      tile ? snapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic' : null));
+    this.selectedTileVariants = Object.fromEntries(TILE_VARIANT_TYPES.map(type => {
+      const selected = snapshot.selectedTileVariants?.[type];
+      return [type, this.tileVariantCatalog[type].some(variant => variant.id === selected) ? selected : 'classic'];
+    }));
     this.activeTileType = [...TILE_TYPES, 'Eraser'].includes(snapshot.activeTileType)
       ? snapshot.activeTileType
       : 'Ground';
@@ -301,6 +437,64 @@ export class StateManager {
     if (data.tiles.some(row => row.some(tile => tile !== null && !TILE_TYPES.includes(tile)))) {
       throw new TypeError('The level file contains an unknown tile type.');
     }
+    if (data.tileVariantCatalog !== undefined) {
+      if (!data.tileVariantCatalog || typeof data.tileVariantCatalog !== 'object' ||
+        Array.isArray(data.tileVariantCatalog)) {
+        throw new TypeError('The level file contains invalid tile visual variants.');
+      }
+      let totalImageBytes = 0;
+      for (const [tileType, variants] of Object.entries(data.tileVariantCatalog)) {
+        if (!TILE_VARIANT_TYPES.includes(tileType) || !Array.isArray(variants) ||
+          variants.length > MAX_VARIANTS_PER_TILE) {
+          throw new TypeError(`The level file contains invalid visual variants for "${tileType}".`);
+        }
+        const ids = new Set();
+        for (const variant of variants) {
+          if (typeof variant?.id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(variant.id) ||
+            ids.has(variant.id) || typeof variant.name !== 'string' ||
+            !variant.name.trim() || variant.name.length > 40 ||
+            (variant.dataUrl !== null && variant.dataUrl !== undefined &&
+              (typeof variant.dataUrl !== 'string' || !variant.dataUrl.startsWith('data:image/'))) ||
+            (variant.id.startsWith('custom-') && !variant.dataUrl)) {
+            throw new TypeError(`The level file contains an invalid ${tileType} visual variant.`);
+          }
+          ids.add(variant.id);
+          const imageDataLength = variant.dataUrl?.length || 0;
+          if (imageDataLength > MAX_VARIANT_IMAGE_BYTES * 1.4) {
+            throw new RangeError(`A ${tileType} image exceeds the 5 MB limit.`);
+          }
+          totalImageBytes += imageDataLength;
+          if (totalImageBytes > MAX_VARIANT_IMAGES_BYTES * 1.4) {
+            throw new RangeError('The level file contains more than 20 MB of tile images.');
+          }
+        }
+      }
+    }
+    const catalog = mergeVariantCatalog(data.tileVariantCatalog);
+    if (data.tileVariants !== undefined &&
+      (!Array.isArray(data.tileVariants) || data.tileVariants.length !== data.rows ||
+        data.tileVariants.some(row => !Array.isArray(row) || row.length !== data.cols))) {
+      throw new TypeError('The level file has invalid tile visual data.');
+    }
+    data.tiles.forEach((row, rowIndex) => row.forEach((tileType, colIndex) => {
+      const variantId = data.tileVariants?.[rowIndex]?.[colIndex];
+      if (!tileType && variantId != null) {
+        throw new TypeError('Empty cells cannot have a tile visual variant.');
+      }
+      if (tileType && TILE_VARIANT_TYPES.includes(tileType) && variantId != null &&
+        !catalog[tileType].some(variant => variant.id === variantId)) {
+        throw new TypeError(`The level file references an unknown ${tileType} visual variant.`);
+      }
+    }));
+    if (data.selectedTileVariants !== undefined) {
+      if (!data.selectedTileVariants || typeof data.selectedTileVariants !== 'object' ||
+        Array.isArray(data.selectedTileVariants) ||
+        Object.entries(data.selectedTileVariants).some(([type, variantId]) =>
+          !TILE_VARIANT_TYPES.includes(type) ||
+          !catalog[type].some(variant => variant.id === variantId))) {
+        throw new TypeError('The level file contains invalid selected tile variants.');
+      }
+    }
     if (data.mysteryBoxReward !== undefined && !POWER_UP_TYPES.includes(data.mysteryBoxReward)) {
       throw new TypeError('The level file contains an unsupported mystery-box reward.');
     }
@@ -320,6 +514,7 @@ export class StateManager {
 
   clearGrid() {
     this.tiles = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
+    this.tileVariants = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
   }
 
   isSolid(tileType) {
@@ -377,6 +572,7 @@ export class StateManager {
     this.tiles = grid.map((row, r) =>
       Array.from({ length: cols }, (_, c) => row[c] ?? (r === grid.length - 1 ? 'Ground' : null))
     );
+    this.tileVariants = this.tiles.map(row => row.map(tile => tile ? 'classic' : null));
     return true;
   }
 }

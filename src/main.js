@@ -1,7 +1,12 @@
 import { AUTO, Game, Scale } from 'phaser';
 import './styles/main.css';
 import { StateManager } from './core/StateManager.js';
-import { CommandManager, PlaceTileCommand, RemoveTileCommand } from './core/CommandManager.js';
+import {
+  CommandManager,
+  PlaceTileCommand,
+  RemoveTileCommand,
+  SetTileVariantCommand
+} from './core/CommandManager.js';
 import { EventBus } from './core/EventBus.js';
 import { PaletteView } from './editor/PaletteView.js';
 import { GridCanvas } from './editor/GridCanvas.js';
@@ -43,6 +48,35 @@ eventBus.on('tileSelected', tileId => {
   stateManager.activeTileType = tileId;
 });
 
+eventBus.on('tileVariantSelected', ({ tileId, variantId }) => {
+  if (!stateManager.selectTileVariant(tileId, variantId)) {
+    eventBus.emit('status', `Could not select the ${tileId} appearance.`);
+  }
+});
+
+eventBus.on('getTileVariants', () => {
+  eventBus.emit('tileVariantsChanged', {
+    catalog: stateManager.tileVariantCatalog,
+    selectedTileVariants: stateManager.selectedTileVariants
+  });
+});
+
+eventBus.on('applyTileVariantToAll', ({ tileId, variantId }) => {
+  if (!stateManager.tileVariantCatalog[tileId]?.some(variant => variant.id === variantId)) {
+    eventBus.emit('status', `The selected ${tileId} appearance is not available.`);
+    return;
+  }
+  const variant = stateManager.tileVariantCatalog[tileId].find(item => item.id === variantId);
+  const command = new SetTileVariantCommand(tileId, variantId, variant.name);
+  if (!commandManager.executeWithManager(command, stateManager)) {
+    eventBus.emit('status', `No ${tileId} tiles need that appearance.`);
+    return;
+  }
+  gridCanvas.refresh();
+  uiOverlayEditor.updateHistory();
+  eventBus.emit('status', `Updated all ${tileId} tiles. You can undo this change.`);
+});
+
 eventBus.on('mysteryBoxRewardSelected', rewardType => {
   stateManager.mysteryBoxReward = rewardType;
   gridCanvas.refresh();
@@ -66,7 +100,12 @@ eventBus.on('paintTile', ({ row, col }) => {
   }
   const command = stateManager.activeTileType === 'Eraser'
     ? new RemoveTileCommand(row, col)
-    : new PlaceTileCommand(row, col, stateManager.activeTileType);
+    : new PlaceTileCommand(
+      row,
+      col,
+      stateManager.activeTileType,
+      stateManager.getSelectedTileVariant(stateManager.activeTileType)
+    );
   if (!commandManager.executeWithManager(command, stateManager)) return;
   gridCanvas.refresh();
   uiOverlayEditor.updateHistory();
@@ -116,6 +155,25 @@ eventBus.on('spriteAnimationUploaded', metadata => {
     console.error('Could not register the uploaded animation:', error);
     eventBus.emit('status', error.message);
   }
+});
+
+eventBus.on('tileVariantUploaded', ({ tileId, variant }) => {
+  try {
+    stateManager.registerTileVariant(tileId, variant);
+    eventBus.emit('tileVariantsChanged', {
+      catalog: stateManager.tileVariantCatalog,
+      selectedTileVariants: stateManager.selectedTileVariants
+    });
+    gridCanvas.refresh();
+  } catch (error) {
+    console.error('Could not register the tile appearance:', error);
+    throw error;
+  }
+});
+
+eventBus.emit('tileVariantsChanged', {
+  catalog: stateManager.tileVariantCatalog,
+  selectedTileVariants: stateManager.selectedTileVariants
 });
 
 eventBus.on('getAnimationMetadata', entityType => {
@@ -175,11 +233,16 @@ function startGame() {
     <div class="game-window">
       <header class="game-header">
         <div><strong>Play your level</strong><span>Move with arrows or A/D · Jump with W, ↑ or Space</span></div>
-        <button class="game-close" type="button" aria-label="Close game">✕</button>
+        <div class="game-header-actions">
+          <button class="touch-toggle" type="button" aria-controls="touch-controls" aria-expanded="false">
+            Show touch controls
+          </button>
+          <button class="game-close" type="button" aria-label="Close game">✕</button>
+        </div>
       </header>
       <div id="game-stage" class="game-stage"></div>
-      <div id="touch-controls" class="touch-controls">
-        <div class="touch-handle">DRAG CONTROLS</div>
+      <div id="touch-controls" class="touch-controls" hidden>
+        <div class="touch-handle">MOVE CONTROLS</div>
         <div class="touch-buttons">
           <button type="button" data-control="left" aria-label="Move left">◀</button>
           <button type="button" data-control="right" aria-label="Move right">▶</button>
@@ -205,6 +268,13 @@ function startGame() {
 
   touchState = { left: false, right: false, jump: false };
   const touchPanel = activeModal.querySelector('#touch-controls');
+  const touchToggle = activeModal.querySelector('.touch-toggle');
+  touchToggle.addEventListener('click', () => {
+    touchPanel.hidden = !touchPanel.hidden;
+    touchToggle.setAttribute('aria-expanded', String(!touchPanel.hidden));
+    touchToggle.textContent = touchPanel.hidden ? 'Show touch controls' : 'Hide touch controls';
+    if (touchPanel.hidden) Object.assign(touchState, { left: false, right: false, jump: false });
+  });
   makeDraggable(touchPanel, touchPanel.querySelector('.touch-handle'));
   touchPanel.querySelectorAll('[data-control]').forEach(button => {
     const control = button.dataset.control;
@@ -272,12 +342,14 @@ function createGameInstance(snapshot, levelName, levelIndex) {
     eventBus,
     recordId
   );
+  scene.soundManager.startMusic();
   activeGame = new Game({
     type: AUTO,
     parent: 'game-stage',
     width: 960,
     height: 540,
     backgroundColor: '#98d6f2',
+    pixelArt: true,
     physics: {
       default: 'arcade',
       arcade: { gravity: { y: 800 }, debug: false }

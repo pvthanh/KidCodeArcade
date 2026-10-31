@@ -57,13 +57,25 @@ export class PaletteView {
     this.eventBus = eventBus;
     this.tileTypes = TILES.map(tile => ({ ...tile }));
     this.selectedTileId = 'Ground';
+    this.tileVariantCatalog = {};
+    this.selectedTileVariants = {};
     this.renderPalette();
     this.bindEvents();
     this.selectTile('Ground');
+    this.eventBus.emit('getTileVariants');
   }
 
   bindEvents() {
     this.container.addEventListener('click', event => {
+      const applyVariantButton = event.target.closest('[data-apply-variant]');
+      if (applyVariantButton) {
+        event.stopPropagation();
+        const tileId = applyVariantButton.dataset.tileId;
+        const variantId = this.container.querySelector(`[data-variant-select="${tileId}"]`).value;
+        this.eventBus.emit('applyTileVariantToAll', { tileId, variantId });
+        return;
+      }
+
       if (event.target.closest('#btn-undo')) {
         this.eventBus.emit('undo');
         return;
@@ -88,19 +100,26 @@ export class PaletteView {
     });
 
     this.container.addEventListener('change', event => {
+      const variantSelect = event.target.closest('[data-variant-select]');
+      if (variantSelect) {
+        const tileId = variantSelect.dataset.variantSelect;
+        this.selectTile(tileId, { configure: false });
+        this.selectedTileVariants[tileId] = variantSelect.value;
+        this.updateTilePreview(tileId, variantSelect.value);
+        this.eventBus.emit('tileVariantSelected', { tileId, variantId: variantSelect.value });
+        return;
+      }
+
       const rewardSelect = event.target.closest('[data-mystery-reward]');
       if (rewardSelect) {
         this.eventBus.emit('mysteryBoxRewardSelected', rewardSelect.value);
         return;
       }
 
-      const input = event.target.closest('.sprite-upload-input');
-      if (!input || !input.files?.[0]) return;
-      const card = input.closest('.tile-item');
-      const frameWidth = Number(card.querySelector('[data-frame-width]').value) || null;
-      const frameHeight = Number(card.querySelector('[data-frame-height]').value) || null;
-      this.handleSpriteUpload(input.dataset.tileId, input.files[0], frameWidth, frameHeight);
-      input.value = '';
+      const variantInput = event.target.closest('[data-variant-upload]');
+      if (!variantInput || !variantInput.files?.[0]) return;
+      this.handleTileVariantUpload(variantInput.dataset.variantUpload, variantInput.files[0]);
+      variantInput.value = '';
     });
 
     this.eventBus.on('historyChanged', ({ canUndo, canRedo }) => {
@@ -110,6 +129,18 @@ export class PaletteView {
     this.eventBus.on('levelLoaded', ({ mysteryBoxReward = 'Mushroom' } = {}) => {
       const rewardSelect = this.container.querySelector('[data-mystery-reward]');
       if (rewardSelect) rewardSelect.value = mysteryBoxReward;
+    });
+    this.eventBus.on('tileVariantsChanged', ({ catalog, selectedTileVariants = {} } = {}) => {
+      this.tileVariantCatalog = catalog || {};
+      this.selectedTileVariants = { ...selectedTileVariants };
+      this.container.querySelectorAll('[data-variant-select]').forEach(select => {
+        const tileId = select.dataset.variantSelect;
+        const variants = this.tileVariantCatalog[tileId] || [];
+        select.replaceChildren(...variants.map(variant => new Option(variant.name, variant.id)));
+        const selected = this.selectedTileVariants[tileId] || 'classic';
+        select.value = variants.some(variant => variant.id === selected) ? selected : 'classic';
+        this.updateTilePreview(tileId, select.value);
+      });
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => {
       const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`);
@@ -157,6 +188,7 @@ export class PaletteView {
       <div class="tiles-container">
         ${this.tileTypes.map(tile => {
           const animated = Boolean(ANIMATIONS[tile.id]);
+          const configurable = !animated && tile.id !== 'Player';
           return `
             <article class="tile-item" data-tile-id="${tile.id}">
               <button class="tile-select" type="button" aria-pressed="false">
@@ -168,20 +200,20 @@ export class PaletteView {
               </button>
               ${animated
                 ? `<button class="animation-configure" type="button" data-tile-id="${tile.id}">Motion</button>`
-                : `
-                  <label class="upload-button" title="Upload a custom sprite">
-                    <span>Upload</span>
-                    <input type="file" class="sprite-upload-input" data-tile-id="${tile.id}" accept="image/png,image/jpeg,image/webp">
-                  </label>
+                : configurable ? `
+                  <div class="tile-variant-actions">
+                    <label class="upload-button" title="Add another image for this tile">
+                      <span>＋ Image</span>
+                      <input type="file" data-variant-upload="${tile.id}" accept="image/png,image/jpeg,image/webp">
+                    </label>
+                    <button class="apply-variant-button" type="button" data-apply-variant data-tile-id="${tile.id}" title="Apply this appearance to all ${tile.name} tiles">Apply all</button>
+                  </div>
                   <div class="tile-settings">
-                    <details class="frame-settings">
-                      <summary title="Set how a sprite sheet is divided into individual images.">Frame size</summary>
-                      <div class="frame-controls" aria-label="Sprite frame size">
-                        <span class="frame-caption">One sprite's size in pixels</span>
-                        <label>W <input data-frame-width type="number" min="1" max="2048" placeholder="auto" aria-label="Sprite frame width in pixels"></label>
-                        <label>H <input data-frame-height type="number" min="1" max="2048" placeholder="auto" aria-label="Sprite frame height in pixels"></label>
-                      </div>
-                    </details>
+                    <label class="variant-select-label">
+                      Appearance
+                      <select data-variant-select="${tile.id}" aria-label="${tile.name} appearance"></select>
+                    </label>
+                    <span class="variant-help">Choose the look to paint; use Apply all for existing tiles.</span>
                     ${tile.id === 'MysteryBox' ? `
                       <label class="mystery-reward-settings">
                         Reward for all boxes
@@ -193,7 +225,7 @@ export class PaletteView {
                       </label>
                     ` : ''}
                   </div>
-                `}
+                ` : ''}
             </article>
           `;
         }).join('')}
@@ -351,14 +383,12 @@ export class PaletteView {
     }
   }
 
-  async handleSpriteUpload(tileId, file, requestedFrameWidth, requestedFrameHeight) {
-    if (!file.type.startsWith('image/')) {
-      this.eventBus.emit('status', 'Choose an image file to upload.');
-      return;
-    }
+  async handleTileVariantUpload(tileId, file) {
     const card = this.container.querySelector(`.tile-item[data-tile-id="${tileId}"]`);
     card?.classList.add('loading');
     try {
+      if (!file.type.startsWith('image/')) throw new TypeError('Choose an image file to add a tile appearance.');
+      if (file.size > 5 * 1024 * 1024) throw new RangeError('Choose an image that is 5 MB or smaller.');
       const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -371,35 +401,53 @@ export class PaletteView {
         img.onerror = () => reject(new Error('The selected file is not a supported image.'));
         img.src = dataUrl;
       });
-      const frameWidth = requestedFrameWidth || Math.min(32, image.naturalWidth);
-      const frameHeight = requestedFrameHeight || Math.min(32, image.naturalHeight);
-      if (!Number.isInteger(frameWidth) || !Number.isInteger(frameHeight) ||
-        frameWidth > image.naturalWidth || frameHeight > image.naturalHeight) {
-        throw new RangeError('Frame dimensions cannot exceed the uploaded image dimensions.');
+      if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
+        throw new RangeError('Tile images must be no larger than 4096 × 4096 pixels.');
       }
-      const frames = Math.floor(image.naturalWidth / frameWidth) * Math.floor(image.naturalHeight / frameHeight);
-      this.eventBus.emit('spriteUploaded', {
+      const variantId = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      const name = file.name.replace(/\.[^.]+$/, '').trim().slice(0, 40) || 'Custom';
+      this.selectTile(tileId, { configure: false });
+      this.eventBus.emit('tileVariantUploaded', {
         tileId,
-        dataUrl,
-        fileName: file.name,
-        fileType: file.type,
-        frameWidth,
-        frameHeight,
-        imageWidth: image.naturalWidth,
-        imageHeight: image.naturalHeight,
-        frames
+        variant: {
+          id: variantId,
+          name,
+          dataUrl,
+          fileName: file.name,
+          fileType: file.type,
+          imageWidth: image.naturalWidth,
+          imageHeight: image.naturalHeight
+        }
       });
-      const icon = card.querySelector('.tile-icon');
-      const preview = document.createElement('img');
-      preview.src = dataUrl;
-      preview.alt = `${tileId} custom sprite preview`;
-      icon.replaceChildren(preview);
-      this.eventBus.emit('status', `Custom ${tileId} sprite loaded (${frames} frames).`);
+      const select = card.querySelector('[data-variant-select]');
+      if (select && ![...select.options].some(option => option.value === variantId)) {
+        select.add(new Option(name, variantId));
+      }
+      select.value = variantId;
+      this.selectedTileVariants[tileId] = variantId;
+      this.updateTilePreview(tileId, variantId);
+      this.eventBus.emit('tileVariantSelected', { tileId, variantId });
+      this.eventBus.emit('status', `Added "${name}" as a ${tileId} appearance.`);
     } catch (error) {
-      console.error('Sprite upload failed:', error);
-      this.eventBus.emit('status', error.message || 'The sprite upload failed.');
+      console.error('Tile image upload failed:', error);
+      this.eventBus.emit('status', error.message || 'The tile image upload failed.');
     } finally {
       card?.classList.remove('loading');
+    }
+  }
+
+  updateTilePreview(tileId, variantId) {
+    const tile = this.tileTypes.find(item => item.id === tileId);
+    const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`);
+    if (!tile || !preview) return;
+    const variant = this.tileVariantCatalog[tileId]?.find(item => item.id === variantId);
+    if (variant?.dataUrl) {
+      const image = document.createElement('img');
+      image.src = variant.dataUrl;
+      image.alt = `${tile.name} ${variant.name} appearance`;
+      preview.replaceChildren(image);
+    } else {
+      preview.textContent = tile.icon;
     }
   }
 

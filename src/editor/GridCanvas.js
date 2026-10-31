@@ -53,6 +53,7 @@ export class GridCanvas {
     this.context = this.canvas.getContext('2d');
     if (!this.context) throw new Error('A 2D canvas context is unavailable.');
     this.spriteImages = new Map();
+    this.variantImages = new Map();
     this.isPainting = false;
     this.lastPaintedCell = '';
     this.bindEvents();
@@ -84,6 +85,13 @@ export class GridCanvas {
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.loadSprite(tileId, dataUrl));
+    this.eventBus.on('tileVariantsChanged', ({ catalog = {} } = {}) => {
+      for (const [tileType, variants] of Object.entries(catalog)) {
+        variants.forEach(variant => {
+          if (variant.dataUrl) this.loadSpriteVariant(tileType, variant);
+        });
+      }
+    });
   }
 
   paintAt(event) {
@@ -106,6 +114,18 @@ export class GridCanvas {
     };
     image.onerror = () => this.eventBus.emit('status', `Could not display the uploaded ${tileId} image.`);
     image.src = dataUrl;
+  }
+
+  loadSpriteVariant(tileType, variant) {
+    const key = `${tileType}:${variant.id}`;
+    if (this.variantImages.has(key)) return;
+    const image = new Image();
+    image.onload = () => {
+      this.variantImages.set(key, image);
+      this.refresh();
+    };
+    image.onerror = () => this.eventBus.emit('status', `Could not display the ${variant.name} ${tileType} image.`);
+    image.src = variant.dataUrl;
   }
 
   updateCanvasSize() {
@@ -197,9 +217,21 @@ export class GridCanvas {
   }
 
   drawTile(ctx, type, x, y, tileSize) {
-    const image = this.spriteImages.get(type);
+    const row = Math.floor(y / tileSize);
+    const col = Math.floor(x / tileSize);
+    const variantId = this.stateManager.getTileVariant(row, col);
+    const variantMetadata = this.stateManager.tileVariantCatalog[type]
+      ?.find(variant => variant.id === variantId);
     const spriteMetadata = this.stateManager.spriteMetadata[type];
-    const metadata = spriteMetadata?.dataUrl
+    const legacyCustomSprite = variantId === 'classic' && spriteMetadata?.fileName;
+    const image = legacyCustomSprite
+      ? this.spriteImages.get(type)
+      : this.variantImages.get(`${type}:${variantId}`) || this.spriteImages.get(type);
+    const metadata = legacyCustomSprite
+      ? spriteMetadata
+      : variantMetadata?.dataUrl
+      ? variantMetadata
+      : spriteMetadata?.dataUrl
       ? spriteMetadata
       : spriteMetadata?.animations?.idle || Object.values(spriteMetadata?.animations || {})[0];
     if (image?.complete && image.naturalWidth) {

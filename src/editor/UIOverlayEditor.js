@@ -148,6 +148,10 @@ export class UIOverlayEditor {
         });
       }
     }
+    this.eventBus.emit('tileVariantsChanged', {
+      catalog: this.stateManager.tileVariantCatalog,
+      selectedTileVariants: this.stateManager.selectedTileVariants
+    });
     this.eventBus.emit('levelLoaded', {
       activeTileType: this.stateManager.activeTileType,
       mysteryBoxReward: this.stateManager.mysteryBoxReward
