@@ -1,0 +1,343 @@
+import { AUTO, Game, Scale } from 'phaser';
+import './styles/main.css';
+import { StateManager } from './core/StateManager.js';
+import { CommandManager, PlaceTileCommand, RemoveTileCommand } from './core/CommandManager.js';
+import { EventBus } from './core/EventBus.js';
+import { PaletteView } from './editor/PaletteView.js';
+import { GridCanvas } from './editor/GridCanvas.js';
+import { UIOverlayEditor } from './editor/UIOverlayEditor.js';
+import { SoundEffectsEditor } from './editor/SoundEffectsEditor.js';
+import { GameScene } from './engine/GameScene.js';
+import { EntityFactory } from './engine/EntityFactory.js';
+import { SpriteAnimator } from './engine/SpriteAnimator.js';
+
+const stateManager = new StateManager();
+const firstDemo = stateManager.getWorldSnapshot();
+stateManager.loadDemoTwo();
+const secondDemo = stateManager.getWorldSnapshot();
+stateManager.restoreWorld(firstDemo);
+const commandManager = new CommandManager();
+const eventBus = new EventBus();
+const paletteView = new PaletteView('palette', eventBus);
+const gridCanvas = new GridCanvas('grid-canvas', stateManager, eventBus);
+const entityFactory = new EntityFactory();
+const spriteAnimator = new SpriteAnimator(eventBus);
+const uiOverlayEditor = new UIOverlayEditor(
+  'editor-toolbar',
+  stateManager,
+  commandManager,
+  eventBus,
+  gridCanvas,
+  [
+    { name: 'Sunny Hills', snapshot: firstDemo },
+    { name: 'Cave Crossing', snapshot: secondDemo }
+  ]
+);
+const soundEffectsEditor = new SoundEffectsEditor(stateManager, eventBus);
+
+for (const [tileId, metadata] of Object.entries(stateManager.spriteMetadata)) {
+  eventBus.emit('spriteUploaded', { tileId, ...metadata });
+}
+
+eventBus.on('tileSelected', tileId => {
+  stateManager.activeTileType = tileId;
+});
+
+eventBus.on('mysteryBoxRewardSelected', rewardType => {
+  stateManager.mysteryBoxReward = rewardType;
+  gridCanvas.refresh();
+  eventBus.emit('status', `Mystery boxes now contain ${rewardType === 'Mushroom' ? 'a super mushroom' : rewardType === 'Star' ? 'star power' : 'an extra life'}.`);
+});
+
+eventBus.on('levelLoaded', ({ activeTileType }) => {
+  paletteView.selectTile(activeTileType, { configure: false });
+});
+
+eventBus.on('paintTile', ({ row, col }) => {
+  if (stateManager.activeTileType === 'Player') {
+    const previousStart = stateManager.getTilePositions('Player')
+      .find(position => position.row !== row || position.col !== col);
+    if (previousStart) {
+      commandManager.executeWithManager(
+        new RemoveTileCommand(previousStart.row, previousStart.col),
+        stateManager
+      );
+    }
+  }
+  const command = stateManager.activeTileType === 'Eraser'
+    ? new RemoveTileCommand(row, col)
+    : new PlaceTileCommand(row, col, stateManager.activeTileType);
+  if (!commandManager.executeWithManager(command, stateManager)) return;
+  gridCanvas.refresh();
+  uiOverlayEditor.updateHistory();
+});
+
+eventBus.on('undo', () => {
+  if (!commandManager.undoWithManager(stateManager)) return;
+  gridCanvas.refresh();
+  uiOverlayEditor.syncWorldSize();
+  uiOverlayEditor.updateHistory();
+  eventBus.emit('status', `Undid: ${commandManager.redoStack.at(-1).getSummary()}`);
+});
+
+eventBus.on('redo', () => {
+  if (!commandManager.redoWithManager(stateManager)) return;
+  gridCanvas.refresh();
+  uiOverlayEditor.syncWorldSize();
+  uiOverlayEditor.updateHistory();
+  eventBus.emit('status', `Redid: ${commandManager.getLastCommandSummary()}`);
+});
+
+eventBus.on('spriteUploaded', metadata => {
+  const image = new Image();
+  image.onload = () => {
+    try {
+      stateManager.registerSprite(metadata.tileId, {
+        ...metadata,
+        imageWidth: image.naturalWidth,
+        imageHeight: image.naturalHeight
+      });
+      gridCanvas.refresh();
+    } catch (error) {
+      console.error('Could not register the uploaded sprite:', error);
+      eventBus.emit('status', error.message);
+    }
+  };
+  image.onerror = () => eventBus.emit('status', `Could not load the ${metadata.tileId} sprite.`);
+  image.src = metadata.dataUrl;
+});
+
+eventBus.on('spriteAnimationUploaded', metadata => {
+  try {
+    stateManager.registerAnimation(metadata.entityType, metadata.animationType, metadata);
+    gridCanvas.refresh();
+    eventBus.emit('animationRegistered', metadata);
+  } catch (error) {
+    console.error('Could not register the uploaded animation:', error);
+    eventBus.emit('status', error.message);
+  }
+});
+
+eventBus.on('getAnimationMetadata', entityType => {
+  paletteView.showAnimationMetadata({
+    entityType,
+    metadata: stateManager.spriteMetadata[entityType]
+  });
+});
+
+let activeGame = null;
+let activeModal = null;
+let touchState = null;
+let runLevelIndex = 0;
+let gameRestartTimer = null;
+
+function closeGame() {
+  clearTimeout(gameRestartTimer);
+  gameRestartTimer = null;
+  if (activeGame) {
+    activeGame.destroy(true);
+    if (window.game === activeGame) delete window.game;
+    activeGame = null;
+  }
+  activeModal?.remove();
+  activeModal = null;
+}
+
+function makeDraggable(panel, handle) {
+  let dragOffset = null;
+  handle.addEventListener('pointerdown', event => {
+    dragOffset = { x: event.clientX - panel.offsetLeft, y: event.clientY - panel.offsetTop };
+    handle.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener('pointermove', event => {
+    if (!dragOffset) return;
+    const bounds = panel.parentElement.getBoundingClientRect();
+    const left = Math.max(0, Math.min(bounds.width - panel.offsetWidth, event.clientX - bounds.left - dragOffset.x));
+    const top = Math.max(0, Math.min(bounds.height - panel.offsetHeight, event.clientY - bounds.top - dragOffset.y));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  });
+  const stopDragging = () => { dragOffset = null; };
+  handle.addEventListener('pointerup', stopDragging);
+  handle.addEventListener('pointercancel', stopDragging);
+}
+
+function startGame() {
+  if (activeGame) return;
+  activeModal = document.createElement('section');
+  activeModal.className = 'game-modal';
+  activeModal.setAttribute('role', 'dialog');
+  activeModal.setAttribute('aria-modal', 'true');
+  activeModal.setAttribute('aria-label', 'Play level');
+  activeModal.innerHTML = `
+    <div class="game-window">
+      <header class="game-header">
+        <div><strong>Play your level</strong><span>Move with arrows or A/D · Jump with W, ↑ or Space</span></div>
+        <button class="game-close" type="button" aria-label="Close game">✕</button>
+      </header>
+      <div id="game-stage" class="game-stage"></div>
+      <div id="touch-controls" class="touch-controls">
+        <div class="touch-handle">DRAG CONTROLS</div>
+        <div class="touch-buttons">
+          <button type="button" data-control="left" aria-label="Move left">◀</button>
+          <button type="button" data-control="right" aria-label="Move right">▶</button>
+          <button type="button" data-control="jump" aria-label="Jump">⤒</button>
+        </div>
+      </div>
+      <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
+        <span class="game-message-text"></span>
+        <button class="game-action" type="button" hidden></button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(activeModal);
+  const closeButton = activeModal.querySelector('.game-close');
+  closeButton.addEventListener('click', closeGame);
+  activeModal.addEventListener('pointerdown', event => {
+    if (event.target === activeModal) closeGame();
+  });
+  const handleEscape = event => {
+    if (event.key === 'Escape') closeGame();
+  };
+  activeModal.addEventListener('keydown', handleEscape);
+
+  touchState = { left: false, right: false, jump: false };
+  const touchPanel = activeModal.querySelector('#touch-controls');
+  makeDraggable(touchPanel, touchPanel.querySelector('.touch-handle'));
+  touchPanel.querySelectorAll('[data-control]').forEach(button => {
+    const control = button.dataset.control;
+    button.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      touchState[control] = true;
+    });
+    const release = () => { touchState[control] = false; };
+    button.addEventListener('pointerup', release);
+    button.addEventListener('pointercancel', release);
+    button.addEventListener('lostpointercapture', release);
+  });
+  activeModal.querySelector('.game-action').addEventListener('click', () => {
+    const action = activeModal?.querySelector('.game-action');
+    if (!action || action.disabled) return;
+    if (action.dataset.action === 'next') {
+      launchCampaignLevel(runLevelIndex + 1);
+    } else if (action.dataset.action === 'campaign') {
+      launchCampaignLevel(0);
+    } else {
+      launchCampaignLevel(runLevelIndex);
+    }
+  });
+  launchCampaignLevel(uiOverlayEditor.currentLevelIndex);
+  closeButton.focus();
+}
+
+function launchCampaignLevel(index) {
+  const level = uiOverlayEditor.getCampaignLevel(index);
+  if (!level || !activeModal) return;
+  runLevelIndex = index;
+  uiOverlayEditor.switchCampaignLevel(index);
+  const snapshot = uiOverlayEditor.getCampaignLevel(index)?.snapshot || level.snapshot;
+  const action = activeModal.querySelector('.game-action');
+  action.hidden = true;
+  action.disabled = false;
+  const message = activeModal.querySelector('#game-message');
+  message.hidden = true;
+  activeModal.querySelector('.game-header strong').textContent =
+    `Level ${index + 1}: ${level.name}`;
+
+  if (activeGame) {
+    activeGame.destroy(true);
+    activeGame = null;
+    if (window.game) delete window.game;
+    Object.assign(touchState, { left: false, right: false, jump: false });
+    clearTimeout(gameRestartTimer);
+    gameRestartTimer = setTimeout(() => {
+      gameRestartTimer = null;
+      if (activeModal) createGameInstance(snapshot, level.name, index);
+    }, 150);
+    return;
+  }
+  createGameInstance(snapshot, level.name, index);
+}
+
+function createGameInstance(snapshot, levelName, levelIndex) {
+  const recordId = `${levelIndex + 1}:${levelName}`;
+  const scene = new GameScene(
+    snapshot,
+    entityFactory,
+    spriteAnimator,
+    touchState,
+    eventBus,
+    recordId
+  );
+  activeGame = new Game({
+    type: AUTO,
+    parent: 'game-stage',
+    width: 960,
+    height: 540,
+    backgroundColor: '#98d6f2',
+    physics: {
+      default: 'arcade',
+      arcade: { gravity: { y: 800 }, debug: false }
+    },
+    scale: {
+      mode: Scale.FIT,
+      autoCenter: Scale.CENTER_BOTH
+    },
+    scene: [scene]
+  });
+  window.game = activeGame;
+}
+
+eventBus.on('gameMessage', result => {
+  const gameMessage = activeModal?.querySelector('#game-message');
+  if (!gameMessage) return;
+  const { message, won } = typeof result === 'string'
+    ? { message: result, won: false }
+    : result;
+  gameMessage.hidden = false;
+  gameMessage.querySelector('.game-message-text').textContent = message;
+  const action = gameMessage.querySelector('.game-action');
+  action.hidden = false;
+  action.disabled = false;
+  if (!won) {
+    action.textContent = 'Replay level';
+    action.dataset.action = 'replay';
+  } else if (runLevelIndex + 1 < uiOverlayEditor.getCampaignLength()) {
+    action.textContent = `Next level (${runLevelIndex + 2})`;
+    action.dataset.action = 'next';
+  } else if (uiOverlayEditor.getCampaignLength() > 1) {
+    action.textContent = 'Replay campaign';
+    action.dataset.action = 'campaign';
+  } else {
+    action.textContent = 'Replay level';
+    action.dataset.action = 'replay';
+  }
+});
+
+eventBus.on('play', startGame);
+eventBus.on('worldResized', ({ cols, rows }) => {
+  gridCanvas.refresh();
+  eventBus.emit('status', `World is ${cols} × ${rows} tiles.`);
+});
+
+document.addEventListener('keydown', event => {
+  const target = event.target;
+  const typing = target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+  if (typing || event.altKey) return;
+  const modifier = event.ctrlKey || event.metaKey;
+  if (modifier && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    eventBus.emit(event.shiftKey ? 'redo' : 'undo');
+  } else if (modifier && event.key.toLowerCase() === 'y') {
+    event.preventDefault();
+    eventBus.emit('redo');
+  }
+});
+
+eventBus.emit('historyChanged', { canUndo: false, canRedo: false });
+paletteView.selectTile('Ground');
+console.info('Game engine and level editor are ready.');
