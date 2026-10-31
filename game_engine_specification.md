@@ -20,6 +20,9 @@ support.
 - `npm install` installs dependencies.
 - `npm run dev` starts the Vite development server (port 3000 by default).
 - `npm run build` creates the production build; `npm run preview` serves it.
+- GitHub Actions builds use `/KidCodeArcade/` as the Vite base path. The
+  included Pages workflow publishes `dist` after pushes to `main`; GitHub
+  repository Pages settings must use **GitHub Actions** as the source.
 - The application requires a modern browser with Canvas, local file APIs, and
   Web Audio support for synthesized sounds. Uploaded audio playback depends on
   browser codec support.
@@ -177,6 +180,8 @@ campaign transitions and import/export.
 ## 8. Current scope boundaries
 
 - No server, user accounts, cloud storage, multiplayer, or collaborative editing.
+- GitHub Pages is static hosting only; publishing the site does not provide
+  private visitor access or a backend.
 - No configurable moving-platform direction/range/speed UI; current platforms
   move horizontally with built-in bounds and speed.
 - Switches currently open all doors in a level; individual switch-door links

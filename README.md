@@ -78,6 +78,30 @@ npm run preview
 
 Open the local URL printed by Vite. The preview server is separate from the development server.
 
+## Host on GitHub Pages
+
+This repository includes a GitHub Actions workflow that builds and deploys the
+site when changes are pushed to `main`. Vite is configured to use the
+`/KidCodeArcade/` project-site path in GitHub Actions builds.
+
+1. Push the repository's `main` branch to GitHub.
+2. On GitHub, open **Settings → Pages** for the repository.
+3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+4. Open the **Actions** tab and wait for **Deploy to GitHub Pages** to finish.
+   The deployed site URL will appear in the workflow run or under
+   **Settings → Pages**. For this repository, it should be
+   `https://pvthanh.github.io/KidCodeArcade/`.
+5. Future pushes to `main` deploy automatically; the workflow can also be run
+   manually from **Actions**.
+
+GitHub Pages publishes a public website. A private repository can be a Pages
+source only when the account/organization plan supports Pages for private
+repositories. On accounts without that support, make the repository public or
+use a hosting provider that supports private Git sources. Even if source code
+is in a private repository, a publicly deployed site is visible to anyone with
+its URL. The game has no server; levels and uploads remain in the visitor's
+browser or downloaded files.
+
 ## Troubleshooting
 
 - **`npm: command not found` or `node: command not found`:** Install Node.js, reopen the terminal, then check the version commands above.

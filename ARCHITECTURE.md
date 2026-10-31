@@ -12,6 +12,11 @@ campaigns, user-uploaded sprites, animation sheets, and uploaded sounds are
 handled client-side. There is no game server, account system, cloud save, or
 multiplayer service.
 
+GitHub Pages deployment is handled by `.github/workflows/deploy.yml`, which
+builds the Vite app on pushes to `main` and deploys the `dist` artifact. The
+Vite base path is `/KidCodeArcade/` for GitHub Actions builds and `/` for local
+development/preview.
+
 ## 2. System context
 
 ```mermaid
