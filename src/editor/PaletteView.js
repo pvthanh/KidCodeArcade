@@ -4,7 +4,8 @@ import {
   BOSS_TYPES,
   CREEPY_TYPES,
   DEFAULT_BOSS_CONFIG,
-  DEFAULT_CREEPY_CONFIGS
+  DEFAULT_CREEPY_CONFIGS,
+  PLAYER_CHARACTERS
 } from '../core/StateManager.js';
 
 const TILES = [
@@ -116,6 +117,7 @@ export class PaletteView {
     this.selectedGroupTiles = { ...GROUP_TILE_DEFAULTS };
     this.renderPalette();
     this.bindEvents();
+    this.setPlayerCharacter('storybookHero');
     this.selectTile('Ground');
     this.updateBossPreview(DEFAULT_BOSS_CONFIG.type);
     this.eventBus.emit('getTileVariants');
@@ -190,6 +192,12 @@ export class PaletteView {
     });
 
     this.container.addEventListener('change', event => {
+      const playerCharacterSelect = event.target.closest('[data-player-character]');
+      if (playerCharacterSelect) {
+        this.eventBus.emit('playerCharacterSelected', playerCharacterSelect.value);
+        return;
+      }
+
       const variantSelect = event.target.closest('[data-variant-select]');
       if (variantSelect) {
         const tileId = variantSelect.dataset.variantSelect;
@@ -256,13 +264,15 @@ export class PaletteView {
       bossConfig = DEFAULT_BOSS_CONFIG,
       customBosses = [],
       customCreeps = [],
-      creepyConfigs = DEFAULT_CREEPY_CONFIGS
+      creepyConfigs = DEFAULT_CREEPY_CONFIGS,
+      playerCharacterId = 'storybookHero'
     } = {}) => {
       const rewardSelect = this.container.querySelector('[data-mystery-reward]');
       if (rewardSelect) rewardSelect.value = mysteryBoxReward;
       this.setBossTypes(customBosses);
       this.setBossConfigControls(bossConfig);
       this.setCreepyTypes(customCreeps, creepyConfigs);
+      this.setPlayerCharacter(playerCharacterId);
     });
     this.eventBus.on('bossTypesChanged', ({ customBosses = [], bossConfig = DEFAULT_BOSS_CONFIG } = {}) => {
       this.setBossTypes(customBosses);
@@ -289,6 +299,10 @@ export class PaletteView {
       });
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => {
+      if (tileId === 'Player') {
+        this.setPlayerCharacter(this.playerCharacterId || 'storybookHero');
+        return;
+      }
       const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`) ||
         (this.customCreeps.some(creepy => creepy.tileId === tileId)
           ? this.container.querySelector('[data-tile-id="Creepy"] .tile-icon')
@@ -315,6 +329,10 @@ export class PaletteView {
           animationImage.alt = `${entityType} ${animationType} animation preview`;
           dialogPreview.replaceChildren(animationImage);
         }
+        return;
+      }
+      if (entityType === 'Player') {
+        this.setPlayerCharacter(this.playerCharacterId || 'storybookHero');
         return;
       }
       const preview = this.container.querySelector(`[data-tile-id="${entityType}"] .tile-icon`) ||
@@ -445,7 +463,19 @@ export class PaletteView {
                   <span class="tile-description">${tile.description}</span>
                 </span>
               </button>
-              ${tile.id === 'Boss' ? `
+              ${tile.id === 'Player' ? `
+                <div class="tile-settings player-settings">
+                  <label>
+                    Character
+                    <select data-player-character aria-label="Player character">
+                      ${PLAYER_CHARACTERS.map(character => `
+                        <option value="${character.id}">${character.icon} ${character.name}</option>
+                      `).join('')}
+                    </select>
+                  </label>
+                  <button class="animation-configure" type="button" data-tile-id="Player">Motion</button>
+                </div>
+              ` : tile.id === 'Boss' ? `
                 <div class="tile-settings boss-settings">
                   <label>
                     <span>Boss character</span>
@@ -1227,6 +1257,21 @@ export class PaletteView {
 
   getSelectedTileId() {
     return this.selectedTileId;
+  }
+
+  setPlayerCharacter(characterId) {
+    const character = PLAYER_CHARACTERS.find(item => item.id === characterId);
+    if (!character) return;
+    this.playerCharacterId = character.id;
+    const select = this.container.querySelector('[data-player-character]');
+    if (select) select.value = character.id;
+    const preview = this.container.querySelector('[data-tile-id="Player"] .tile-icon');
+    if (preview) {
+      const image = document.createElement('img');
+      image.src = character.preview;
+      image.alt = `${character.name} preview`;
+      preview.replaceChildren(image);
+    }
   }
 
   getTileTypes() {

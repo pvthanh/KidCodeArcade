@@ -115,9 +115,9 @@ navigation does not place tiles accidentally.
    level-specific record ID to `GameScene`.
 3. `GameScene` creates textures, world/camera bounds, entity groups, physics
    colliders and overlaps, keyboard input, HUD, animations, and sound handling.
-   Play mode uses a 1.35× follow-camera zoom and Phaser's pixel-art rendering
-   to make the original SVG sprites appear larger with crisp edges; physics
-   body sizes and the editor's tile dimensions remain unchanged. The score,
+   Play mode uses a 1.35× follow-camera zoom and Phaser's pixel-art rendering.
+   Player and Creepy sprites display at 48 × 48 pixels while their collision
+   bodies retain their previous dimensions; editor tiles remain 32 × 32. The score,
    best score, lives, and power HUD counter-scales and offsets for the camera
    zoom so it remains visible at its normal screen-space size.
    `main.js` starts a synthesized looping background melody at 25% master
@@ -267,11 +267,15 @@ fit its container.
   `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
   viewBox and is smoothly rendered into 32 × 32 animation frames (48 × 48 for
   built-in Boss art); Coin and Mystery Box artwork is also rendered from
-  128 × 128 sources at the normal 32 × 32 tile size. This preserves normal
-  character dimensions and physics. Boss sprites retain their configured
-  display size.
+  128 × 128 sources at the normal 32 × 32 tile size. Player and Creepy sprites
+  are displayed at 48 × 48 in play mode with their previous collision sizes;
+  Boss sprites retain their configured display size.
   `StateManager` records per-action frame dimensions and frame rate, and the
   editor can replace these with uploaded images/sprite sheets.
+- The Player toolbox includes the original Storybook Hero plus ten built-in
+  original character designs. Each has idle, walk, run, and jump sheets; the
+  selected character ID and sprite metadata are serialized per level. Uploaded
+  Player action sheets are retained when switching the built-in character.
 - The supported character animation sets are Player (`idle`, `walk`, `run`,
   `jump`) and Goomba/Koopa/Bat (`idle`, `walk`).
 - Tile images and audio are loaded as data URLs into the level snapshot.

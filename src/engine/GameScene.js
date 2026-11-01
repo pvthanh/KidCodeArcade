@@ -1,6 +1,7 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
 import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
 import { SoundManager } from './SoundManager.js';
 
 export class GameScene extends Scene {
@@ -181,6 +182,13 @@ export class GameScene extends Scene {
           entity.body.setImmovable(true);
           entity.setVelocityX(entity.getData('travelSpeed'));
         } else if (['Goomba', 'Koopa', 'Bat'].includes(tileType) || customCreepy) {
+          entity.body.setSize(
+            CHARACTER_COLLISION_SIZE / entity.scaleX,
+            CHARACTER_COLLISION_SIZE / entity.scaleY
+          ).setOffset(
+            (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / 2 / entity.scaleX,
+            (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / entity.scaleY
+          );
           const defaultConfig = tileType === 'Koopa'
             ? { movement: 'ground', speed: 55, health: 1 }
             : tileType === 'Bat'
@@ -250,8 +258,7 @@ export class GameScene extends Scene {
         textureKey: this.getInitialTexture('Player')
       }
     );
-    this.player.setSize(22 / this.player.scaleX, 28 / this.player.scaleY)
-      .setOffset(5 / this.player.scaleX, 4 / this.player.scaleY);
+    this.configurePlayerCollisionBody(this.player);
     this.playerBaseScale = this.player.scaleX;
     this.applyMushroomGrowth();
     this.player.body.reset(this.player.x, this.player.y);
@@ -760,9 +767,8 @@ export class GameScene extends Scene {
       player.body.checkCollision.none = false;
       player.setVelocity(0, 0);
       this.mushroomGrowth = 0;
-      player.setDisplaySize(32, 32);
-      player.setSize(22 / player.scaleX, 28 / player.scaleY)
-        .setOffset(5 / player.scaleX, 4 / player.scaleY);
+      player.setDisplaySize(CHARACTER_DISPLAY_SIZE, CHARACTER_DISPLAY_SIZE);
+      this.configurePlayerCollisionBody(player);
       this.playerBaseScale = player.scaleX;
       player.body.reset(player.x, player.y);
       player.clearTint();
@@ -1072,6 +1078,14 @@ export class GameScene extends Scene {
       hasFire: this.hasFire,
       starPowerRemainingMs: Math.max(0, this.starPowerUntil - this.time.now)
     };
+  }
+
+  configurePlayerCollisionBody(player) {
+    player.setSize(22 / player.scaleX, 28 / player.scaleY)
+      .setOffset(
+        (CHARACTER_DISPLAY_SIZE - 22) / 2 / player.scaleX,
+        (CHARACTER_DISPLAY_SIZE - 28) / player.scaleY
+      );
   }
 
   applyMushroomGrowth() {

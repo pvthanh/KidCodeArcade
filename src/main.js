@@ -55,6 +55,23 @@ eventBus.on('tileSelected', tileId => {
   stateManager.activeTileType = tileId;
 });
 
+eventBus.on('playerCharacterSelected', characterId => {
+  try {
+    stateManager.setPlayerCharacter(characterId);
+    paletteView.setPlayerCharacter(characterId);
+    eventBus.emit('spriteUploaded', {
+      tileId: 'Player',
+      ...stateManager.spriteMetadata.Player
+    });
+    gridCanvas.refresh();
+    uiOverlayEditor.saveCurrentLevel();
+    eventBus.emit('status', 'Player character updated for this level.');
+  } catch (error) {
+    console.error('Could not select the player character:', error);
+    eventBus.emit('status', error.message);
+  }
+});
+
 eventBus.on('tileVariantSelected', ({ tileId, variantId }) => {
   if (!stateManager.selectTileVariant(tileId, variantId)) {
     eventBus.emit('status', `Could not select the ${tileId} appearance.`);

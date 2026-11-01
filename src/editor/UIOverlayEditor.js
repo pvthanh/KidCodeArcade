@@ -244,6 +244,7 @@ export class UIOverlayEditor {
     });
     this.eventBus.emit('levelLoaded', {
       activeTileType: this.stateManager.activeTileType,
+      playerCharacterId: this.stateManager.playerCharacterId,
       mysteryBoxReward: this.stateManager.mysteryBoxReward,
       bossConfig: this.stateManager.bossConfig,
       customBosses: this.stateManager.customBosses,

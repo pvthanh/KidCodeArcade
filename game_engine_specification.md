@@ -67,10 +67,17 @@ is a separate, always-visible editor tool near Undo and Redo.
   Fire flower.
 - **Editor utility**: Eraser.
 
-Each tile has a built-in fallback preview. Player and Creepy tools have an
-explicit **Motion** button for action-specific sprite upload dialogs; selecting
-either tool does not open the dialog. Static-object tools provide selectable
-visual variants without changing the object's physics or gameplay behavior.
+Each tile has a built-in fallback preview. The Player tool offers the original
+Storybook Hero and ten built-in characters: Pudgy Dino Pirate, Bubble Robot,
+Mushroom Explorer, Cactus Cowboy, Unicorn Cat, Ninja Hamster, Sloth Racer,
+Viking Penguin, Pizza Slice Knight, and Bee Astronaut. Each has idle, walk,
+run, and jump artwork. The Player and Creepy tools have an explicit **Motion**
+button for action-specific sprite upload dialogs; selecting either tool does
+not open the dialog. A custom motion image overrides that action while other
+actions continue using the selected character's built-in art. Character choice
+and animation metadata are saved with each level and campaign. Static-object
+tools provide selectable visual variants without changing the object's
+physics or gameplay behavior.
 
 - A **World theme** selector offers Sunny Storybook, Peach Sunset, Golden
   Desert, Frosty Peaks, Candy Kingdom, Emerald Forest, Volcano, Ocean
@@ -138,16 +145,19 @@ visual variants without changing the object's physics or gameplay behavior.
 - Supported character actions are Player: idle/walk/run/jump; built-in and
   custom Creepy types: idle/walk. Each action can have its own sprite sheet and
   frame dimensions/frame rate.
+- The Player can use the Storybook Hero or any of ten built-in original
+  characters. Selecting a built-in character updates its base sprite and
+  default action sheets without replacing uploaded Player motion sheets.
 - Uploaded images and their metadata are included in exported level JSON.
 - The default built-in art uses an original sunny storybook theme. Player,
   Creepy, and Boss characters use detailed vector artwork drawn in a 128 × 128
   viewBox and smoothly rendered to 32 × 32 animation frames (48 × 48 for
-  built-in Boss art). Bosses retain their configurable display size. The
-  detailed vector shapes improve clarity without enlarging collision bodies
-  or changing movement. Custom character uploads are rendered at their normal
-  game size. Coin and Mystery Box artwork is drawn from 128 × 128 vector
-  sources and displayed at the standard 32 × 32 tile size. Tile appearance is
-  independent from physics and gameplay behavior.
+  built-in Boss art). In play mode, the Player and Creepy sprites are displayed
+  at 48 × 48 pixels (150% of a tile), while their collision bodies retain their
+  previous dimensions. Bosses retain their configurable display size. Custom
+  character uploads use the same display sizing. Coin and Mystery Box artwork
+  is drawn from 128 × 128 vector sources and displayed at the standard 32 × 32
+  tile size.
 
 ## 4. Gameplay specification
 

@@ -240,6 +240,126 @@ const mysteryBox = () => `
   <path d="M18 45h-5m96 0h-5M18 72h-5m96 0h-5" stroke="#fff0a0" stroke-width="4" stroke-linecap="round"/>
 `;
 
+const playerCharacterLooks = {
+  dinoPirate: {
+    body: '#67bd4c', light: '#a5dc68', trim: '#74442f', clothes: '#e5c76d',
+    head: `<path d="M37 67q-5-35 22-43 35-10 45 21 5 18-3 31-13 12-36 6L46 73z" fill="#67bd4c"/><path d="M72 54q25-7 39 5l-4 17q-17 8-36-2z" fill="#8bd35a"/><path d="m88 72 5 6 5-6" fill="#fff3c9"/>`,
+    gear: `<path d="M35 36q-5-16 10-19 18-2 28 8l20-4q8 11-2 17l-39 4z" fill="#293d4e" stroke="#49352d" stroke-width="5"/><path d="M47 29q14-8 26 1" fill="none" stroke="#e9c06a" stroke-width="4"/><path d="M105 75 119 43l5 3-10 35" fill="#b87936" stroke="#563d32" stroke-width="4"/>`,
+    tail: `<path d="M39 78Q17 76 13 57q17 7 28 1" fill="#67bd4c" stroke="#49352d" stroke-width="5"/>`,
+    face: `<ellipse cx="70" cy="50" rx="4" ry="6" fill="#263e4d"/><path d="M90 55q6 3 10 0" fill="none" stroke="#49352d" stroke-width="3"/><circle cx="65" cy="59" r="3" fill="#f28a85"/><path d="m82 70 4-5 4 5m5 1 4-5 4 5" fill="#fff"/>`
+  },
+  bubbleRobot: {
+    body: '#5aaed0', light: '#a8e8f4', trim: '#3e6680', clothes: '#d8edf0',
+    head: `<rect x="34" y="23" width="60" height="58" rx="23" fill="#83d8ed" stroke="#3e6680" stroke-width="6"/><path d="M39 51q25-18 50 0v17q-25 16-50 0z" fill="#31617d"/><path d="M43 51q20-11 42 0v9q-22 8-42 0z" fill="#b6f5f2"/>`,
+    gear: `<circle cx="64" cy="31" r="38" fill="none" stroke="#d7f6fa" stroke-width="5"/><circle cx="46" cy="18" r="4" fill="#fff"/><path d="M42 93h44v8H42z" fill="#b8e4ed"/><circle cx="51" cy="100" r="5" fill="#ffd46a"/><circle cx="77" cy="100" r="5" fill="#ffd46a"/>`,
+    tail: `<path d="M37 47 23 54v19l12 5m60-31 13 7v19l-13 5" fill="#70c4df" stroke="#3e6680" stroke-width="5"/>`,
+    face: `<circle cx="54" cy="57" r="3" fill="#254455"/><circle cx="77" cy="57" r="3" fill="#254455"/><path d="M58 67q7 6 14 0" fill="none" stroke="#d8fbf8" stroke-width="3"/>`
+  },
+  mushroomExplorer: {
+    body: '#f0d4a0', light: '#fff0cf', trim: '#704638', clothes: '#a66b42',
+    head: `<path d="M32 46Q34 10 64 10t32 36q-22 13-64 0z" fill="#dc4f56" stroke="#704638" stroke-width="5"/><path d="M39 42q25 12 50 0" fill="none" stroke="#ffecbd" stroke-width="5"/><path d="M40 77q-3-22 24-25 27 3 24 25v8H40z" fill="#f0d4a0" stroke="#704638" stroke-width="5"/>`,
+    gear: `<circle cx="47" cy="25" r="7" fill="#fff2d5"/><circle cx="73" cy="20" r="8" fill="#fff2d5"/><circle cx="83" cy="36" r="5" fill="#fff2d5"/><path d="M35 75 24 89l13 17 10-9m35-22 15 11-7 12" fill="#a66b42" stroke="#704638" stroke-width="4"/><circle cx="99" cy="85" r="10" fill="#f2bc4c" stroke="#704638" stroke-width="4"/><path d="M99 77v16m-8-8h16" stroke="#fff1ba" stroke-width="3"/>`,
+    tail: `<path d="M43 79 31 88l8 13 10-10m27-12 11 12-5 12-12-9" fill="#f0d4a0" stroke="#704638" stroke-width="5"/>`,
+    face: `<ellipse cx="54" cy="66" rx="3" ry="4" fill="#3d322e"/><ellipse cx="74" cy="66" rx="3" ry="4" fill="#3d322e"/><path d="M58 75q6 6 12 0" fill="none" stroke="#a94e50" stroke-width="3"/><circle cx="49" cy="73" r="3" fill="#f28c85"/><circle cx="79" cy="73" r="3" fill="#f28c85"/>`
+  },
+  cactusCowboy: {
+    body: '#56a94f', light: '#9bd468', trim: '#604332', clothes: '#b95048',
+    head: `<path d="M47 72V43q0-20 17-20t17 20v29z" fill="#62b958" stroke="#604332" stroke-width="5"/><path d="M49 46h30M53 37h22" stroke="#a6df73" stroke-width="4"/>`,
+    gear: `<path d="M30 31q34-18 68 0l-7 8H37z" fill="#a86e3f" stroke="#604332" stroke-width="5"/><path d="M48 22q16-10 32 0v8H48z" fill="#c28951" stroke="#604332" stroke-width="4"/><path d="M37 63q27 13 54 0v11q-27 14-54 0z" fill="#cb4d4d" stroke="#604332" stroke-width="3"/><path d="M100 58q16 4 7 18" fill="none" stroke="#9e7139" stroke-width="4"/>`,
+    tail: `<path d="M49 56 34 56v-13m61 13 15 0V43" fill="none" stroke="#56a94f" stroke-width="10" stroke-linecap="round"/><path d="M32 43v11m74-11v11" stroke="#a6df73" stroke-width="3"/>`,
+    face: `<circle cx="57" cy="51" r="3" fill="#243d33"/><circle cx="73" cy="51" r="3" fill="#243d33"/><path d="M59 60q6 5 12 0" fill="none" stroke="#604332" stroke-width="3"/>`
+  },
+  unicornCat: {
+    body: '#f7f1f3', light: '#fff', trim: '#65486d', clothes: '#d8a8dc',
+    head: `<path d="m37 49-7-31q18 5 30 21 9-12 24 0 12-16 27-21l-5 34q-3 31-34 34-32-2-35-37z" fill="#fff" stroke="#65486d" stroke-width="5"/><path d="m39 31 14 13-12 4zm58 0L83 44l12 4z" fill="#efa6c7"/>`,
+    gear: `<path d="m60 26 8-23 8 24" fill="#8de0d4" stroke="#65486d" stroke-width="4"/><path d="m62 18 11 3m-9-9 7 2" stroke="#f08dbd" stroke-width="4"/><path d="M47 77q-12 17-2 26 11 6 16-8" fill="none" stroke="#fff" stroke-width="9"/><path d="M43 89h12" stroke="#ed80b5" stroke-width="4"/>`,
+    tail: `<path d="M42 83q-20 8-12 26 10 6 18-7" fill="none" stroke="#fff" stroke-width="9"/><path d="M30 103h12" stroke="#77cfe1" stroke-width="4"/>`,
+    face: `<ellipse cx="55" cy="56" rx="4" ry="6" fill="#4a354e"/><ellipse cx="76" cy="56" rx="4" ry="6" fill="#4a354e"/><path d="m61 66 5 4 5-4-5-4z" fill="#e987a8"/><path d="M66 70q-7 9-13 2m13-2q7 9 13 2" fill="none" stroke="#65486d" stroke-width="3"/><circle cx="47" cy="68" r="3" fill="#f4a1b3"/><circle cx="85" cy="68" r="3" fill="#f4a1b3"/>`
+  },
+  ninjaHamster: {
+    body: '#343440', light: '#f1eadc', trim: '#453a3b', clothes: '#292b38',
+    head: `<circle cx="48" cy="38" r="13" fill="#c98e61" stroke="#453a3b" stroke-width="5"/><circle cx="80" cy="38" r="13" fill="#c98e61" stroke="#453a3b" stroke-width="5"/><ellipse cx="64" cy="56" rx="31" ry="29" fill="#e5c49e" stroke="#453a3b" stroke-width="5"/><path d="M36 51q28-12 56 0v11q-28 9-56 0z" fill="#ba353d"/>`,
+    gear: `<path d="M38 52q24-9 52 0v13q-27 8-52 0z" fill="#32323e"/><path d="M44 58h13m15 0h12" stroke="#fff0d7" stroke-width="3"/><path d="M36 54 19 63l12 5-13 12" fill="none" stroke="#ba353d" stroke-width="5"/><path d="M44 83q20 16 40 0v16q-20 13-40 0z" fill="#292b38" stroke="#453a3b" stroke-width="4"/>`,
+    tail: `<circle cx="96" cy="87" r="7" fill="#e5c49e" stroke="#453a3b" stroke-width="4"/>`,
+    face: `<ellipse cx="54" cy="59" rx="3" ry="4" fill="#28252b"/><ellipse cx="74" cy="59" rx="3" ry="4" fill="#28252b"/><ellipse cx="64" cy="69" rx="5" ry="4" fill="#a86e68"/><path d="M48 70 38 68m10 5-10 2m42-5 10-2m-10 5 10 2" stroke="#453a3b" stroke-width="2"/>`
+  },
+  slothRacer: {
+    body: '#9b6b48', light: '#d2ad83', trim: '#55433b', clothes: '#b88355',
+    head: `<ellipse cx="64" cy="54" rx="33" ry="31" fill="#a97955" stroke="#55433b" stroke-width="5"/><ellipse cx="64" cy="67" rx="22" ry="15" fill="#ead7bd"/><path d="M35 47q10-19 23-10l-8 21zm58 0Q83 28 70 37l8 21z" fill="#55433b"/>`,
+    gear: `<path d="M31 40q4-32 34-32 30 0 33 32l-9 8H39z" fill="#d84e4e" stroke="#55433b" stroke-width="5"/><path d="M61 11 67 11 75 42 68 45z" fill="#ffd266"/><path d="M43 48q8-10 17 0m8 0q9-10 17 0" fill="none" stroke="#293e4d" stroke-width="7"/>`,
+    tail: `<path d="M91 83q16 6 11 20" fill="none" stroke="#9b6b48" stroke-width="8" stroke-linecap="round"/>`,
+    face: `<ellipse cx="53" cy="56" rx="5" ry="7" fill="#49352e"/><ellipse cx="75" cy="56" rx="5" ry="7" fill="#49352e"/><ellipse cx="64" cy="68" rx="9" ry="6" fill="#f2e7d6"/><path d="M60 71q4 4 8 0" fill="none" stroke="#55433b" stroke-width="3"/>`
+  },
+  vikingPenguin: {
+    body: '#303b4b', light: '#f7f0dc', trim: '#39424f', clothes: '#d0a455',
+    head: `<ellipse cx="64" cy="55" rx="33" ry="38" fill="#313c4b" stroke="#39424f" stroke-width="5"/><ellipse cx="64" cy="69" rx="21" ry="23" fill="#fff4dd"/><path d="m56 60 8-6 8 6-8 8z" fill="#f09b3c"/>`,
+    gear: `<path d="M34 38q3-25 30-25t30 25v8H34z" fill="#8a9da6" stroke="#39424f" stroke-width="5"/><path d="M41 34 29 18q-3-8 4-9l16 22m38 3 12-16q3-8-4-9L79 31" fill="#f2d589" stroke="#39424f" stroke-width="5" stroke-linejoin="round"/><path d="M45 40h38" stroke="#f1ca68" stroke-width="4"/>`,
+    tail: `<path d="M38 78 22 85l7 18 18-6m41-19 15 7-5 16-17-5" fill="#6ba6c4" stroke="#39424f" stroke-width="4"/>`,
+    face: `<ellipse cx="52" cy="52" rx="7" ry="9" fill="#fff"/><ellipse cx="75" cy="52" rx="7" ry="9" fill="#fff"/><circle cx="54" cy="54" r="3" fill="#293441"/><circle cx="73" cy="54" r="3" fill="#293441"/><path d="M55 91h18" stroke="#f09b3c" stroke-width="5" stroke-linecap="round"/>`
+  },
+  pizzaKnight: {
+    body: '#e6a14e', light: '#ffe28b', trim: '#704533', clothes: '#d8a65d',
+    head: `<path d="M31 36q33-14 66 0L73 100q-8 13-17 0z" fill="#f4cf70" stroke="#704533" stroke-width="6"/><path d="M35 38q29-11 58 0l-5 11q-24-9-48 0z" fill="#b9783f" stroke="#704533" stroke-width="4"/>`,
+    gear: `<path d="M35 39q29-16 58 0l-2 16q-27-12-54 0z" fill="#aab5bd" stroke="#704533" stroke-width="5"/><path d="M47 38v10m16-13v11m16-9v10" stroke="#f3e5c8" stroke-width="4"/><circle cx="51" cy="62" r="7" fill="#c9483c"/><circle cx="74" cy="76" r="7" fill="#c9483c"/><circle cx="57" cy="88" r="6" fill="#c9483c"/><path d="M91 67 106 88m-8-13 10-2" stroke="#aebbc4" stroke-width="5" stroke-linecap="round"/>`,
+    tail: `<path d="M40 77 25 86l10 15m55-23 12 9-7 12" fill="#f1c766" stroke="#704533" stroke-width="5"/>`,
+    face: `<circle cx="55" cy="61" r="3" fill="#3a302a"/><circle cx="73" cy="61" r="3" fill="#3a302a"/><path d="M58 70q6 5 12 0" fill="none" stroke="#704533" stroke-width="3"/>`
+  },
+  beeAstronaut: {
+    body: '#f4c844', light: '#fff0a4', trim: '#3e3a35', clothes: '#252c3b',
+    head: `<circle cx="64" cy="51" r="29" fill="#f5cb45" stroke="#3e3a35" stroke-width="5"/><path d="M38 73q26-13 52 0v12q-26-12-52 0z" fill="#252c3b"/><path d="M42 89q22-10 44 0" stroke="#f5cb45" stroke-width="8"/>`,
+    gear: `<circle cx="64" cy="49" r="39" fill="none" stroke="#bce9f2" stroke-width="5"/><path d="M53 25q-9-18-20-10m42 10q9-18 20-10" fill="none" stroke="#3e3a35" stroke-width="4"/><circle cx="32" cy="14" r="5" fill="#ffd75d"/><circle cx="96" cy="14" r="5" fill="#ffd75d"/><path d="M42 85h44l8 19H34z" fill="#76b8ce" stroke="#3e3a35" stroke-width="4"/><path d="M49 101 39 113m40-12 10 12" stroke="#f18b44" stroke-width="5"/>`,
+    tail: `<path d="M36 55q-19-24-25 0 0 19 25 17m56-17q19-24 25 0 0 19-25 17" fill="#e6f9ff" stroke="#53788c" stroke-width="4"/>`,
+    face: `<ellipse cx="54" cy="50" rx="5" ry="7" fill="#303744"/><ellipse cx="74" cy="50" rx="5" ry="7" fill="#303744"/><path d="M58 64q6 5 12 0" fill="none" stroke="#8c5638" stroke-width="3"/><circle cx="48" cy="62" r="4" fill="#f28d81"/><circle cx="80" cy="62" r="4" fill="#f28d81"/>`
+  }
+};
+
+const playerCharacterFrame = (character, pose, action) => {
+  const stride = action === 'jump' ? (pose % 2 ? 8 : -8) : [-6, 0, 6, 0][pose % 4];
+  const bounce = action === 'jump' ? -7 : action === 'run' ? [-1, -5, -1, -4][pose % 4] : [0, -2, 0, -1][pose % 4];
+  const armLift = action === 'jump' ? -17 : action === 'run' ? [-16, 11, 16, -11][pose % 4] : [-8, 5, 8, -5][pose % 4];
+  const legY = action === 'jump' ? 100 : 91;
+  const outline = character.trim;
+  return `
+    <ellipse cx="64" cy="119" rx="34" ry="5" fill="#263b42" opacity=".18"/>
+    <g transform="translate(0 ${bounce})">
+      ${character.tail}
+      <path d="M49 ${legY}h16l-3 16-12 3-7-5zm17 0h15l6 13-7 6-12-3z"
+        fill="${character.body}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"
+        transform="translate(${stride} 0)"/>
+      <path d="M43 111q-10 0-12 7 1 6 20 4l8-5-4-6zm39 0q13-1 16 7-2 6-21 4l-7-5 4-6z"
+        fill="${character.clothes}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M42 77q-16 4-19 17l12 8 18-14m34-11q16 4 19 17l-12 8-18-14"
+        fill="${character.body}" stroke="${outline}" stroke-width="5" stroke-linejoin="round"
+        transform="rotate(${armLift} 64 83)"/>
+      <path d="M36 94q-8 2-9 9 4 6 13 2l6-6m46-5q8 2 9 9-4 6-13 2l-6-6"
+        fill="${character.light}" stroke="${outline}" stroke-width="4" stroke-linecap="round"/>
+      <path d="${character.bodyShape || 'M43 65q21-14 42 0l-3 38q-18 12-36 0z'}"
+        fill="${character.body}" stroke="${outline}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M49 79q15 7 30 0v20q-15 9-30 0z" fill="${character.light}" opacity=".92"/>
+      <g>${character.head}</g>
+      <g>${character.face}</g>
+      <g>${character.gear}</g>
+      <path d="M49 107h10m12 0h10" stroke="${character.light}" stroke-width="3" stroke-linecap="round"/>
+      <path d="M42 74q8-6 15-3m18 0q7-3 12 3" fill="none" stroke="#fff" stroke-width="3" opacity=".4"/>
+    </g>
+  `;
+};
+
+const makePlayerCharacterArt = () => Object.fromEntries(
+  Object.entries(playerCharacterLooks).map(([id, character]) => {
+    const poses = action => [0, 1, 2, 3].map(pose => playerCharacterFrame(character, pose, action));
+    return [id, {
+      sprite: shell(playerCharacterFrame(character, 0, 'idle')),
+      idle: sheet(poses('idle')),
+      walk: sheet(poses('walk')),
+      run: sheet(poses('run')),
+      jump: sheet(poses('jump'))
+    }];
+  })
+);
+
+export const playerCharacterArt = makePlayerCharacterArt();
+
 export const characterArt = {
   coin: shell(coin(), 1, 128),
   mysteryBox: shell(mysteryBox(), 1, 128),

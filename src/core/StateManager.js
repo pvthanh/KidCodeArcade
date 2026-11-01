@@ -1,4 +1,4 @@
-import { characterArt } from '../assets/demo/CharacterArt.js';
+import { characterArt, playerCharacterArt } from '../assets/demo/CharacterArt.js';
 import groundSprite from '../assets/demo/MeadowGround.svg?inline';
 import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
 import pipeSprite from '../assets/demo/Pipe.svg?inline';
@@ -197,12 +197,56 @@ const MAX_CUSTOM_BOSS_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CUSTOM_BOSS_IMAGES_BYTES = 20 * 1024 * 1024;
 const CUSTOM_BOSS_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
-BUILTIN_SPRITES.Player.animations = {
-  idle: builtinAnimation(characterArt.playerIdle, 'Player-idle.svg', 4),
-  walk: builtinAnimation(characterArt.playerWalk, 'Player-walk.svg', 8),
-  run: builtinAnimation(characterArt.playerRun, 'Player-run.svg', 12),
-  jump: builtinAnimation(characterArt.playerJump, 'Player-jump.svg', 8)
+export const PLAYER_CHARACTERS = [
+  { id: 'storybookHero', name: 'Storybook Hero', icon: '🧑' },
+  { id: 'dinoPirate', name: 'Pudgy Dino Pirate', icon: '🦖' },
+  { id: 'bubbleRobot', name: 'Bubble Robot', icon: '🤖' },
+  { id: 'mushroomExplorer', name: 'Mushroom Explorer', icon: '🍄' },
+  { id: 'cactusCowboy', name: 'Cactus Cowboy', icon: '🤠' },
+  { id: 'unicornCat', name: 'Unicorn Cat', icon: '🐱' },
+  { id: 'ninjaHamster', name: 'Ninja Hamster', icon: '🐹' },
+  { id: 'slothRacer', name: 'Sloth Racer', icon: '🏎️' },
+  { id: 'vikingPenguin', name: 'Viking Penguin', icon: '🐧' },
+  { id: 'pizzaKnight', name: 'Pizza Slice Knight', icon: '🍕' },
+  { id: 'beeAstronaut', name: 'Bee Astronaut', icon: '🐝' }
+].map(character => ({
+  ...character,
+  preview: character.id === 'storybookHero'
+    ? characterArt.player
+    : playerCharacterArt[character.id].sprite
+}));
+const PLAYER_CHARACTER_BY_ID = new Map(PLAYER_CHARACTERS.map(character => [character.id, character]));
+const PLAYER_ANIMATION_RATES = { idle: 4, walk: 8, run: 12, jump: 8 };
+const DEFAULT_PLAYER_ANIMATIONS = {
+  idle: characterArt.playerIdle,
+  walk: characterArt.playerWalk,
+  run: characterArt.playerRun,
+  jump: characterArt.playerJump
 };
+const getPlayerAnimations = (characterId, preserve = {}) => {
+  const art = characterId === 'storybookHero'
+    ? DEFAULT_PLAYER_ANIMATIONS
+    : playerCharacterArt[characterId];
+  return Object.fromEntries(Object.entries(PLAYER_ANIMATION_RATES).map(([action, frameRate]) => {
+    const previous = preserve[action];
+    if (previous?.source === 'upload' ||
+      (previous?.dataUrl && previous.dataUrl !== DEFAULT_PLAYER_ANIMATIONS[action] &&
+        previous.source !== 'builtin')) {
+      return [action, previous];
+    }
+    return [action, {
+      ...builtinAnimation(art[action], `Player-${characterId}-${action}.svg`, frameRate),
+      source: 'builtin',
+      characterId
+    }];
+  }));
+};
+
+BUILTIN_SPRITES.Player.animations = {
+  ...getPlayerAnimations('storybookHero')
+};
+BUILTIN_SPRITES.Player.source = 'builtin';
+BUILTIN_SPRITES.Player.characterId = 'storybookHero';
 BUILTIN_SPRITES.Goomba.animations = {
   idle: builtinAnimation(characterArt.goombaIdle, 'BumbleBug-idle.svg', 4),
   walk: builtinAnimation(characterArt.goombaWalk, 'BumbleBug-walk.svg', 7)
@@ -222,6 +266,7 @@ export class StateManager {
     this.rows = 15;
     this.tileSize = 32;
     this.worldTheme = 'storybook';
+    this.playerCharacterId = 'storybookHero';
     this.tiles = [];
     this.tileVariants = [];
     this.tileVariantCatalog = clone(BUILTIN_TILE_VARIANTS);
@@ -687,9 +732,24 @@ export class StateManager {
     const entityMetadata = this.spriteMetadata[entityType] || {};
     entityMetadata.animations = {
       ...(entityMetadata.animations || {}),
-      [animationType]: { ...metadata, registeredAt: Date.now() }
+      [animationType]: { ...metadata, source: metadata.source || 'upload', registeredAt: Date.now() }
     };
     this.spriteMetadata[entityType] = entityMetadata;
+  }
+
+  setPlayerCharacter(characterId) {
+    const character = PLAYER_CHARACTER_BY_ID.get(characterId);
+    if (!character) throw new TypeError('Choose a supported built-in player character.');
+    const currentPlayer = this.spriteMetadata.Player || {};
+    this.playerCharacterId = character.id;
+    this.spriteMetadata.Player = {
+      ...currentPlayer,
+      dataUrl: character.preview,
+      source: 'builtin',
+      characterId: character.id,
+      animations: getPlayerAnimations(character.id, currentPlayer.animations)
+    };
+    return this.spriteMetadata.Player;
   }
 
   registerSoundEffect(event, metadata) {
@@ -737,6 +797,7 @@ export class StateManager {
       tiles: this.tiles.map(row => [...row]),
       tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
+      playerCharacterId: this.playerCharacterId,
       spriteMetadata: JSON.parse(JSON.stringify(this.spriteMetadata)),
       tileVariantCatalog: clone(this.tileVariantCatalog),
       selectedTileVariants: { ...this.selectedTileVariants },
@@ -775,6 +836,12 @@ export class StateManager {
       ...JSON.parse(JSON.stringify(BUILTIN_SPRITES)),
       ...JSON.parse(JSON.stringify(snapshot.spriteMetadata || {}))
     };
+    this.playerCharacterId = PLAYER_CHARACTER_BY_ID.has(snapshot.playerCharacterId)
+      ? snapshot.playerCharacterId
+      : PLAYER_CHARACTER_BY_ID.has(this.spriteMetadata.Player.characterId)
+        ? this.spriteMetadata.Player.characterId
+        : 'storybookHero';
+    this.spriteMetadata.Player.characterId = this.playerCharacterId;
     this.soundEffects = JSON.parse(JSON.stringify(snapshot.soundEffects || {}));
     this.backgroundMusic = snapshot.backgroundMusic ? { ...snapshot.backgroundMusic } : null;
     this.mysteryBoxReward = POWER_UP_TYPES.includes(snapshot.mysteryBoxReward)
