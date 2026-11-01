@@ -16,6 +16,14 @@ import { GameScene } from './engine/GameScene.js';
 import { EntityFactory } from './engine/EntityFactory.js';
 import { SpriteAnimator } from './engine/SpriteAnimator.js';
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}service-worker.js`, {
+    scope: import.meta.env.BASE_URL
+  }).catch(error => {
+    console.error('Could not register the offline app service worker:', error);
+  });
+}
+
 const stateManager = new StateManager();
 const firstDemo = stateManager.getWorldSnapshot();
 stateManager.loadDemoTwo();

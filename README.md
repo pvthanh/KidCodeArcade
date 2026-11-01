@@ -102,6 +102,22 @@ is in a private repository, a publicly deployed site is visible to anyone with
 its URL. The game has no server; levels and uploads remain in the visitor's
 browser or downloaded files.
 
+## Install as an app
+
+The production site is a Progressive Web App (PWA). After deploying it to an
+HTTPS host (GitHub Pages already uses HTTPS), you can install it from a phone:
+
+- **Android:** Open the site in Chrome, then use **Install app** or **Add to
+  Home screen** from the browser menu.
+- **iPhone or iPad:** Open the site in Safari, tap **Share**, then choose **Add
+  to Home Screen**. iOS does not show the Android-style install prompt.
+
+The app shell and built-in game assets are cached after the first successful
+online visit, so the editor can reopen offline. Internet access is still needed
+for the first visit and for future site updates. Export levels and campaigns
+with **Save** or **Save campaign** to keep backups; installing the app does not
+sync projects between devices.
+
 ## Troubleshooting
 
 - **`npm: command not found` or `node: command not found`:** Install Node.js, reopen the terminal, then check the version commands above.
