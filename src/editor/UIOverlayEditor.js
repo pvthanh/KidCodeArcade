@@ -1,4 +1,5 @@
 import { ClearGridCommand, ResizeWorldCommand } from '../core/CommandManager.js';
+import { WORLD_THEMES } from '../core/StateManager.js';
 
 export class UIOverlayEditor {
   constructor(toolbarId, stateManager, commandManager, eventBus, gridCanvas, demoLevels = []) {
@@ -28,10 +29,14 @@ export class UIOverlayEditor {
       <div class="campaign-controls">
         <label for="campaign-level">Campaign</label>
         <select id="campaign-level" aria-label="Campaign level"></select>
-        <button id="add-campaign-level" class="secondary-button" type="button">＋ Level</button>
-        <button id="remove-campaign-level" class="secondary-button" type="button">− Level</button>
-        <button id="save-campaign" class="secondary-button" type="button">Save campaign</button>
-        <button id="open-campaign-button" class="secondary-button" type="button">Open campaign</button>
+        <button id="add-campaign-level" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Add level" data-tooltip="Add level">＋</button>
+        <button id="remove-campaign-level" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Remove level" data-tooltip="Remove level">−</button>
+        <button id="save-campaign" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Save campaign" data-tooltip="Save campaign">💾</button>
+        <button id="open-campaign-button" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Open campaign" data-tooltip="Open campaign">📂</button>
         <input id="open-campaign" type="file" accept="application/json,.json" hidden>
       </div>
       <dialog id="new-level-dialog" class="level-dialog" aria-labelledby="new-level-title">
@@ -62,18 +67,36 @@ export class UIOverlayEditor {
         <span class="dimension-separator">×</span>
         <label>Height <input id="world-rows" type="number" min="8" max="40" step="1" value="${this.stateManager.rows}"></label>
         <span class="toolbar-unit">tiles</span>
-        <button class="secondary-button" type="submit">Resize</button>
+        <button class="secondary-button toolbar-icon-button" type="submit"
+          aria-label="Resize world" data-tooltip="Resize world">↔</button>
       </form>
       <div class="toolbar-actions">
-        <button id="toggle-board-pan" class="secondary-button" type="button"
-          aria-pressed="false" aria-label="Move the board by dragging">✋ Move board</button>
-        <button id="load-demo" class="secondary-button" type="button">Load demos</button>
-        <button id="save-level" class="secondary-button" type="button">Save</button>
-        <button id="load-level-button" class="secondary-button" type="button">Open</button>
+        <label class="world-theme-control" title="Choose the scenery and world colors">
+          <span class="world-theme-icon" aria-hidden="true">🌍</span>
+          <select id="world-theme" aria-label="World theme">
+            ${WORLD_THEMES.map(theme => `
+              <option value="${theme.id}" ${theme.id === this.stateManager.worldTheme ? 'selected' : ''}>
+                ${theme.name}
+              </option>
+            `).join('')}
+          </select>
+        </label>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button id="toggle-board-pan" class="secondary-button toolbar-icon-button" type="button"
+          aria-pressed="false" aria-label="Move the board by dragging" data-tooltip="Move board">✋</button>
+        <button id="load-demo" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Load demo levels" data-tooltip="Load demo levels">🎮</button>
+        <button id="save-level" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Save level" data-tooltip="Save level">💾</button>
+        <button id="load-level-button" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Open level" data-tooltip="Open level">📂</button>
         <input id="load-level" type="file" accept="application/json,.json" hidden>
-        <button id="clear-level" class="secondary-button" type="button">Clear</button>
-        <button id="sound-settings" class="secondary-button" type="button">♫ Sounds</button>
-        <button id="play-btn" class="primary-button" type="button">▶ Play level</button>
+        <button id="clear-level" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Clear level" data-tooltip="Clear level">🧹</button>
+        <button id="sound-settings" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Sound settings" data-tooltip="Sound settings">♫</button>
+        <button id="play-btn" class="primary-button toolbar-icon-button toolbar-play-button" type="button"
+          aria-label="Play level" data-tooltip="Play level">▶</button>
       </div>
       <span id="status-text" class="status-text" role="status" aria-live="polite">Ready</span>
     `;
@@ -81,6 +104,18 @@ export class UIOverlayEditor {
   }
 
   bindEvents() {
+    this.toolbar.querySelector('#world-theme').addEventListener('change', event => {
+      try {
+        this.stateManager.setWorldTheme(event.target.value);
+        this.gridCanvas.refresh();
+        this.saveCurrentLevel();
+        this.setStatus(`World theme changed to ${event.target.selectedOptions[0].textContent.trim()}.`);
+      } catch (error) {
+        event.target.value = this.stateManager.worldTheme;
+        this.setStatus(error.message);
+      }
+    });
+
     this.toolbar.querySelector('#world-size-form').addEventListener('submit', event => {
       event.preventDefault();
       const cols = Number(this.toolbar.querySelector('#world-cols').value);
@@ -189,6 +224,7 @@ export class UIOverlayEditor {
 
   applyLevelSnapshot(snapshot) {
     this.stateManager.restoreWorld(snapshot);
+    this.toolbar.querySelector('#world-theme').value = this.stateManager.worldTheme;
     this.commandManager.clearHistory();
     this.syncWorldSize();
     this.gridCanvas.refresh();

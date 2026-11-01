@@ -1,3 +1,5 @@
+import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+
 const TILE_COLORS = {
   Ground: '#58a65c',
   Brick: '#b9683f',
@@ -56,6 +58,11 @@ export class GridCanvas {
     if (!this.board) throw new Error('The editor board was not found.');
     this.context = this.canvas.getContext('2d');
     if (!this.context) throw new Error('A 2D canvas context is unavailable.');
+    this.tileTintCanvas = document.createElement('canvas');
+    this.tileTintCanvas.width = this.stateManager.tileSize;
+    this.tileTintCanvas.height = this.stateManager.tileSize;
+    this.tileTintContext = this.tileTintCanvas.getContext('2d');
+    if (!this.tileTintContext) throw new Error('A 2D tile preview context is unavailable.');
     this.spriteImages = new Map();
     this.variantImages = new Map();
     this.loadingSpriteIds = new Set();
@@ -189,6 +196,7 @@ export class GridCanvas {
   }
 
   refresh() {
+    this.theme = WORLD_THEMES.find(item => item.id === this.stateManager.worldTheme) || WORLD_THEMES[0];
     this.updateCanvasSize();
     const ctx = this.context;
     const tileSize = this.stateManager.tileSize;
@@ -229,19 +237,28 @@ export class GridCanvas {
   drawBackdrop(ctx) {
     const width = this.canvas.width;
     const height = this.canvas.height;
+    const theme = this.theme;
     const sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, '#9bd7e8');
-    sky.addColorStop(0.68, '#d6e8d8');
-    sky.addColorStop(1, '#e8d4a3');
+    sky.addColorStop(0, theme.sky[0]);
+    sky.addColorStop(0.68, theme.sky[1]);
+    sky.addColorStop(1, theme.sky[2]);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = '#f8edc8';
+    ctx.fillStyle = theme.sun;
     ctx.beginPath();
-    ctx.arc(width * 0.78, height * 0.24, 34, 0, Math.PI * 2);
+    ctx.arc(width * 0.78, height * 0.24, theme.stars ? 27 : 34, 0, Math.PI * 2);
     ctx.fill();
+    if (theme.stars) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      for (let x = 45; x < width; x += 173) {
+        const y = 28 + ((x * 7) % Math.max(50, height * 0.35));
+        ctx.fillRect(x, y, 3, 3);
+        ctx.fillRect(x + 54, y + 31, 2, 2);
+      }
+    }
 
-    ctx.fillStyle = '#c1dfc8';
+    ctx.fillStyle = theme.far;
     ctx.beginPath();
     ctx.moveTo(0, height * 0.68);
     for (let x = 0; x <= width; x += 256) {
@@ -251,7 +268,7 @@ export class GridCanvas {
     ctx.lineTo(0, height);
     ctx.fill();
 
-    ctx.fillStyle = '#9bc99d';
+    ctx.fillStyle = theme.near;
     ctx.beginPath();
     ctx.moveTo(0, height * 0.82);
     for (let x = 0; x <= width; x += 320) {
@@ -261,12 +278,14 @@ export class GridCanvas {
     ctx.lineTo(0, height);
     ctx.fill();
 
-    ctx.fillStyle = 'rgb(255 255 255 / 55%)';
-    for (let x = 90; x < width; x += 480) {
-      const y = height * (0.2 + ((x / 480) % 2) * 0.15);
-      ctx.fillRect(x, y + 8, 52, 12);
-      ctx.fillRect(x + 12, y, 34, 10);
-      ctx.fillRect(x + 24, y + 18, 22, 6);
+    if (!theme.stars) {
+      ctx.fillStyle = 'rgb(255 255 255 / 55%)';
+      for (let x = 90; x < width; x += 480) {
+        const y = height * (0.2 + ((x / 480) % 2) * 0.15);
+        ctx.fillRect(x, y + 8, 52, 12);
+        ctx.fillRect(x + 12, y, 34, 10);
+        ctx.fillRect(x + 24, y + 18, 22, 6);
+      }
     }
   }
 
@@ -305,7 +324,19 @@ export class GridCanvas {
     if (image?.complete && image.naturalWidth) {
       const frameWidth = metadata?.frameWidth || image.naturalWidth;
       const frameHeight = metadata?.frameHeight || image.naturalHeight;
-      ctx.drawImage(image, 0, 0, frameWidth, frameHeight, x, y, tileSize, tileSize);
+      if (THEMED_TILE_TYPES.has(type)) {
+        const theme = this.theme;
+        const tintContext = this.tileTintContext;
+        tintContext.clearRect(0, 0, tileSize, tileSize);
+        tintContext.drawImage(image, 0, 0, frameWidth, frameHeight, 0, 0, tileSize, tileSize);
+        tintContext.globalCompositeOperation = 'source-atop';
+        tintContext.fillStyle = theme.tileOverlay;
+        tintContext.fillRect(0, 0, tileSize, tileSize);
+        tintContext.globalCompositeOperation = 'source-over';
+        ctx.drawImage(this.tileTintCanvas, x, y);
+      } else {
+        ctx.drawImage(image, 0, 0, frameWidth, frameHeight, x, y, tileSize, tileSize);
+      }
       return;
     }
 

@@ -181,6 +181,11 @@ and gameplay rules continue to use the original tile ID. The runtime loads
 variant textures under keys separate from gameplay entity types and renders
 them in the same tile cell.
 
+Each level snapshot also stores a `worldTheme` ID. The `WORLD_THEMES` catalog
+in `StateManager` defines ten built-in palettes used by both the editor canvas
+and Phaser backdrop; thematic tile tints are visual-only and do not alter
+physics. Snapshots from older level files default to `storybook`.
+
 The supported tile IDs are:
 
 - Start and terrain: `Player`, `Ground`, `Brick`, `MysteryBox`, `Pipe`.
@@ -276,7 +281,9 @@ fit its container.
   entry exists in the level, it overrides the built-in tone; disabled or muted
   uploaded entries intentionally remain silent.
 - `SoundManager` also synthesizes a looping playful chiptune at 25% master
-  volume during play mode and stops it when the game is destroyed.
+  volume during play mode and stops it when the game is destroyed. Per-level
+  uploaded background music can replace the synth, loop at its configured
+  volume, and be disabled or removed from the Sounds dialog.
 - The sound editor supports uploaded audio, preview, enable/disable, volume,
   and removal. Uploads are limited to 10 MB.
 - `GameScene.emitBurst` creates short-lived tweened particles for key gameplay
@@ -292,6 +299,7 @@ fit its container.
 {
   "cols": 72,
   "rows": 18,
+  "worldTheme": "storybook",
   "tiles": [["..."]],
   "tileVariants": [["..."]],
   "activeTileType": "Ground",
@@ -299,6 +307,7 @@ fit its container.
   "tileVariantCatalog": {},
   "selectedTileVariants": {},
   "soundEffects": {},
+  "backgroundMusic": null,
   "mysteryBoxReward": "Mushroom",
   "bossConfig": {
     "type": "slimeKing",

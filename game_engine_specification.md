@@ -72,6 +72,13 @@ explicit **Motion** button for action-specific sprite upload dialogs; selecting
 either tool does not open the dialog. Static-object tools provide selectable
 visual variants without changing the object's physics or gameplay behavior.
 
+- A **World theme** selector offers Sunny Storybook, Peach Sunset, Golden
+  Desert, Frosty Peaks, Candy Kingdom, Emerald Forest, Volcano, Ocean
+  Adventure, Outer Space, and Moonlit Manor. Themes change the editor and
+  runtime sky, scenery, and terrain tint without changing tile collision or
+  character behavior. The selected theme is saved with each level and its
+  campaign.
+
 - Select **Creepy** to choose Goomba, Koopa, Bat, or a custom creature. The
   selected creature is painted as its own type. Configure ground/flying
   movement, speed (20–180 px/s), and health (1–5 hits). **＋ Add** uploads a
@@ -203,15 +210,18 @@ campaign level when one exists, otherwise the campaign can be replayed.
 
 ### Feedback and audio
 
-- A playful synthesized background melody loops during play at 25% master
-  volume and stops when the game closes.
+- A playful synthesized background melody loops during play by default at 25%
+  volume. Users can upload looping background music in the Sounds dialog,
+  preview it, enable or disable it, adjust its volume, or remove it to restore
+  the synthesized default. Custom music stops when the game closes.
 - Built-in retro tones are synthesized for gameplay events. A configured
   uploaded sound overrides the built-in sound for that event.
 - The sound editor supports independent upload, preview, enable/disable, volume,
   and removal for jump, stomp, player hit, coin, power-up, brick break, mystery
   box, win, lose, spring, switch, checkpoint, and fireball events.
 - Audio uploads must be valid audio files of 10 MB or less. Audio and settings
-  are stored inline in the exported level.
+  including background music are stored inline in the exported level and
+  campaign.
 - Particle bursts accompany selected interactions; selected major events also
   shake the camera.
 

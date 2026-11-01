@@ -1,5 +1,6 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
+import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
 import { SoundManager } from './SoundManager.js';
 
 export class GameScene extends Scene {
@@ -14,6 +15,7 @@ export class GameScene extends Scene {
   ) {
     super({ key: 'GameScene' });
     this.worldSnapshot = worldSnapshot;
+    this.worldTheme = WORLD_THEMES.find(theme => theme.id === worldSnapshot.worldTheme) || WORLD_THEMES[0];
     this.entityFactory = entityFactory;
     this.spriteAnimator = spriteAnimator;
     this.touchState = touchState;
@@ -47,7 +49,11 @@ export class GameScene extends Scene {
     this.jumpWasHeld = false;
     this.wallJumpDirection = 0;
     this.wallJumpUntil = 0;
-    this.soundManager = new SoundManager(eventBus, worldSnapshot.soundEffects || {});
+    this.soundManager = new SoundManager(
+      eventBus,
+      worldSnapshot.soundEffects || {},
+      worldSnapshot.backgroundMusic || null
+    );
   }
 
   preload() {
@@ -152,6 +158,9 @@ export class GameScene extends Scene {
         const entity = customCreepy
           ? this.entityFactory.createEnemy(this, tileType, x, y, createOptions)
           : this.entityFactory.create(this, tileType, x, y, createOptions);
+        if (THEMED_TILE_TYPES.has(tileType)) {
+          entity.setTint(this.worldTheme.tileTint);
+        }
         if (this.worldSnapshot.spriteMetadata?.[tileType]?.frames > 1) {
           animatedEntities.push({ entity, tileType });
         }
@@ -334,24 +343,33 @@ export class GameScene extends Scene {
     const key = 'demo-backdrop';
     const texture = this.textures.createCanvas(key, 960, 540);
     const context = texture.getContext();
+    const theme = this.worldTheme;
     const sky = context.createLinearGradient(0, 0, 0, 540);
-    sky.addColorStop(0, '#71c3e3');
-    sky.addColorStop(0.7, '#c6e7d0');
-    sky.addColorStop(1, '#f2d89e');
+    sky.addColorStop(0, theme.sky[0]);
+    sky.addColorStop(0.7, theme.sky[1]);
+    sky.addColorStop(1, theme.sky[2]);
     context.fillStyle = sky;
     context.fillRect(0, 0, 960, 540);
 
-    context.fillStyle = '#fff0bd';
+    context.fillStyle = theme.sun;
     context.beginPath();
-    context.arc(760, 114, 42, 0, Math.PI * 2);
+    context.arc(760, 114, theme.stars ? 34 : 42, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = '#ffe08a';
-    for (const [x, y] of [[760, 58], [760, 170], [704, 114], [816, 114], [720, 74], [800, 154], [800, 74], [720, 154]]) {
-      context.fillRect(x - 2, y - 2, 4, 4);
+    if (theme.stars) {
+      context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      for (const [x, y, size] of [
+        [88, 52, 3], [185, 128, 2], [314, 66, 3], [452, 108, 2], [575, 42, 2],
+        [668, 162, 3], [840, 68, 2], [910, 148, 3], [113, 211, 2], [520, 194, 2]
+      ]) context.fillRect(x, y, size, size);
+    } else {
+      context.fillStyle = theme.sun;
+      for (const [x, y] of [[760, 58], [760, 170], [704, 114], [816, 114], [720, 74], [800, 154], [800, 74], [720, 154]]) {
+        context.fillRect(x - 2, y - 2, 4, 4);
+      }
     }
 
     context.fillStyle = 'rgb(255 255 255 / 72%)';
-    for (const [x, y] of [[85, 100], [385, 145], [625, 72], [860, 178]]) {
+    for (const [x, y] of theme.stars ? [] : [[85, 100], [385, 145], [625, 72], [860, 178]]) {
       context.fillRect(x, y + 12, 72, 18);
       context.fillRect(x + 14, y, 44, 18);
       context.fillRect(x + 26, y + 26, 34, 8);
@@ -362,7 +380,7 @@ export class GameScene extends Scene {
       context.fillStyle = 'rgb(255 255 255 / 72%)';
     }
 
-    context.fillStyle = '#a4cfaa';
+    context.fillStyle = theme.far;
     context.beginPath();
     context.moveTo(0, 355);
     context.quadraticCurveTo(180, 230, 350, 354);
@@ -372,7 +390,7 @@ export class GameScene extends Scene {
     context.lineTo(0, 540);
     context.fill();
 
-    context.fillStyle = '#6eae79';
+    context.fillStyle = theme.near;
     context.beginPath();
     context.moveTo(0, 425);
     context.quadraticCurveTo(200, 320, 390, 425);
@@ -382,31 +400,15 @@ export class GameScene extends Scene {
     context.lineTo(0, 540);
     context.fill();
 
-    for (const [x, y] of [[80, 382], [285, 402], [530, 380], [850, 393]]) {
-      context.fillStyle = '#416e58';
-      context.fillRect(x + 10, y + 24, 8, 34);
-      context.fillStyle = '#347c67';
-      context.fillRect(x, y + 8, 28, 22);
-      context.fillRect(x + 5, y, 18, 14);
-      context.fillStyle = '#78b877';
-      context.fillRect(x + 5, y + 10, 8, 5);
-    }
-
-    for (const [x, y, petal] of [
-      [48, 438, '#fff0bd'], [205, 460, '#f2a6bd'], [355, 437, '#fff0bd'],
-      [470, 466, '#f2a6bd'], [690, 440, '#fff0bd'], [925, 454, '#f2a6bd']
-    ]) {
-      context.fillStyle = '#4f945a';
-      context.fillRect(x + 5, y + 5, 2, 12);
-      context.fillRect(x + 1, y + 10, 5, 2);
-      context.fillRect(x + 7, y + 12, 5, 2);
-      context.fillStyle = petal;
-      context.fillRect(x + 3, y, 3, 3);
-      context.fillRect(x, y + 3, 3, 3);
-      context.fillRect(x + 6, y + 3, 3, 3);
-      context.fillRect(x + 3, y + 6, 3, 3);
-      context.fillStyle = '#f2c64f';
-      context.fillRect(x + 3, y + 3, 3, 3);
+    if (theme.id === 'storybook' || theme.id === 'forest' || theme.id === 'candy') {
+      for (const [x, y] of [[80, 382], [285, 402], [530, 380], [850, 393]]) {
+        context.fillStyle = theme.near;
+        context.fillRect(x + 10, y + 24, 8, 34);
+        context.fillStyle = theme.far;
+        context.fillRect(x, y + 8, 28, 22);
+        context.fillRect(x + 5, y, 18, 14);
+        context.fillRect(x + 5, y + 10, 8, 5);
+      }
     }
 
     texture.refresh();

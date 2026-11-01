@@ -51,9 +51,10 @@ const BACKGROUND_MUSIC_VOLUME = 0.25;
 const BACKGROUND_NOTE_INTERVAL = 220;
 
 export class SoundManager {
-  constructor(eventBus, soundEffects = {}) {
+  constructor(eventBus, soundEffects = {}, backgroundMusic = null) {
     this.eventBus = eventBus;
     this.soundEffects = soundEffects;
+    this.backgroundMusic = backgroundMusic;
     this.activeAudio = new Set();
     this.activeSynths = new Set();
     this.audioContext = null;
@@ -63,6 +64,30 @@ export class SoundManager {
   }
 
   startMusic() {
+    if (this.backgroundMusic) {
+      if (!this.backgroundMusic.enabled || this.backgroundMusic.volume <= 0) return true;
+      try {
+        const audio = new Audio(this.backgroundMusic.dataUrl);
+        audio.loop = true;
+        audio.volume = Math.max(0, Math.min(1, this.backgroundMusic.volume));
+        this.activeAudio.add(audio);
+        audio.addEventListener('error', () => {
+          this.activeAudio.delete(audio);
+          console.error('Could not play configured background music.');
+          this.eventBus.emit('status', 'Could not play the configured background music.');
+        }, { once: true });
+        audio.play().catch(error => {
+          this.activeAudio.delete(audio);
+          console.error('Could not start configured background music:', error);
+          this.eventBus.emit('status', 'Could not start background music. Check that the browser allows audio playback.');
+        });
+        return true;
+      } catch (error) {
+        console.error('Could not create configured background music:', error);
+        this.eventBus.emit('status', 'Could not start the configured background music.');
+        return false;
+      }
+    }
     if (this.musicGain) return true;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) {

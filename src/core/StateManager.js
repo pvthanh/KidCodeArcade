@@ -66,6 +66,63 @@ const SOUND_EVENTS = [
 const DEMO_COLS = 96;
 const DEMO_ROWS = 18;
 
+export const WORLD_THEMES = [
+  {
+    id: 'storybook', name: 'Sunny Storybook', sky: ['#71c3e3', '#c6e7d0', '#f2d89e'],
+    far: '#a4cfaa', near: '#6eae79', sun: '#fff0bd', tileTint: 0xffffff,
+    tileOverlay: 'rgba(255, 238, 190, 0.12)', stars: false
+  },
+  {
+    id: 'sunset', name: 'Peach Sunset', sky: ['#ef8c91', '#f6bd9c', '#ffe1b3'],
+    far: '#d997a0', near: '#a96882', sun: '#fff0b0', tileTint: 0xffd5c3,
+    tileOverlay: 'rgba(228, 115, 126, 0.18)', stars: false
+  },
+  {
+    id: 'desert', name: 'Golden Desert', sky: ['#51b7dc', '#b9dfdc', '#f5d69c'],
+    far: '#d4b77c', near: '#b98352', sun: '#fff1aa', tileTint: 0xf0d49c,
+    tileOverlay: 'rgba(208, 146, 65, 0.18)', stars: false
+  },
+  {
+    id: 'ice', name: 'Frosty Peaks', sky: ['#527bb7', '#a8d7e8', '#e3f3ed'],
+    far: '#c4e3ed', near: '#86bbcf', sun: '#fff7df', tileTint: 0xc3e6ff,
+    tileOverlay: 'rgba(102, 194, 238, 0.18)', stars: false
+  },
+  {
+    id: 'candy', name: 'Candy Kingdom', sky: ['#efa6d2', '#f9d1df', '#fff0d6'],
+    far: '#d5b3e4', near: '#a8c9dc', sun: '#fff3bb', tileTint: 0xffc8e7,
+    tileOverlay: 'rgba(222, 130, 205, 0.17)', stars: false
+  },
+  {
+    id: 'forest', name: 'Emerald Forest', sky: ['#558c79', '#9dbb87', '#d2cf9a'],
+    far: '#87a875', near: '#54794f', sun: '#f5dfa1', tileTint: 0xc5e5bb,
+    tileOverlay: 'rgba(63, 139, 75, 0.18)', stars: false
+  },
+  {
+    id: 'volcano', name: 'Volcano', sky: ['#392a46', '#8e4d59', '#d18462'],
+    far: '#814b54', near: '#51394c', sun: '#ffc47a', tileTint: 0xf0b0a1,
+    tileOverlay: 'rgba(193, 72, 58, 0.2)', stars: false
+  },
+  {
+    id: 'ocean', name: 'Ocean Adventure', sky: ['#39a9c4', '#91d7ce', '#d4ecd0'],
+    far: '#66b6ae', near: '#367f88', sun: '#fff0b5', tileTint: 0xb4e9e9,
+    tileOverlay: 'rgba(36, 152, 183, 0.18)', stars: false
+  },
+  {
+    id: 'space', name: 'Outer Space', sky: ['#101a45', '#293b70', '#596495'],
+    far: '#394d83', near: '#252e62', sun: '#e8eaff', tileTint: 0xc1c9ff,
+    tileOverlay: 'rgba(83, 91, 194, 0.2)', stars: true
+  },
+  {
+    id: 'haunted', name: 'Moonlit Manor', sky: ['#292b43', '#59566b', '#a08a91'],
+    far: '#676878', near: '#3e4659', sun: '#e3e1cb', tileTint: 0xc9c4d7,
+    tileOverlay: 'rgba(103, 91, 139, 0.2)', stars: true
+  }
+];
+export const THEMED_TILE_TYPES = new Set([
+  'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
+  'OneWayPlatform', 'Switch', 'Door'
+]);
+
 const builtinAnimation = (dataUrl, fileName, frameRate, imageWidth = 128, imageHeight = 32) => ({
   dataUrl,
   fileName,
@@ -164,12 +221,14 @@ export class StateManager {
     this.cols = 64;
     this.rows = 15;
     this.tileSize = 32;
+    this.worldTheme = 'storybook';
     this.tiles = [];
     this.tileVariants = [];
     this.tileVariantCatalog = clone(BUILTIN_TILE_VARIANTS);
     this.selectedTileVariants = Object.fromEntries(TILE_VARIANT_TYPES.map(type => [type, 'classic']));
     this.spriteMetadata = JSON.parse(JSON.stringify(BUILTIN_SPRITES));
     this.soundEffects = {};
+    this.backgroundMusic = null;
     this.mysteryBoxReward = 'Mushroom';
     this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
     this.customBosses = [];
@@ -396,6 +455,13 @@ export class StateManager {
 
   getSelectedTileVariant(tileType) {
     return this.selectedTileVariants[tileType] || 'classic';
+  }
+
+  setWorldTheme(themeId) {
+    if (!WORLD_THEMES.some(theme => theme.id === themeId)) {
+      throw new RangeError(`Unknown world theme "${themeId}".`);
+    }
+    this.worldTheme = themeId;
   }
 
   setBossConfig(config) {
@@ -646,6 +712,19 @@ export class StateManager {
     return delete this.soundEffects[event];
   }
 
+  registerBackgroundMusic(metadata) {
+    if (typeof metadata?.dataUrl !== 'string' || !metadata.dataUrl.startsWith('data:audio/') ||
+      typeof metadata.volume !== 'number' || !Number.isFinite(metadata.volume) ||
+      metadata.volume < 0 || metadata.volume > 1 || typeof metadata.enabled !== 'boolean') {
+      throw new TypeError('Background music needs a valid audio file, volume, and enabled state.');
+    }
+    this.backgroundMusic = { ...metadata };
+  }
+
+  removeBackgroundMusic() {
+    this.backgroundMusic = null;
+  }
+
   getTileTypes() {
     return [...TILE_TYPES, ...this.customCreeps.map(creepy => creepy.tileId)];
   }
@@ -654,6 +733,7 @@ export class StateManager {
     return {
       cols: this.cols,
       rows: this.rows,
+      worldTheme: this.worldTheme,
       tiles: this.tiles.map(row => [...row]),
       tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
@@ -661,6 +741,7 @@ export class StateManager {
       tileVariantCatalog: clone(this.tileVariantCatalog),
       selectedTileVariants: { ...this.selectedTileVariants },
       soundEffects: JSON.parse(JSON.stringify(this.soundEffects)),
+      backgroundMusic: this.backgroundMusic ? { ...this.backgroundMusic } : null,
       mysteryBoxReward: this.mysteryBoxReward,
       bossConfig: { ...this.bossConfig },
       customBosses: clone(this.customBosses),
@@ -673,6 +754,7 @@ export class StateManager {
     this.validateWorld(snapshot);
     this.cols = snapshot.cols;
     this.rows = snapshot.rows;
+    this.worldTheme = snapshot.worldTheme || 'storybook';
     this.tiles = snapshot.tiles.map(row => [...row]);
     this.tileVariantCatalog = mergeVariantCatalog(snapshot.tileVariantCatalog);
     this.tileVariants = this.tiles.map((row, rowIndex) => row.map((tile, colIndex) =>
@@ -694,6 +776,7 @@ export class StateManager {
       ...JSON.parse(JSON.stringify(snapshot.spriteMetadata || {}))
     };
     this.soundEffects = JSON.parse(JSON.stringify(snapshot.soundEffects || {}));
+    this.backgroundMusic = snapshot.backgroundMusic ? { ...snapshot.backgroundMusic } : null;
     this.mysteryBoxReward = POWER_UP_TYPES.includes(snapshot.mysteryBoxReward)
       ? snapshot.mysteryBoxReward
       : 'Mushroom';
@@ -710,6 +793,9 @@ export class StateManager {
       !Array.isArray(data.tiles) || data.tiles.length !== data.rows ||
       data.tiles.some(row => !Array.isArray(row) || row.length !== data.cols)) {
       throw new TypeError('The level file has invalid dimensions or tile data.');
+    }
+    if (data.worldTheme !== undefined && !WORLD_THEMES.some(theme => theme.id === data.worldTheme)) {
+      throw new TypeError('The level file contains an unsupported world theme.');
     }
     const customCreeps = data.customCreeps === undefined ? [] : data.customCreeps;
     if (!Array.isArray(customCreeps) || customCreeps.length > MAX_CUSTOM_CREEPS) {
@@ -880,6 +966,17 @@ export class StateManager {
         !Number.isFinite(sound.volume) || sound.volume < 0 || sound.volume > 1 ||
         typeof sound.enabled !== 'boolean') {
         throw new TypeError(`The level file contains invalid sound settings for "${event}".`);
+      }
+    }
+    if (data.backgroundMusic !== undefined && data.backgroundMusic !== null) {
+      const music = data.backgroundMusic;
+      if (typeof music.dataUrl !== 'string' || !music.dataUrl.startsWith('data:audio/') ||
+        typeof music.volume !== 'number' || !Number.isFinite(music.volume) ||
+        music.volume < 0 || music.volume > 1 || typeof music.enabled !== 'boolean' ||
+        (music.fileSize !== undefined &&
+          (!Number.isInteger(music.fileSize) || music.fileSize < 0 || music.fileSize > 10 * 1024 * 1024)) ||
+        music.dataUrl.length > 10 * 1024 * 1024 * 1.4) {
+        throw new TypeError('The level file contains invalid background music settings.');
       }
     }
   }

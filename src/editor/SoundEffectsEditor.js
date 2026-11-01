@@ -37,12 +37,46 @@ export class SoundEffectsEditor {
         <header class="sound-dialog-header">
           <div>
             <span class="eyebrow">GAME AUDIO</span>
-            <h2 id="sound-dialog-title">Sound effects</h2>
-            <p>Add a separate sound for each game event, then adjust its volume.</p>
+            <h2 id="sound-dialog-title">Sounds &amp; music</h2>
+            <p>Configure looping background music and a separate sound for each game event.</p>
           </div>
           <button class="sound-dialog-close" type="button" aria-label="Close sound settings">✕</button>
         </header>
         <div class="sound-list">
+          <article class="sound-row background-music-row">
+            <div class="sound-copy">
+              <strong>Background music</strong>
+              <span>Loops throughout this level while it is being played</span>
+              <span class="sound-file-name" data-music-file>
+                ${this.escapeHtml(this.stateManager.backgroundMusic?.fileName || 'No music uploaded')}
+              </span>
+            </div>
+            <div class="sound-controls">
+              <label class="sound-upload-button">
+                <span>Choose music</span>
+                <input type="file" data-music-upload accept="audio/*" aria-label="Upload background music">
+              </label>
+              <label class="sound-volume-control">
+                Volume
+                <input type="range" min="0" max="100"
+                  value="${Math.round((this.stateManager.backgroundMusic?.volume ?? 0.25) * 100)}"
+                  data-music-volume aria-label="Background music volume">
+                <span data-music-volume-value>${Math.round((this.stateManager.backgroundMusic?.volume ?? 0.25) * 100)}%</span>
+              </label>
+              <label class="sound-enabled-control">
+                <input type="checkbox" data-music-enabled
+                  ${this.stateManager.backgroundMusic?.enabled === false ? '' : 'checked'}
+                  ${this.stateManager.backgroundMusic ? '' : 'disabled'}>
+                Enabled
+              </label>
+              <button type="button" class="sound-preview-button" data-music-preview
+                ${this.stateManager.backgroundMusic ? '' : 'disabled'}
+                aria-label="Preview background music">▶</button>
+              <button type="button" class="sound-remove-button" data-music-remove
+                ${this.stateManager.backgroundMusic ? '' : 'disabled'}
+                aria-label="Remove background music">Remove</button>
+            </div>
+          </article>
           ${SOUND_EVENTS.map(event => `
             <article class="sound-row" data-sound-event="${event.id}">
               <div class="sound-copy">
@@ -93,6 +127,20 @@ export class SoundEffectsEditor {
     });
 
     dialog.addEventListener('input', event => {
+      const musicVolume = event.target.closest('[data-music-volume]');
+      if (musicVolume) {
+        const volume = Number(musicVolume.value) / 100;
+        dialog.querySelector('[data-music-volume-value]').textContent = `${musicVolume.value}%`;
+        if (this.previewingMusic && this.previewAudio) this.previewAudio.volume = volume;
+        if (this.stateManager.backgroundMusic) {
+          this.stateManager.registerBackgroundMusic({
+            ...this.stateManager.backgroundMusic,
+            volume
+          });
+        }
+        return;
+      }
+
       const input = event.target.closest('[data-sound-volume]');
       if (!input) return;
       const row = input.closest('.sound-row');
@@ -103,6 +151,13 @@ export class SoundEffectsEditor {
     });
 
     dialog.addEventListener('change', async event => {
+      const musicUpload = event.target.closest('[data-music-upload]');
+      if (musicUpload?.files?.[0]) {
+        await this.uploadBackgroundMusic(musicUpload.files[0]);
+        musicUpload.value = '';
+        return;
+      }
+
       const upload = event.target.closest('[data-sound-upload]');
       if (upload?.files?.[0]) {
         await this.uploadSound(upload.closest('.sound-row'), upload.files[0]);
@@ -114,10 +169,28 @@ export class SoundEffectsEditor {
       if (enabled) {
         const row = enabled.closest('.sound-row');
         this.updateSound(row.dataset.soundEvent, { enabled: enabled.checked });
+        return;
+      }
+
+      const musicEnabled = event.target.closest('[data-music-enabled]');
+      if (musicEnabled && this.stateManager.backgroundMusic) {
+        this.stateManager.registerBackgroundMusic({
+          ...this.stateManager.backgroundMusic,
+          enabled: musicEnabled.checked
+        });
       }
     });
 
     dialog.addEventListener('click', event => {
+      if (event.target.closest('[data-music-preview]')) {
+        this.playMusicPreview();
+        return;
+      }
+      if (event.target.closest('[data-music-remove]')) {
+        this.removeBackgroundMusic();
+        return;
+      }
+
       const preview = event.target.closest('[data-sound-preview]');
       if (preview) {
         this.playPreview(preview.closest('.sound-row').dataset.soundEvent);
@@ -166,6 +239,44 @@ export class SoundEffectsEditor {
     }
   }
 
+  async uploadBackgroundMusic(file) {
+    const row = this.dialog.querySelector('.background-music-row');
+    row.classList.add('loading');
+    try {
+      if (!file.type.startsWith('audio/')) throw new TypeError('Choose an audio file.');
+      if (file.size > MAX_FILE_SIZE) throw new RangeError('Audio files must be 10 MB or smaller.');
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('The audio file could not be read.'));
+        reader.readAsDataURL(file);
+      });
+      const duration = await this.validateAudio(dataUrl);
+      const existing = this.stateManager.backgroundMusic;
+      const volume = Number(row.querySelector('[data-music-volume]').value) / 100;
+      this.stateManager.registerBackgroundMusic({
+        dataUrl,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        duration,
+        volume,
+        enabled: existing?.enabled ?? true
+      });
+      row.querySelector('[data-music-file]').textContent = file.name;
+      row.querySelector('[data-music-enabled]').disabled = false;
+      row.querySelector('[data-music-enabled]').checked = this.stateManager.backgroundMusic.enabled;
+      row.querySelector('[data-music-preview]').disabled = false;
+      row.querySelector('[data-music-remove]').disabled = false;
+      this.eventBus.emit('status', 'Background music uploaded.');
+    } catch (error) {
+      console.error('Background music upload failed:', error);
+      this.eventBus.emit('status', error.message || 'The background music upload failed.');
+    } finally {
+      row.classList.remove('loading');
+    }
+  }
+
   validateAudio(dataUrl) {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
@@ -198,12 +309,43 @@ export class SoundEffectsEditor {
     const sound = this.getSound(eventId);
     if (!sound?.dataUrl) return;
     this.previewAudio?.pause();
+    this.previewingMusic = false;
     this.previewAudio = new Audio(sound.dataUrl);
     this.previewAudio.volume = sound.enabled ? sound.volume : 0;
     this.previewAudio.play().catch(error => {
       console.error(`Could not preview the ${eventId} sound:`, error);
       this.eventBus.emit('status', `Could not preview the ${this.getLabel(eventId)} sound.`);
     });
+  }
+
+  playMusicPreview() {
+    const music = this.stateManager.backgroundMusic;
+    if (!music?.dataUrl) return;
+    this.previewAudio?.pause();
+    this.previewingMusic = true;
+    this.previewAudio = new Audio(music.dataUrl);
+    this.previewAudio.loop = true;
+    this.previewAudio.volume = music.enabled ? music.volume : 0;
+    this.previewAudio.play().catch(error => {
+      console.error('Could not preview background music:', error);
+      this.eventBus.emit('status', 'Could not preview the background music.');
+    });
+  }
+
+  removeBackgroundMusic() {
+    this.stateManager.removeBackgroundMusic();
+    this.previewAudio?.pause();
+    this.previewAudio = null;
+    this.previewingMusic = false;
+    const row = this.dialog.querySelector('.background-music-row');
+    row.querySelector('[data-music-file]').textContent = 'No music uploaded';
+    row.querySelector('[data-music-volume]').value = '25';
+    row.querySelector('[data-music-volume-value]').textContent = '25%';
+    row.querySelector('[data-music-enabled]').checked = true;
+    row.querySelector('[data-music-enabled]').disabled = true;
+    row.querySelector('[data-music-preview]').disabled = true;
+    row.querySelector('[data-music-remove]').disabled = true;
+    this.eventBus.emit('status', 'Background music removed.');
   }
 
   removeSound(eventId) {
@@ -238,6 +380,7 @@ export class SoundEffectsEditor {
   close() {
     this.previewAudio?.pause();
     this.previewAudio = null;
+    this.previewingMusic = false;
     this.dialog?.remove();
     this.dialog = null;
   }

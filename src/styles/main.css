@@ -665,9 +665,9 @@ button {
   flex-wrap: wrap;
   flex: 0 0 auto;
   align-items: center;
-  gap: 8px 18px;
-  min-height: 96px;
-  padding: 10px 18px;
+  gap: 6px 12px;
+  min-height: 88px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border);
   background: #fff;
 }
@@ -676,7 +676,7 @@ button {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .campaign-controls label {
@@ -686,8 +686,8 @@ button {
 }
 
 .campaign-controls select {
-  min-width: 160px;
-  height: 35px;
+  min-width: 180px;
+  height: 34px;
   padding: 0 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -801,6 +801,93 @@ button {
 
 .toolbar-actions {
   margin-left: auto;
+}
+
+.toolbar-icon-button {
+  position: relative;
+  display: inline-flex;
+  width: 38px;
+  min-width: 38px;
+  height: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.toolbar-icon-button::after {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 7px);
+  left: 50%;
+  width: max-content;
+  max-width: 180px;
+  padding: 7px 9px;
+  transform: translate(-50%, -3px);
+  border-radius: 6px;
+  background: #294354;
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.toolbar-icon-button:hover::after,
+.toolbar-icon-button:focus-visible::after {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.toolbar-play-button {
+  width: 42px;
+  min-width: 42px;
+  font-size: 15px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 26px;
+  margin: 0 2px;
+  background: #e2e9ee;
+}
+
+.world-theme-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #435b69;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.world-theme-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.world-theme-control select {
+  min-width: 142px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: #324c5d;
+  font: inherit;
 }
 
 .status-text {
@@ -1378,8 +1465,14 @@ button {
 
   .campaign-controls .secondary-button {
     min-height: 30px;
-    padding: 0 7px;
-    font-size: 9px;
+    padding: 0;
+  }
+
+  .toolbar-icon-button {
+    width: 34px;
+    min-width: 34px;
+    height: 32px;
+    min-height: 32px;
   }
 
   .world-size-form {
@@ -1400,9 +1493,13 @@ button {
 
   .toolbar-actions .secondary-button,
   .toolbar-actions .primary-button {
-    min-height: 30px;
-    padding: 0 8px;
-    font-size: 10px;
+    min-height: 32px;
+    padding: 0;
+  }
+
+  .toolbar-play-button {
+    width: 38px;
+    min-width: 38px;
   }
 
   .editor-board {
