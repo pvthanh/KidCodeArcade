@@ -46,6 +46,10 @@ support.
   the command history is limited to 100 operations.
 - The tile size is 32 pixels. Levels may be 8–256 columns wide and 8–40 rows
   high. Empty cells are allowed.
+- The **? Help** button in the top toolbar opens a kid-friendly guide with a
+  small level illustration, four building steps, keyboard controls, and a
+  grown-up tip. Close it with the close button, **Let’s play!**, Escape, or by
+  clicking outside the dialog.
 
 ### Toolbox content
 

@@ -95,9 +95,72 @@ export class UIOverlayEditor {
           aria-label="Clear level" data-tooltip="Clear level">🧹</button>
         <button id="sound-settings" class="secondary-button toolbar-icon-button" type="button"
           aria-label="Sound settings" data-tooltip="Sound settings">♫</button>
+        <button id="help-button" class="secondary-button toolbar-icon-button help-icon-button" type="button"
+          aria-label="How to use Little Level Lab" data-tooltip="Help">?</button>
         <button id="play-btn" class="primary-button toolbar-icon-button toolbar-play-button" type="button"
           aria-label="Play level" data-tooltip="Play level">▶</button>
       </div>
+      <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title">
+        <header class="help-dialog-header">
+          <div>
+            <span class="eyebrow">A FRIENDLY START</span>
+            <h2 id="help-title">Let’s build a little adventure!</h2>
+            <p>Pick a tool, make a path, and press Play to try your level.</p>
+          </div>
+          <button class="help-dialog-close" type="button" aria-label="Close help">×</button>
+        </header>
+        <div class="help-dialog-content">
+          <svg class="help-illustration" viewBox="0 0 640 190" role="img"
+            aria-label="A happy hero walking across a path of grass and blocks toward a flag">
+            <rect x="0" y="0" width="640" height="190" rx="18" fill="#dff4ff"/>
+            <circle cx="548" cy="43" r="23" fill="#ffd66e"/>
+            <path d="M0 129 Q112 84 225 129 T450 129 T680 129 V190 H0Z" fill="#a8d89b"/>
+            <rect x="0" y="151" width="640" height="39" fill="#916c4f"/>
+            <rect x="0" y="145" width="640" height="10" rx="4" fill="#58a65c"/>
+            <rect x="240" y="112" width="62" height="33" rx="5" fill="#bc7956"/>
+            <path d="M244 128h54M271 113v15m-27 1v15m54-15v15" stroke="#f1c99c" stroke-width="3"/>
+            <rect x="323" y="112" width="62" height="33" rx="5" fill="#e5ae42"/>
+            <text x="354" y="136" text-anchor="middle" fill="#fff" font-size="24" font-weight="800">?</text>
+            <path d="M463 112v34" stroke="#765b90" stroke-width="5"/>
+            <path d="M466 114l35 10-35 10z" fill="#ff7c78"/>
+            <circle cx="137" cy="112" r="13" fill="#ffd34e" stroke="#dc9b32" stroke-width="3"/>
+            <path d="M132 112h10m-5-5v10" stroke="#fff" stroke-width="2"/>
+            <rect x="79" y="108" width="36" height="37" rx="12" fill="#347bd1"/>
+            <circle cx="97" cy="99" r="15" fill="#ffd2a3"/>
+            <path d="M83 96q3-18 17-11 13 3 12 13z" fill="#6651a0"/>
+            <circle cx="92" cy="100" r="2" fill="#294354"/>
+            <circle cx="103" cy="100" r="2" fill="#294354"/>
+            <path d="M91 107q6 5 12 0" fill="none" stroke="#bd6555" stroke-width="2"/>
+            <path d="M86 142l-8 9m29-9 8 9" stroke="#294354" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+          <div class="help-steps">
+            <article class="help-step">
+              <span class="help-step-number">1</span>
+              <div><h3>Choose a tool</h3><p>Tap a tool on the left or use the quick icons under the board.</p></div>
+            </article>
+            <article class="help-step">
+              <span class="help-step-number">2</span>
+              <div><h3>Draw your world</h3><p>Click or drag on the board to place ground, blocks, coins, creatures, and a goal flag.</p></div>
+            </article>
+            <article class="help-step">
+              <span class="help-step-number">3</span>
+              <div><h3>Make it yours</h3><p>Choose a hero, change the scenery, add sounds, or build more levels in your campaign.</p></div>
+            </article>
+            <article class="help-step">
+              <span class="help-step-number">4</span>
+              <div><h3>Play and save</h3><p>Press ▶ to test. When you’re happy, use Save Level or Save Campaign to download your work.</p></div>
+            </article>
+          </div>
+          <div class="help-controls">
+            <strong>How to play:</strong>
+            <span>← / → or A / D move</span><span>Space, ↑ or W jump</span><span>Shift run</span>
+          </div>
+          <p class="help-parent-tip"><strong>Grown-up tip:</strong> Use Undo if a tile lands in the wrong place. Ready-made demo levels are available from the Campaign menu.</p>
+        </div>
+        <footer class="help-dialog-footer">
+          <button class="primary-button" type="button" data-close-help>Let’s play!</button>
+        </footer>
+      </dialog>
       <span id="status-text" class="status-text" role="status" aria-live="polite">Ready</span>
     `;
     this.renderCampaignOptions();
@@ -189,6 +252,17 @@ export class UIOverlayEditor {
     this.toolbar.querySelector('#load-level-button').addEventListener('click', () => this.toolbar.querySelector('#load-level').click());
     this.toolbar.querySelector('#load-level').addEventListener('change', event => this.loadLevel(event.target.files?.[0]));
     this.toolbar.querySelector('#sound-settings').addEventListener('click', () => this.eventBus.emit('openSoundSettings'));
+    const helpDialog = this.toolbar.querySelector('#help-dialog');
+    this.toolbar.querySelector('#help-button').addEventListener('click', () => helpDialog.showModal());
+    this.toolbar.querySelectorAll('.help-dialog-close, [data-close-help]').forEach(button => {
+      button.addEventListener('click', () => helpDialog.close());
+    });
+    helpDialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') helpDialog.close();
+    });
+    helpDialog.addEventListener('click', event => {
+      if (event.target === helpDialog) helpDialog.close();
+    });
     this.toolbar.querySelector('#play-btn').addEventListener('click', () => this.eventBus.emit('play'));
     this.eventBus.on('status', message => this.setStatus(message));
   }

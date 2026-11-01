@@ -76,7 +76,7 @@ when play starts; it does not edit the live editor grid.
 | Core | `src/core/EventBus.js` | Provides `on`, `once`, `off`, `emit`, and listener cleanup around Phaser's `Events.EventEmitter`. |
 | Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, boss and Creepy behavior, static-tile appearances, and image/animation uploads. |
 | Editor | `src/editor/GridCanvas.js` | Renders the non-gridded board and selected per-cell appearances, and translates pointer painting into editor events. |
-| Editor | `src/editor/UIOverlayEditor.js` | Handles level/campaign management, world resizing, file import/export, toolbar actions, and status messages. |
+| Editor | `src/editor/UIOverlayEditor.js` | Handles level/campaign management, world resizing, file import/export, the toolbar, kid-friendly help dialog, and status messages. |
 | Editor | `src/editor/SoundEffectsEditor.js` | Uploads, validates, previews, enables, removes, and adjusts per-event audio. |
 | Runtime | `src/engine/GameScene.js` | Creates play-mode entities and colliders; processes movement, combat, collectibles, puzzles, checkpoints, scoring, particles, and level completion. |
 | Runtime | `src/engine/EntityFactory.js` | Maps tile IDs to Phaser entities and creates fallback textures for built-in objects. |
