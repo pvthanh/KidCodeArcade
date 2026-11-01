@@ -61,7 +61,9 @@ is a separate, always-visible editor tool near Undo and Redo.
 - **Terrain**: Ground, Brick, Pipe.
 - **Platforms & Mechanics**: Spring, Moving platform, One-way platform,
   Mystery Box, Switch, Door.
-- **Creepy**: Goomba, Koopa, Bat, or custom creatures.
+- **Creepy**: Goomba, Koopa, Bat, Firefly, Cloud Puff, Jellyfish, Ladybug,
+  Hedgehog, Duckling, Fox Kit, Bumblebee, Froglet, Starfish, Ghost, Mini Dino,
+  or custom creatures.
 - **Boss**: built-in or custom bosses.
 - **Collectibles & Power-ups**: Coin, Super mushroom, Star power, Extra life,
   Fire flower.
@@ -86,8 +88,10 @@ physics or gameplay behavior.
   character behavior. The selected theme is saved with each level and its
   campaign.
 
-- Select **Creepy** to choose Goomba, Koopa, Bat, or a custom creature. The
-  selected creature is painted as its own type. Configure ground/flying
+- Select **Creepy** to choose from 15 built-in creatures (Goomba, Koopa, Bat,
+  Firefly, Cloud Puff, Jellyfish, Ladybug, Hedgehog, Duckling, Fox Kit,
+  Bumblebee, Froglet, Starfish, Ghost, and Mini Dino) or a custom creature.
+  The selected creature is painted as its own type. Configure ground/flying
   movement, speed (20–180 px/s), and health (1–5 hits). **＋ Add** uploads a
   custom PNG, JPEG, or WebP creature image (up to 5 MB and 4096 × 4096 pixels);
   up to 12 custom creatures and 20 MB of creature images are supported per
@@ -96,7 +100,8 @@ physics or gameplay behavior.
   level and campaign.
 
 - Select **Boss** to place a boss, then choose a built-in character (Slime
-  King, Robo Crab, or Sky Dragon) or press **＋ Add** beside the character list
+  King, Robo Crab, Sky Dragon, Candy Golem, Moon Bunny, Coral Kraken, Cloud
+  Yeti, Clockwork Owl, Volcano Turtle, or Rainbow Unicorn) or press **＋ Add** beside the character list
   to upload a custom boss image and name. Custom images are PNG, JPEG, or WebP,
   up to 5 MB and 4096 × 4096 pixels; a level supports up to 12 custom boss
   types and 20 MB total custom boss image data. Configure movement (patrol,
@@ -206,8 +211,8 @@ physics or gameplay behavior.
 | Switch | Touching it activates it and opens every closed Door in that level. |
 | Door | Solid until a Switch is activated. |
 | Checkpoint | The last touched checkpoint is the respawn point. Falling there costs one life; if lives remain, the player respawns after a short animation with temporary powers cleared. |
-| Creepy | Goomba, Koopa, and Bat are built-in creatures; custom creatures can be added. Each creature can patrol or fly, has configurable speed and 1–5 health, and can use uploaded idle/movement sheets. Stomps and Fire Flower projectiles damage it; Star power defeats it on contact. |
-| Boss | Choose Slime King, Robo Crab, Sky Dragon, or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, 40–120 px/s speed, and 32–128 px size (default 48 px). Boss fireballs travel at 320 px/s for up to 4.5 seconds; attacks can target the player up to 850 px away. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
+| Creepy | Fifteen built-in creatures (Goomba, Koopa, Bat, Firefly, Cloud Puff, Jellyfish, Ladybug, Hedgehog, Duckling, Fox Kit, Bumblebee, Froglet, Starfish, Ghost, and Mini Dino) plus optional custom creatures. Each creature can patrol or fly, has configurable speed and 1–5 health, and can use uploaded idle/movement sheets. Stomps and Fire Flower projectiles damage it; Star power defeats it on contact. |
+| Boss | Choose one of ten built-in characters (Slime King, Robo Crab, Sky Dragon, Candy Golem, Moon Bunny, Coral Kraken, Cloud Yeti, Clockwork Owl, Volcano Turtle, or Rainbow Unicorn) or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, 40–120 px/s speed, and 32–128 px size (default 48 px). Boss fireballs travel at 320 px/s for up to 4.5 seconds; attacks can target the player up to 850 px away. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
 | Coin | Collects for one point. |
 | Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |

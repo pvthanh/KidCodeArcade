@@ -1,8 +1,10 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
-import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+import { CREEPY_TYPES, THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
 import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
 import { SoundManager } from './SoundManager.js';
+
+const PLAYER_TILE_ALIGNMENT_OFFSET = (CHARACTER_DISPLAY_SIZE - 32) / 2;
 
 export class GameScene extends Scene {
   constructor(
@@ -136,7 +138,7 @@ export class GameScene extends Scene {
         const x = colIndex * tileSize + tileSize / 2;
         const y = rowIndex * tileSize + tileSize / 2;
         if (tileType === 'Player') {
-          spawnPoint = { x, y };
+          spawnPoint = { x, y: y - PLAYER_TILE_ALIGNMENT_OFFSET };
           return;
         }
         const animations = this.worldSnapshot.spriteMetadata?.[tileType]?.animations || {};
@@ -156,7 +158,8 @@ export class GameScene extends Scene {
             ? `${tileType}--variant--${variant.id}`
             : animationType ? `${tileType}-${animationType}` : undefined
         };
-        const entity = customCreepy
+        const isCreepy = CREEPY_TYPES.some(type => type.id === tileType) || customCreepy;
+        const entity = isCreepy
           ? this.entityFactory.createEnemy(this, tileType, x, y, createOptions)
           : this.entityFactory.create(this, tileType, x, y, createOptions);
         if (THEMED_TILE_TYPES.has(tileType)) {
@@ -181,7 +184,7 @@ export class GameScene extends Scene {
           entity.body.setAllowGravity(false);
           entity.body.setImmovable(true);
           entity.setVelocityX(entity.getData('travelSpeed'));
-        } else if (['Goomba', 'Koopa', 'Bat'].includes(tileType) || customCreepy) {
+        } else if (isCreepy) {
           entity.body.setSize(
             CHARACTER_COLLISION_SIZE / entity.scaleX,
             CHARACTER_COLLISION_SIZE / entity.scaleY
@@ -189,11 +192,8 @@ export class GameScene extends Scene {
             (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / 2 / entity.scaleX,
             (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / entity.scaleY
           );
-          const defaultConfig = tileType === 'Koopa'
-            ? { movement: 'ground', speed: 55, health: 1 }
-            : tileType === 'Bat'
-              ? { movement: 'flying', speed: 60, health: 1 }
-              : { movement: 'ground', speed: 45, health: 1 };
+          const defaultConfig = CREEPY_TYPES.find(type => type.id === tileType) ||
+            { movement: 'ground', speed: 45, health: 1 };
           const config = this.worldSnapshot.creepyConfigs?.[tileType] || defaultConfig;
           const flying = config.movement === 'flying';
           (flying ? this.flyingEnemies : this.enemies).add(entity);
@@ -735,7 +735,10 @@ export class GameScene extends Scene {
     });
     checkpoint.setData('activated', true);
     checkpoint.setTint(0x9de8a7);
-    this.checkpointPoint = { x: checkpoint.x, y: checkpoint.y };
+    this.checkpointPoint = {
+      x: checkpoint.x,
+      y: checkpoint.y - PLAYER_TILE_ALIGNMENT_OFFSET
+    };
     this.soundManager.play('checkpoint');
     this.emitBurst(checkpoint.x, checkpoint.y - 8, 0x72d5a5, 12, 34);
     this.updateHud();

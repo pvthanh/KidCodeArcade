@@ -199,13 +199,19 @@ The supported tile IDs are:
 
 The eraser is an editor tool, not a stored tile type. The Player and Creepy
 palette tools open animation uploads only when their explicit **Motion** button
-is pressed. The Creepy tool selects built-in Goomba, Koopa, Bat, or an uploaded
-custom creature, and paints the selected type as a distinct tile ID. Each
-creature supports ground/flying movement, speed from 20–180 px/s, and 1–5
-health. Users can add up to 12 custom creatures per level with PNG, JPEG, or
-WebP images up to 5 MB each and 4096 × 4096 pixels; combined image data is
-limited to 20 MB. Custom creature definitions, settings, images, and optional
-idle/movement sprite sheets are serialized with the level and campaign.
+is pressed. The Creepy tool selects one of 15 built-in types (Goomba, Koopa, Bat, Firefly,
+Cloud Puff, Jellyfish, Ladybug, Hedgehog, Duckling, Fox Kit, Bumblebee,
+Froglet, Starfish, Ghost, and Mini Dino) or an uploaded custom creature, and
+paints the selected type as a distinct tile ID. Each creature supports
+ground/flying movement, speed from 20–180 px/s, and 1–5 health. Users can add
+up to 12 custom creatures per level with PNG, JPEG, or WebP images up to 5 MB
+each and 4096 × 4096 pixels; combined image data is limited to 20 MB. Custom
+creature definitions, settings, images, and optional idle/movement sprite
+sheets are serialized with the level and campaign.
+
+Bosses provide ten built-in characters (Slime King, Robo Crab, Sky Dragon,
+Candy Golem, Moon Bunny, Coral Kraken, Cloud Yeti, Clockwork Owl, Volcano
+Turtle, and Rainbow Unicorn), plus the existing custom-image upload flow.
 
 The palette organizes the toolbox into collapsible Start & Goal, Terrain,
 Platforms & Mechanics, Creepy, Boss, and Collectibles & Power-ups groups.
@@ -262,7 +268,8 @@ fit its container.
 
 ## 6. Asset and feedback pipeline
 
-- Built-in Player, Goomba, Koopa, Bat, Boss, Coin, and Mystery Box art is
+- Built-in Player, 15 Creepy characters, 10 Boss characters, Coin, and Mystery
+  Box art is
   generated as scalable, detailed vector artwork in
   `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
   viewBox. Built-in Player and Creepy animation sheets are rasterized from the

@@ -7,6 +7,7 @@ import {
   DEFAULT_CREEPY_CONFIGS,
   PLAYER_CHARACTERS
 } from '../core/StateManager.js';
+import { characterArt } from '../assets/demo/CharacterArt.js';
 
 const TILES = [
   { id: 'Player', name: 'Player', icon: '🧑', description: 'Place the player start', color: '#347bd1' },
@@ -707,7 +708,13 @@ export class PaletteView {
       preview.replaceChildren(image);
       return;
     }
-    const icons = { Goomba: '🐞', Koopa: '🐢', Bat: '🦇' };
+    const icons = {
+      Goomba: '🐞', Koopa: '🐢', Bat: '🦇',
+      'Creepy-Firefly': '✨', 'Creepy-CloudPuff': '☁️', 'Creepy-Jellyfish': '🪼',
+      'Creepy-Ladybug': '🐞', 'Creepy-Hedgehog': '🦔', 'Creepy-Duckling': '🐥',
+      'Creepy-FoxKit': '🦊', 'Creepy-Bumblebee': '🐝', 'Creepy-Froglet': '🐸',
+      'Creepy-Starfish': '⭐', 'Creepy-Ghost': '👻', 'Creepy-MiniDino': '🦕'
+    };
     preview.textContent = icons[this.selectedCreepyType] || '👾';
   }
 
@@ -869,7 +876,7 @@ export class PaletteView {
     if (!preview) return;
     const customBoss = this.customBosses.find(boss => boss.id === type);
     const image = document.createElement('img');
-    image.src = customBoss?.dataUrl || bossPreviewDataUrl(type);
+    image.src = customBoss?.dataUrl || characterArt.bosses[type] || bossPreviewDataUrl(type);
     image.alt = `${customBoss?.name || BOSS_TYPES.find(boss => boss.id === type)?.name || 'Boss'} preview`;
     preview.replaceChildren(image);
     const activeLabel = this.container.querySelector('[data-group-active="boss"]');

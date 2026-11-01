@@ -1,4 +1,4 @@
-import { characterArt, playerCharacterArt } from '../assets/demo/CharacterArt.js';
+import { characterArt, creepyArt, playerCharacterArt } from '../assets/demo/CharacterArt.js';
 import groundSprite from '../assets/demo/MeadowGround.svg?inline';
 import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
 import pipeSprite from '../assets/demo/Pipe.svg?inline';
@@ -16,7 +16,14 @@ const MAX_ROWS = 40;
 export const BOSS_TYPES = [
   { id: 'slimeKing', name: 'Slime King' },
   { id: 'roboCrab', name: 'Robo Crab' },
-  { id: 'skyDragon', name: 'Sky Dragon' }
+  { id: 'skyDragon', name: 'Sky Dragon' },
+  { id: 'candyGolem', name: 'Candy Golem' },
+  { id: 'moonBunny', name: 'Moon Bunny' },
+  { id: 'coralKraken', name: 'Coral Kraken' },
+  { id: 'cloudYeti', name: 'Cloud Yeti' },
+  { id: 'clockworkOwl', name: 'Clockwork Owl' },
+  { id: 'volcanoTurtle', name: 'Volcano Turtle' },
+  { id: 'rainbowUnicorn', name: 'Rainbow Unicorn' }
 ];
 export const BOSS_MOVEMENTS = [
   { id: 'patrol', name: 'Patrol left and right' },
@@ -40,7 +47,19 @@ export const DEFAULT_BOSS_CONFIG = {
 export const CREEPY_TYPES = [
   { id: 'Goomba', name: 'Goomba', movement: 'ground', speed: 45, health: 1 },
   { id: 'Koopa', name: 'Koopa', movement: 'ground', speed: 55, health: 1 },
-  { id: 'Bat', name: 'Bat', movement: 'flying', speed: 60, health: 1 }
+  { id: 'Bat', name: 'Bat', movement: 'flying', speed: 60, health: 1 },
+  { id: 'Creepy-Firefly', name: 'Firefly', movement: 'flying', speed: 65, health: 1 },
+  { id: 'Creepy-CloudPuff', name: 'Cloud Puff', movement: 'flying', speed: 48, health: 1 },
+  { id: 'Creepy-Jellyfish', name: 'Jellyfish', movement: 'flying', speed: 50, health: 1 },
+  { id: 'Creepy-Ladybug', name: 'Ladybug', movement: 'ground', speed: 40, health: 1 },
+  { id: 'Creepy-Hedgehog', name: 'Hedgehog', movement: 'ground', speed: 32, health: 2 },
+  { id: 'Creepy-Duckling', name: 'Duckling', movement: 'ground', speed: 44, health: 1 },
+  { id: 'Creepy-FoxKit', name: 'Fox Kit', movement: 'ground', speed: 60, health: 2 },
+  { id: 'Creepy-Bumblebee', name: 'Bumblebee', movement: 'flying', speed: 70, health: 1 },
+  { id: 'Creepy-Froglet', name: 'Froglet', movement: 'ground', speed: 52, health: 1 },
+  { id: 'Creepy-Starfish', name: 'Starfish', movement: 'ground', speed: 28, health: 2 },
+  { id: 'Creepy-Ghost', name: 'Ghost', movement: 'flying', speed: 42, health: 1 },
+  { id: 'Creepy-MiniDino', name: 'Mini Dino', movement: 'ground', speed: 55, health: 2 }
 ];
 export const DEFAULT_CREEPY_CONFIGS = Object.fromEntries(CREEPY_TYPES.map(creepy => [
   creepy.id,
@@ -51,7 +70,7 @@ const MAX_CUSTOM_CREEPS = 12;
 
 const TILE_TYPES = [
   'Player', 'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
-  'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', 'Goomba', 'Koopa', 'Bat', 'Coin', 'Flag',
+  'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', ...CREEPY_TYPES.map(({ id }) => id), 'Coin', 'Flag',
   'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
 const TILE_VARIANT_TYPES = [
@@ -163,6 +182,10 @@ const BUILTIN_SPRITES = {
   ExtraLife: { dataUrl: extraLifeSprite }
 };
 
+for (const [tileType, art] of Object.entries(creepyArt)) {
+  BUILTIN_SPRITES[tileType] = { dataUrl: art.sprite };
+}
+
 const builtinVariant = (id, name, dataUrl, fileName = null, imageSize = 32) => ({
   id,
   name,
@@ -270,6 +293,12 @@ BUILTIN_SPRITES.Bat.animations = {
   idle: builtinCharacterAnimation(characterArt.batIdle, 'Bat-idle.svg', 5),
   walk: builtinCharacterAnimation(characterArt.batWalk, 'Bat-walk.svg', 9)
 };
+for (const [tileType, art] of Object.entries(creepyArt)) {
+  BUILTIN_SPRITES[tileType].animations = {
+    idle: builtinCharacterAnimation(art.idle, `${tileType}-idle.svg`, 4),
+    walk: builtinCharacterAnimation(art.walk, `${tileType}-walk.svg`, 7)
+  };
+}
 
 export class StateManager {
   constructor() {
@@ -734,7 +763,9 @@ export class StateManager {
       Koopa: ['idle', 'walk'],
       Bat: ['idle', 'walk']
     };
-    if (this.getCreepyType(entityType)) allowed[entityType] = ['idle', 'walk'];
+    if (this.getCreepyTypes().some(type => type.id === entityType)) {
+      allowed[entityType] = ['idle', 'walk'];
+    }
     if (!allowed[entityType]?.includes(animationType) || !metadata?.dataUrl ||
       !Number.isInteger(metadata.frameWidth) || !Number.isInteger(metadata.frameHeight) ||
       !Number.isInteger(metadata.frameCount) || metadata.frameCount < 1) {
@@ -857,7 +888,7 @@ export class StateManager {
         ? this.spriteMetadata.Player.characterId
         : 'storybookHero';
     this.setPlayerCharacter(this.playerCharacterId);
-    for (const tileType of ['Goomba', 'Koopa', 'Bat']) {
+    for (const tileType of CREEPY_TYPES.map(({ id }) => id)) {
       const current = this.spriteMetadata[tileType] || {};
       const defaults = BUILTIN_SPRITES[tileType].animations;
       this.spriteMetadata[tileType] = {
@@ -1091,7 +1122,7 @@ export class StateManager {
   }
 
   isEnemy(tileType) {
-    return ['Goomba', 'Koopa', 'Bat', 'Boss'].includes(tileType) ||
+    return CREEPY_TYPES.some(type => type.id === tileType) || tileType === 'Boss' ||
       this.customCreeps.some(creepy => creepy.tileId === tileType);
   }
 

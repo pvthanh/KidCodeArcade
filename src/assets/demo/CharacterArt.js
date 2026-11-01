@@ -209,6 +209,157 @@ const boss = type => {
   `;
 };
 
+const additionalBossLooks = {
+  candyGolem: {
+    body: '#f287b7', light: '#ffe6ad', outline: '#74446e', accent: '#72c9bf',
+    silhouette: `<path d="M37 46 27 22l22 10 15-24 15 24 22-10-10 24z" fill="#ffe18b" stroke="#74446e" stroke-width="5" stroke-linejoin="round"/>`,
+    gear: `<circle cx="45" cy="49" r="8" fill="#f3a550" stroke="#74446e" stroke-width="4"/><circle cx="82" cy="49" r="8" fill="#73c9bf" stroke="#74446e" stroke-width="4"/><path d="M43 97q21 13 42 0v12q-21 13-42 0z" fill="#fff1d2" stroke="#74446e" stroke-width="4"/>`,
+    shape: 'round'
+  },
+  moonBunny: {
+    body: '#9e8be0', light: '#e5dcff', outline: '#51467d', accent: '#f4c968',
+    silhouette: `<path d="M47 42Q28 11 39 5q18 5 25 32Q70 10 88 5q11 6-8 37z" fill="#d8caff" stroke="#51467d" stroke-width="5" stroke-linejoin="round"/><path d="M45 25q9 7 15 18m14-18q-8 8-13 18" fill="none" stroke="#f3a6c1" stroke-width="5"/>`,
+    gear: `<path d="M28 75 13 94l15 5m82-24 15 19-15 5" fill="none" stroke="#51467d" stroke-width="8" stroke-linecap="round"/><path d="M56 93q8 12 16 0" fill="none" stroke="#51467d" stroke-width="4"/>`,
+    shape: 'round'
+  },
+  coralKraken: {
+    body: '#58b9c9', light: '#b7eee0', outline: '#315f7b', accent: '#fb9b78',
+    silhouette: `<path d="M37 48 27 20l22 19 15-30 15 30 22-19-10 28z" fill="#fb9b78" stroke="#315f7b" stroke-width="5" stroke-linejoin="round"/><path d="M43 96q-15 11-2 20 8 4 14-7m8-11q-9 20 4 21 9 0 10-19m8-4q15 11 2 20-8 4-14-7" fill="#55b5c5" stroke="#315f7b" stroke-width="5" stroke-linecap="round"/>`,
+    gear: `<circle cx="47" cy="52" r="6" fill="#fff0ca"/><circle cx="82" cy="52" r="6" fill="#fff0ca"/><path d="M56 91q8 8 16 0" fill="none" stroke="#315f7b" stroke-width="4"/>`,
+    shape: 'round'
+  },
+  cloudYeti: {
+    body: '#91d9ef', light: '#f5ffff', outline: '#547995', accent: '#f5b5c4',
+    silhouette: `<path d="M34 47q-8-17 7-22 0-19 19-14 8-19 22-5 20-8 19 16 15 7 2 25z" fill="#f7ffff" stroke="#547995" stroke-width="5"/><path d="M35 83 14 95l13 9 18-10m48-11 21 12-13 9-18-10" fill="#91d9ef" stroke="#547995" stroke-width="6" stroke-linejoin="round"/>`,
+    gear: `<path d="M45 98h17l-2 12H43zm22 0h17l2 12H69z" fill="#eaaec3" stroke="#547995" stroke-width="4"/>`,
+    shape: 'round'
+  },
+  clockworkOwl: {
+    body: '#bd8a58', light: '#f7d891', outline: '#614b42', accent: '#66c4bd',
+    silhouette: `<path d="M28 49 17 18l31 19m52 12 11-31-31 19" fill="#8b664f" stroke="#614b42" stroke-width="6" stroke-linejoin="round"/><path d="M45 21 38 9m45 12 7-12" stroke="#f3d16f" stroke-width="5" stroke-linecap="round"/>`,
+    gear: `<circle cx="64" cy="95" r="13" fill="#f0c45f" stroke="#614b42" stroke-width="4"/><circle cx="64" cy="95" r="5" fill="#66c4bd"/><path d="M64 82v26m-13-13h26m-22-9 18 18m0-18-18 18" stroke="#fff1bd" stroke-width="3"/>`,
+    shape: 'round'
+  },
+  volcanoTurtle: {
+    body: '#59ae72', light: '#f4d184', outline: '#435a48', accent: '#ef815f',
+    silhouette: `<path d="M26 70q2-35 38-42 36 7 38 42L88 91H40z" fill="#765e69" stroke="#435a48" stroke-width="6"/><path d="m43 63 13-20 8 14 10-19 13 25m-46 6h44" fill="none" stroke="#f39a65" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 30q-9-13 0-22m16 22q10-14 0-24" fill="none" stroke="#ffca68" stroke-width="6" stroke-linecap="round"/>`,
+    gear: `<path d="M39 98h17l-2 11H39zm34 0h17l2 11H75z" fill="#f4d184" stroke="#435a48" stroke-width="4"/>`,
+    shape: 'round'
+  },
+  rainbowUnicorn: {
+    body: '#f7f1ff', light: '#ffd7ed', outline: '#665280', accent: '#7bd3ca',
+    silhouette: `<path d="m56 43 9-34 11 35" fill="#ffe27a" stroke="#665280" stroke-width="5" stroke-linejoin="round"/><path d="M39 40q-4-25 16-27l9 23m18 4q4-25-16-27l-9 23" fill="#bc8fe3" stroke="#665280" stroke-width="5"/><path d="M44 21q10-9 20 7m7-7q10-9 20 7" fill="none" stroke="#f28fbb" stroke-width="5"/>`,
+    gear: `<path d="M32 79q-16 0-17 15 11 10 24-1m57-14q16 0 17 15-11 10-24-1" fill="none" stroke="#7bd3ca" stroke-width="7" stroke-linecap="round"/><path d="M53 94q11 11 22 0" fill="none" stroke="#665280" stroke-width="4"/>`,
+    shape: 'round'
+  }
+};
+
+const additionalBoss = (type, look) => {
+  const bodyPath = look.shape === 'round'
+    ? 'M27 67Q27 38 64 34q37 4 37 33v31q-9 18-37 18-28 0-37-18z'
+    : 'M25 67Q26 38 64 34q38 4 39 33v31q-12 17-39 17-27 0-39-17z';
+  return `
+    <ellipse cx="64" cy="119" rx="39" ry="5" fill="#355b4b" opacity=".18"/>
+    ${look.silhouette}
+    <path d="M42 105 33 115h17l12-10m21 0 12 10H78l-12-10" fill="${look.accent}" stroke="${look.outline}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="${bodyPath}" fill="${look.body}" stroke="${look.outline}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M39 84q25 12 50 0v25q-25 15-50 0z" fill="${look.light}" stroke="${look.outline}" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="49" cy="68" rx="9" ry="12" fill="#fff" stroke="${look.outline}" stroke-width="3"/>
+    <ellipse cx="79" cy="68" rx="9" ry="12" fill="#fff" stroke="${look.outline}" stroke-width="3"/>
+    <ellipse cx="52" cy="70" rx="4" ry="6" fill="#293d56"/>
+    <ellipse cx="76" cy="70" rx="4" ry="6" fill="#293d56"/>
+    <circle cx="53" cy="67" r="2" fill="#fff"/>
+    <circle cx="77" cy="67" r="2" fill="#fff"/>
+    <path d="M55 84q9 8 18 0" fill="none" stroke="${look.outline}" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="35" cy="83" r="5" fill="${look.accent}"/>
+    <circle cx="93" cy="83" r="5" fill="${look.accent}"/>
+    ${look.gear}
+  `;
+};
+
+const creepyLooks = [
+  { id: 'Creepy-Firefly', name: 'Firefly', icon: '✨', movement: 'flying', speed: 65, colors: ['#f5c64c', '#fff1a8', '#765a35'], feature: 'glow' },
+  { id: 'Creepy-CloudPuff', name: 'Cloud Puff', icon: '☁️', movement: 'flying', speed: 48, colors: ['#a4dff2', '#f7ffff', '#577f96'], feature: 'cloud' },
+  { id: 'Creepy-Jellyfish', name: 'Jellyfish', icon: '🪼', movement: 'flying', speed: 50, colors: ['#c480e8', '#f1d5ff', '#704b88'], feature: 'tentacles' },
+  { id: 'Creepy-Ladybug', name: 'Ladybug', icon: '🐞', movement: 'ground', speed: 40, colors: ['#eb6661', '#ffd978', '#6e4541'], feature: 'dots' },
+  { id: 'Creepy-Hedgehog', name: 'Hedgehog', icon: '🦔', movement: 'ground', speed: 32, colors: ['#ad825b', '#f5d6a1', '#634d42'], feature: 'spikes' },
+  { id: 'Creepy-Duckling', name: 'Duckling', icon: '🐥', movement: 'ground', speed: 44, colors: ['#f4cd54', '#fff2a1', '#806339'], feature: 'beak' },
+  { id: 'Creepy-FoxKit', name: 'Fox Kit', icon: '🦊', movement: 'ground', speed: 60, colors: ['#ed945c', '#ffe1b3', '#765144'], feature: 'fox' },
+  { id: 'Creepy-Bumblebee', name: 'Bumblebee', icon: '🐝', movement: 'flying', speed: 70, colors: ['#f2c64f', '#fff1aa', '#50483d'], feature: 'stripes' },
+  { id: 'Creepy-Froglet', name: 'Froglet', icon: '🐸', movement: 'ground', speed: 52, colors: ['#72c978', '#d2f29b', '#46654a'], feature: 'frog' },
+  { id: 'Creepy-Starfish', name: 'Starfish', icon: '⭐', movement: 'ground', speed: 28, colors: ['#f49b72', '#ffdc9d', '#87504a'], feature: 'star' },
+  { id: 'Creepy-Ghost', name: 'Ghost', icon: '👻', movement: 'flying', speed: 42, colors: ['#b2c8f2', '#f7fbff', '#586887'], feature: 'ghost' },
+  { id: 'Creepy-MiniDino', name: 'Mini Dino', icon: '🦕', movement: 'ground', speed: 55, colors: ['#71bd8a', '#d3eb99', '#49654e'], feature: 'dino' }
+];
+
+const creepyFeature = (feature, color, outline, pose) => {
+  switch (feature) {
+    case 'glow':
+      return `<circle cx="64" cy="77" r="22" fill="#fff3a1" opacity=".48"/><path d="M64 15v12m-27-1 8 9m46-9-8 9" stroke="#fff0a0" stroke-width="4" stroke-linecap="round"/>`;
+    case 'cloud':
+      return `<path d="M36 53q-13-19 7-23 3-20 21-12 17-11 25 8 20 0 10 21z" fill="${color}" stroke="${outline}" stroke-width="5"/>`;
+    case 'tentacles':
+      return `<path d="M45 94q-12 13-4 23m19-23q-6 15 1 24m18-24q12 13 4 23m-37-23q-16 8-13 17m49-17q16 8 13 17" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"/>`;
+    case 'dots':
+      return `<circle cx="43" cy="62" r="6" fill="${outline}"/><circle cx="83" cy="62" r="6" fill="${outline}"/><circle cx="48" cy="86" r="5" fill="${outline}"/><circle cx="78" cy="86" r="5" fill="${outline}"/>`;
+    case 'spikes':
+      return `<path d="M33 53 24 38l18 7 5-18 13 17 9-20 9 21 17-13-3 23z" fill="${color}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"/>`;
+    case 'beak':
+      return `<path d="m54 78 21-1-11 13z" fill="#ed9347" stroke="${outline}" stroke-width="3" stroke-linejoin="round"/>`;
+    case 'fox':
+      return `<path d="m37 51-8-28 27 15m35 13 8-28-27 15" fill="${color}" stroke="${outline}" stroke-width="5" stroke-linejoin="round"/><path d="M57 83q7 8 14 0" fill="none" stroke="${outline}" stroke-width="3"/>`;
+    case 'stripes':
+      return `<path d="M44 80q20 13 40 0m-41 13q21 12 42 0" fill="none" stroke="${outline}" stroke-width="7"/>`;
+    case 'frog':
+      return `<circle cx="44" cy="44" r="12" fill="${color}" stroke="${outline}" stroke-width="4"/><circle cx="84" cy="44" r="12" fill="${color}" stroke="${outline}" stroke-width="4"/>`;
+    case 'star':
+      return `<path d="m64 18 12 25 28 3-20 19 6 28-26-14-26 14 6-28-20-19 28-3z" fill="${color}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"/>`;
+    case 'ghost':
+      return `<path d="M38 91v17l13-8 13 9 13-9 13 8V77" fill="${color}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"/>`;
+    case 'dino':
+      return `<path d="M43 49q-8-19 10-24l8 13 9-17 12 20q13 6 8 20H44z" fill="${color}" stroke="${outline}" stroke-width="4" stroke-linejoin="round"/>`;
+    default:
+      return '';
+  }
+};
+
+const creepyFrame = (look, pose = 0, moving = false) => {
+  const [body, light, outline] = look.colors;
+  const bounce = moving ? [0, -3, 0, -2][pose % 4] : [0, -1, 0, -1][pose % 4];
+  const frontFeature = ['dots', 'beak', 'stripes'].includes(look.feature);
+  return `
+    <ellipse cx="64" cy="117" rx="30" ry="5" fill="#355b4b" opacity=".16"/>
+    <g transform="translate(0 ${bounce})">
+      ${frontFeature ? '' : creepyFeature(look.feature, body, outline, pose)}
+      <path d="M42 92q-8 8-5 17l13 2 8-10m21-9q8 8 5 17l-13 2-8-10" fill="${body}" stroke="${outline}" stroke-width="4" stroke-linejoin="round" transform="translate(${moving ? [-4, 2, 4, -2][pose % 4] : 0} 0)"/>
+      <path d="M34 72q0-30 30-30t30 30q0 32-30 32T34 72z" fill="${body}" stroke="${outline}" stroke-width="5"/>
+      <path d="M43 80q21 9 42 0v17q-21 10-42 0z" fill="${light}" opacity=".94"/>
+      ${frontFeature ? creepyFeature(look.feature, body, outline, pose) : ''}
+      <ellipse cx="52" cy="67" rx="8" ry="10" fill="#fff" stroke="${outline}" stroke-width="3"/>
+      <ellipse cx="76" cy="67" rx="8" ry="10" fill="#fff" stroke="${outline}" stroke-width="3"/>
+      <ellipse cx="54" cy="69" rx="3" ry="5" fill="#263e4d"/>
+      <ellipse cx="74" cy="69" rx="3" ry="5" fill="#263e4d"/>
+      <circle cx="55" cy="66" r="1.5" fill="#fff"/>
+      <circle cx="75" cy="66" r="1.5" fill="#fff"/>
+      <path d="M58 82q6 5 12 0" fill="none" stroke="${outline}" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="43" cy="79" r="4" fill="${light}"/>
+      <circle cx="85" cy="79" r="4" fill="${light}"/>
+      <path d="M48 105h10m12 0h10" stroke="${light}" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  `;
+};
+
+const makeCreepyArt = () => Object.fromEntries(creepyLooks.map(look => {
+  const frames = moving => [0, 1, 2, 3].map(pose => creepyFrame(look, pose, moving));
+  return [look.id, {
+    sprite: shell(creepyFrame(look), 1, 128),
+    idle: characterSheet(frames(false)),
+    walk: characterSheet(frames(true))
+  }];
+}));
+
+export const creepyArt = makeCreepyArt();
+
 const idleFrames = render => [0, 1, 2, 3].map(pose => render(pose));
 
 const coin = () => `
@@ -378,9 +529,22 @@ export const characterArt = {
   bat: shell(bat(), 1, 128),
   batIdle: characterSheet(idleFrames(bat)),
   batWalk: characterSheet(idleFrames(bat)),
-  bosses: {
-    slimeKing: shell(boss('slimeKing'), 1, 48),
-    roboCrab: shell(boss('roboCrab'), 1, 48),
-    skyDragon: shell(boss('skyDragon'), 1, 48)
-  }
+  bosses: {}
 };
+
+const additionalBossTypes = [
+  ['candyGolem', 'candyGolem'],
+  ['moonBunny', 'moonBunny'],
+  ['coralKraken', 'coralKraken'],
+  ['cloudYeti', 'cloudYeti'],
+  ['clockworkOwl', 'clockworkOwl'],
+  ['volcanoTurtle', 'volcanoTurtle'],
+  ['rainbowUnicorn', 'rainbowUnicorn']
+];
+
+for (const [type, lookId] of additionalBossTypes) {
+  characterArt.bosses[type] = shell(additionalBoss(type, additionalBossLooks[lookId]), 1, 48);
+}
+characterArt.bosses.slimeKing = shell(boss('slimeKing'), 1, 48);
+characterArt.bosses.roboCrab = shell(boss('roboCrab'), 1, 48);
+characterArt.bosses.skyDragon = shell(boss('skyDragon'), 1, 48);
