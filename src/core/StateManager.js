@@ -24,10 +24,33 @@ const MIN_COLS = 8;
 const MAX_COLS = 256;
 const MIN_ROWS = 8;
 const MAX_ROWS = 40;
+export const BOSS_TYPES = [
+  { id: 'slimeKing', name: 'Slime King' },
+  { id: 'roboCrab', name: 'Robo Crab' },
+  { id: 'skyDragon', name: 'Sky Dragon' }
+];
+export const BOSS_MOVEMENTS = [
+  { id: 'patrol', name: 'Patrol left and right' },
+  { id: 'chase', name: 'Chase the player' },
+  { id: 'leap', name: 'Leap toward the player' }
+];
+export const BOSS_ABILITIES = [
+  { id: 'fireballs', name: 'Fireballs' },
+  { id: 'groundPound', name: 'Ground-pound shockwaves' },
+  { id: 'both', name: 'Fireballs and ground pounds' }
+];
+export const DEFAULT_BOSS_CONFIG = {
+  type: 'slimeKing',
+  movement: 'patrol',
+  ability: 'fireballs',
+  health: 5,
+  speed: 70
+};
+
 const TILE_TYPES = [
   'Player', 'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
   'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', 'Goomba', 'Koopa', 'Bat', 'Coin', 'Flag',
-  'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
+  'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
 const TILE_VARIANT_TYPES = [
   'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
@@ -108,6 +131,10 @@ const mergeVariantCatalog = catalog => {
 const MAX_VARIANTS_PER_TILE = 12;
 const MAX_VARIANT_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VARIANT_IMAGES_BYTES = 20 * 1024 * 1024;
+const MAX_CUSTOM_BOSSES = 12;
+const MAX_CUSTOM_BOSS_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_CUSTOM_BOSS_IMAGES_BYTES = 20 * 1024 * 1024;
+const CUSTOM_BOSS_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 BUILTIN_SPRITES.Player.animations = {
   idle: builtinAnimation(playerIdle, 'Player-idle.svg', 4),
@@ -132,6 +159,8 @@ export class StateManager {
     this.spriteMetadata = JSON.parse(JSON.stringify(BUILTIN_SPRITES));
     this.soundEffects = {};
     this.mysteryBoxReward = 'Mushroom';
+    this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
+    this.customBosses = [];
     this.activeTileType = 'Ground';
     this.initGrid();
     this.loadDemo();
@@ -147,6 +176,8 @@ export class StateManager {
   loadDemo() {
     this.cols = DEMO_COLS;
     this.rows = DEMO_ROWS;
+    this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
+    this.customBosses = [];
     this.initGrid();
     const put = (row, col, type) => {
       this.tiles[row][col] = type;
@@ -192,6 +223,8 @@ export class StateManager {
   loadDemoTwo() {
     this.cols = 72;
     this.rows = 18;
+    this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
+    this.customBosses = [];
     this.initGrid();
     const put = (row, col, type) => {
       this.tiles[row][col] = type;
@@ -226,6 +259,72 @@ export class StateManager {
 
     for (const col of [64, 66, 68, 70]) put(13, col, 'Coin');
     put(16, 69, 'Flag');
+    this.activeTileType = 'Ground';
+  }
+
+  loadDemoThree() {
+    this.cols = 112;
+    this.rows = 18;
+    this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
+    this.customBosses = [];
+    this.initGrid();
+    const put = (row, col, type, variantId = 'classic') => {
+      this.tiles[row][col] = type;
+      this.tileVariants[row][col] = type ? variantId : null;
+    };
+
+    put(16, 2, 'Player');
+    for (let col = 7; col <= 9; col++) {
+      put(13, col, col === 8 ? 'MysteryBox' : 'Brick', col === 7 ? 'moss' : 'classic');
+    }
+    for (const col of [7, 9]) put(12, col, 'Coin');
+    put(15, 14, 'Pipe');
+    put(16, 14, 'Pipe');
+    put(16, 18, 'Goomba');
+    put(16, 23, 'Koopa');
+    put(10, 21, 'Bat');
+    for (const col of [20, 22, 24, 26]) put(14, col, 'Coin');
+
+    put(16, 28, 'Spring');
+    for (const col of [30, 31]) put(17, col, null);
+    put(14, 34, 'OneWayPlatform');
+    put(12, 36, 'OneWayPlatform');
+    put(14, 38, 'OneWayPlatform');
+    for (const col of [42, 43, 44]) put(17, col, null);
+    put(12, 43, 'MovingPlatform');
+    for (let col = 47; col <= 50; col++) put(17, col, 'Ground', 'ice');
+    put(16, 51, 'Checkpoint');
+
+    put(16, 54, 'Switch');
+    for (const row of [14, 15, 16]) put(row, 58, 'Door');
+    put(16, 61, 'FireFlower');
+    put(16, 64, 'Mushroom');
+    put(16, 67, 'Star');
+    put(16, 70, 'ExtraLife');
+    for (const col of [62, 65, 68, 71]) put(13, col, 'Coin');
+
+    put(16, 74, 'Spring');
+    for (const col of [76, 77]) put(17, col, null);
+    put(11, 76, 'MovingPlatform');
+    put(9, 79, 'Bat');
+    put(16, 81, 'Goomba');
+    put(16, 83, 'Switch');
+    for (const row of [14, 15, 16]) put(row, 86, 'Door');
+    for (let col = 88; col <= 90; col++) {
+      put(13, col, col === 89 ? 'MysteryBox' : 'Brick', col === 90 ? 'moss' : 'classic');
+    }
+    for (const col of [88, 90, 92]) put(12, col, 'Coin');
+    put(16, 94, 'Koopa');
+    for (const col of [97, 98]) put(17, col, null);
+    put(12, 97, 'MovingPlatform');
+    put(16, 101, 'Pipe');
+    put(15, 101, 'Pipe');
+    put(14, 103, 'OneWayPlatform');
+    put(16, 106, 'Goomba');
+    for (const col of [104, 106, 108]) put(12, col, 'Coin');
+    put(16, 104, 'Boss');
+    put(16, 109, 'Flag');
+    this.mysteryBoxReward = 'Mushroom';
     this.activeTileType = 'Ground';
   }
 
@@ -277,6 +376,65 @@ export class StateManager {
 
   getSelectedTileVariant(tileType) {
     return this.selectedTileVariants[tileType] || 'classic';
+  }
+
+  setBossConfig(config) {
+    if (!this.getBossTypes().some(boss => boss.id === config?.type) ||
+      !BOSS_MOVEMENTS.some(movement => movement.id === config?.movement) ||
+      !BOSS_ABILITIES.some(ability => ability.id === config?.ability) ||
+      !Number.isInteger(config?.health) || config.health < 3 || config.health > 10 ||
+      !Number.isInteger(config?.speed) || config.speed < 40 || config.speed > 120) {
+      throw new TypeError('Boss settings contain an unsupported type, ability, movement, health, or speed.');
+    }
+    this.bossConfig = {
+      type: config.type,
+      movement: config.movement,
+      ability: config.ability,
+      health: config.health,
+      speed: config.speed
+    };
+  }
+
+  getBossTypes() {
+    return [...BOSS_TYPES, ...this.customBosses.map(({ id, name }) => ({ id, name }))];
+  }
+
+  registerBossType(boss) {
+    if (this.customBosses.length >= MAX_CUSTOM_BOSSES) {
+      throw new RangeError(`A level can have up to ${MAX_CUSTOM_BOSSES} custom boss types.`);
+    }
+    if (typeof boss?.id !== 'string' || !/^custom-[a-z0-9][a-z0-9-]{0,62}$/i.test(boss.id) ||
+      this.getBossTypes().some(type => type.id === boss.id)) {
+      throw new TypeError('The custom boss needs a unique identifier.');
+    }
+    if (typeof boss.name !== 'string' || !boss.name.trim() || boss.name.trim().length > 40 ||
+      this.getBossTypes().some(type => type.name.toLocaleLowerCase() === boss.name.trim().toLocaleLowerCase())) {
+      throw new TypeError('Choose a unique boss name up to 40 characters long.');
+    }
+    if (!CUSTOM_BOSS_IMAGE_TYPES.includes(boss.fileType) ||
+      typeof boss.dataUrl !== 'string' ||
+      !boss.dataUrl.startsWith(`data:${boss.fileType};base64,`) ||
+      boss.dataUrl.length > MAX_CUSTOM_BOSS_IMAGE_BYTES * 1.4 ||
+      !Number.isInteger(boss.imageWidth) || boss.imageWidth < 1 || boss.imageWidth > 4096 ||
+      !Number.isInteger(boss.imageHeight) || boss.imageHeight < 1 || boss.imageHeight > 4096 ||
+      typeof boss.fileName !== 'string' || !boss.fileName.trim() || boss.fileName.length > 255) {
+      throw new TypeError('The custom boss needs a supported image no larger than 5 MB and 4096 × 4096 pixels.');
+    }
+    const currentBytes = this.customBosses.reduce((total, item) => total + item.dataUrl.length, 0);
+    if (currentBytes + boss.dataUrl.length > MAX_CUSTOM_BOSS_IMAGES_BYTES * 1.4) {
+      throw new RangeError('Custom boss images may use up to 20 MB per level.');
+    }
+    const registeredBoss = {
+      id: boss.id,
+      name: boss.name.trim(),
+      dataUrl: boss.dataUrl,
+      fileName: boss.fileName,
+      fileType: boss.fileType,
+      imageWidth: boss.imageWidth,
+      imageHeight: boss.imageHeight
+    };
+    this.customBosses.push(registeredBoss);
+    return { ...registeredBoss };
   }
 
   selectTileVariant(tileType, variantId) {
@@ -398,7 +556,9 @@ export class StateManager {
       tileVariantCatalog: clone(this.tileVariantCatalog),
       selectedTileVariants: { ...this.selectedTileVariants },
       soundEffects: JSON.parse(JSON.stringify(this.soundEffects)),
-      mysteryBoxReward: this.mysteryBoxReward
+      mysteryBoxReward: this.mysteryBoxReward,
+      bossConfig: { ...this.bossConfig },
+      customBosses: clone(this.customBosses)
     };
   }
 
@@ -425,6 +585,8 @@ export class StateManager {
     this.mysteryBoxReward = POWER_UP_TYPES.includes(snapshot.mysteryBoxReward)
       ? snapshot.mysteryBoxReward
       : 'Mushroom';
+    this.customBosses = clone(snapshot.customBosses || []);
+    this.setBossConfig(snapshot.bossConfig || DEFAULT_BOSS_CONFIG);
   }
 
   validateWorld(data) {
@@ -498,6 +660,46 @@ export class StateManager {
     if (data.mysteryBoxReward !== undefined && !POWER_UP_TYPES.includes(data.mysteryBoxReward)) {
       throw new TypeError('The level file contains an unsupported mystery-box reward.');
     }
+    const customBosses = data.customBosses === undefined ? [] : data.customBosses;
+    if (!Array.isArray(customBosses) || customBosses.length > MAX_CUSTOM_BOSSES) {
+      throw new TypeError('The level file contains too many or invalid custom boss types.');
+    }
+    const customBossIds = new Set();
+    const customBossNames = new Set();
+    let customBossImageBytes = 0;
+    for (const boss of customBosses) {
+      const normalizedName = typeof boss?.name === 'string' ? boss.name.trim().toLocaleLowerCase() : '';
+      if (typeof boss?.id !== 'string' || !/^custom-[a-z0-9][a-z0-9-]{0,62}$/i.test(boss.id) ||
+        customBossIds.has(boss.id) ||
+        !normalizedName || normalizedName.length > 40 ||
+        BOSS_TYPES.some(type => type.name.toLocaleLowerCase() === normalizedName) ||
+        customBossNames.has(normalizedName) ||
+        !CUSTOM_BOSS_IMAGE_TYPES.includes(boss.fileType) ||
+        typeof boss.dataUrl !== 'string' ||
+        !boss.dataUrl.startsWith(`data:${boss.fileType};base64,`) ||
+        boss.dataUrl.length > MAX_CUSTOM_BOSS_IMAGE_BYTES * 1.4 ||
+        !Number.isInteger(boss.imageWidth) || boss.imageWidth < 1 || boss.imageWidth > 4096 ||
+        !Number.isInteger(boss.imageHeight) || boss.imageHeight < 1 || boss.imageHeight > 4096 ||
+        typeof boss.fileName !== 'string' || !boss.fileName.trim() || boss.fileName.length > 255) {
+        throw new TypeError('The level file contains an invalid custom boss type or image.');
+      }
+      customBossIds.add(boss.id);
+      customBossNames.add(normalizedName);
+      customBossImageBytes += boss.dataUrl.length;
+      if (customBossImageBytes > MAX_CUSTOM_BOSS_IMAGES_BYTES * 1.4) {
+        throw new RangeError('Custom boss images exceed the 20 MB per-level limit.');
+      }
+    }
+    if (data.bossConfig !== undefined) {
+      const { type, movement, ability, health, speed } = data.bossConfig || {};
+      if (![...BOSS_TYPES, ...customBosses].some(boss => boss.id === type) ||
+        !BOSS_MOVEMENTS.some(option => option.id === movement) ||
+        !BOSS_ABILITIES.some(option => option.id === ability) ||
+        !Number.isInteger(health) || health < 3 || health > 10 ||
+        !Number.isInteger(speed) || speed < 40 || speed > 120) {
+        throw new TypeError('The level file contains invalid boss settings.');
+      }
+    }
     if (data.soundEffects !== undefined &&
       (!data.soundEffects || typeof data.soundEffects !== 'object' || Array.isArray(data.soundEffects))) {
       throw new TypeError('The level file contains invalid sound settings.');
@@ -524,7 +726,7 @@ export class StateManager {
   }
 
   isEnemy(tileType) {
-    return ['Goomba', 'Koopa', 'Bat'].includes(tileType);
+    return ['Goomba', 'Koopa', 'Bat', 'Boss'].includes(tileType);
   }
 
   isCollectible(tileType) {

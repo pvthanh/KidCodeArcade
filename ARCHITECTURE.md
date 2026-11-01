@@ -70,11 +70,11 @@ when play starts; it does not edit the live editor grid.
 
 | Area | Module | Responsibility |
 |---|---|---|
-| Application | `src/main.js` | Creates the shared editor services, wires events, prepares the two demo campaign levels, and opens/restarts Phaser play sessions. |
+| Application | `src/main.js` | Creates the shared editor services, wires events, prepares the demo campaign levels, and opens/restarts Phaser play sessions. |
 | Core | `src/core/StateManager.js` | Owns the editable grid, dimensions, tile catalog, per-cell visual variants, demo data, sprite/audio metadata, level snapshot serialization, and validation. |
 | Core | `src/core/CommandManager.js` | Implements tile placement, erasing, bulk visual changes, resizing, clearing, and bounded undo/redo history. |
 | Core | `src/core/EventBus.js` | Provides `on`, `once`, `off`, `emit`, and listener cleanup around Phaser's `Events.EventEmitter`. |
-| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards and static-tile appearances, and handles image/animation uploads. |
+| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, boss type/behavior, and static-tile appearances, and handles image/animation uploads. |
 | Editor | `src/editor/GridCanvas.js` | Renders the non-gridded board and selected per-cell appearances, and translates pointer painting into editor events. |
 | Editor | `src/editor/UIOverlayEditor.js` | Handles level/campaign management, world resizing, file import/export, toolbar actions, and status messages. |
 | Editor | `src/editor/SoundEffectsEditor.js` | Uploads, validates, previews, enables, removes, and adjusts per-event audio. |
@@ -89,16 +89,22 @@ when play starts; it does not edit the live editor grid.
 
 ### Editor startup
 
-1. `src/main.js` creates a `StateManager`, snapshots the first demo, creates a
-   second demo snapshot, and restores the first demo as the initial workspace.
+1. `src/main.js` creates a `StateManager`, snapshots the three built-in demo
+   levels, and restores Sunny Hills as the initial workspace.
 2. The module creates one `EventBus`, `CommandManager`, `PaletteView`,
    `GridCanvas`, `UIOverlayEditor`, `SoundEffectsEditor`, `EntityFactory`, and
    `SpriteAnimator`.
 3. DOM input emits events such as `tileSelected`, `tileVariantSelected`,
    `applyTileVariantToAll`, `paintTile`, `undo`, `redo`, `spriteUploaded`,
-   `openSoundSettings`, and `play`.
+   `boardPanModeChanged`, `openSoundSettings`, and `play`.
 4. `StateManager` updates the editable world; the canvas redraws it. Commands
    retain prior values to support undo and redo.
+
+The campaign toolbar's **＋ Level** dialog collects a level name and insertion
+position. `UIOverlayEditor` inserts a snapshot with an all-empty tile grid,
+selects the Player tool, and makes the new level active. On touch devices,
+**Move board** toggles `GridCanvas` between painting and drag-to-pan input so
+navigation does not place tiles accidentally.
 
 ### Play-mode startup
 
@@ -153,8 +159,8 @@ sequenceDiagram
 ### Grid and tile catalog
 
 The editor uses a 32-pixel tile size. The initial demo has 96 columns by 18
-rows; the other built-in level has 72 columns by 18 rows. Users can resize
-levels from 8–256 columns and 8–40 rows. Coordinates are stored as
+rows; the other built-in levels have 72 × 18 and 112 × 18 tiles. Users can
+resize levels from 8–256 columns and 8–40 rows. Coordinates are stored as
 `tiles[row][column]`; empty cells are `null`.
 
 Static-object appearances are separate from tile behavior. `tileVariants` is
@@ -178,13 +184,27 @@ The supported tile IDs are:
 - Movement surfaces and obstacles: `Spring`, `MovingPlatform`,
   `OneWayPlatform`, `Door`.
 - Puzzle and respawn objects: `Switch`, `Checkpoint`.
-- Enemies: `Goomba`, `Koopa`, `Bat`.
+- Enemies: `Goomba`, `Koopa`, `Bat`, `Boss`.
 - Collectibles and rewards: `Coin`, `Mushroom`, `Star`, `ExtraLife`,
   `FireFlower`.
 - Goal: `Flag`.
 
 The eraser is an editor tool, not a stored tile type. The current editor palette
-selects one mystery-box reward for all boxes in a level.
+selects one mystery-box reward and one boss configuration for each level.
+Boss settings choose one of the built-in Slime King, Robo Crab, and Sky Dragon
+characters or a custom character uploaded for the level. Users can add up to
+12 custom bosses per level using a PNG, JPEG, or WebP image up to 5 MB and
+4096 × 4096 pixels; their combined image data is limited to 20 MB. The selected
+boss uses the level's patrol/chase/leap movement, fireball/ground-pound/both
+ability, 3–10 health hits, and 40–120 px/s movement speed. The roster,
+artwork, and settings are serialized with the level and included in campaign
+exports.
+
+The third built-in level, **Toolbox Adventure**, arranges every toolbox item
+along one playable route. It demonstrates power-ups, terrain appearances,
+hazards, gaps, one-way and moving platforms, spring jumps, checkpoints, and
+two switch-controlled doors. Its campaign entry includes a short play-mode
+hint, which is preserved when a campaign is exported or imported.
 
 ### Game rules in play mode
 
@@ -194,11 +214,12 @@ selects one mystery-box reward for all boxes in a level.
 | Jump feel | 120 ms jump buffering and coyote time; holding jump changes jump height; wall slide caps fall speed at 120 px/s; wall jump launches away from the contacted wall and briefly prioritizes that direction. |
 | Movement speed | Normal horizontal movement is 180 px/s; run is 290 px/s; the big-player speed is 220 px/s unless running. |
 | Spring | Landing launches the player upward at 640 px/s. |
-| Moving platform | Travels horizontally between 64 px either side of its placement at 56 px/s and carries a player standing on it. |
+| Moving platform | Travels horizontally between 64 px either side of its placement at 56 px/s, carries a player standing on top, and ignores side/underside contact so the player cannot get snagged. |
 | One-way platform | Collides only from above, allowing the player to jump up through it. |
 | Switch and door | Touching one switch disables/removes all closed doors in that level. |
 | Checkpoint | The latest touched checkpoint becomes the respawn position. Falling costs a life; if lives remain, the player respawns there after a short animation, in normal form and without Fire/Star powers. |
 | Enemies | Goomba and Koopa patrol horizontally; Bat flies. Stomps, Star power, and fireballs defeat enemies. |
+| Boss | Selected boss movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. The goal stays locked until every Boss in the level is defeated. |
 | Fire Flower | Grants a Fire ability. X/J emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
@@ -245,17 +266,26 @@ fit its container.
   "tileVariantCatalog": {},
   "selectedTileVariants": {},
   "soundEffects": {},
-  "mysteryBoxReward": "Mushroom"
+  "mysteryBoxReward": "Mushroom",
+  "bossConfig": {
+    "type": "slimeKing",
+    "movement": "patrol",
+    "ability": "fireballs",
+    "health": 5,
+    "speed": 70
+  },
+  "customBosses": []
 }
 ```
 
 The abbreviated grid values above are illustrative; real files contain one
 array per row and one nullable tile ID / visual-variant ID per cell. Uploaded
-sprite, variant, and audio data URLs are stored inline. `validateWorld()` checks
-dimensions, matrix shape, supported tile IDs and visual variants, mystery-box
-reward, and audio metadata. Older files may omit visual variants,
-`soundEffects`, or `mysteryBoxReward`; Classic appearances and other defaults
-are applied when restoring.
+sprite, variant, custom boss, and audio data URLs are stored inline.
+`validateWorld()` checks dimensions, matrix shape, supported tile IDs and
+visual variants, mystery-box reward, boss settings and uploaded boss images,
+and audio metadata. Older files may omit visual variants, `soundEffects`,
+`mysteryBoxReward`, `bossConfig`, or `customBosses`; Classic appearances and
+other defaults are applied when restoring.
 
 ### Campaigns
 

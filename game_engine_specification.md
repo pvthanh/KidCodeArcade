@@ -36,6 +36,12 @@ support.
   lines.
 - Choose a tool and click or drag on the board to paint. The eraser removes
   cells. There is a single player start position.
+- **＋ Level** opens a dialog to name the level and choose its insertion
+  position in the campaign. The new level starts with a completely empty
+  board, with the Player tool selected so its start point can be placed.
+- On touch devices, use **Move board** to switch from painting to drag-to-pan
+  navigation. Turn it off to resume painting. The board also has a larger,
+  higher-contrast scrollbar where the browser displays scrollbars.
 - Undo and redo support placement, removal, resizing, and clear-grid commands;
   the command history is limited to 100 operations.
 - The tile size is 32 pixels. Levels may be 8–256 columns wide and 8–40 rows
@@ -49,7 +55,7 @@ The selectable tools are:
 - **Terrain**: Ground, Brick, Mystery Box, Pipe.
 - **Movement/puzzles**: Spring, Moving platform, One-way platform, Switch,
   Door, Checkpoint.
-- **Enemies**: Goomba, Koopa, Bat.
+- **Enemies**: Goomba, Koopa, Bat, Boss.
 - **Items**: Coin, Super mushroom, Star power, Extra life, Fire flower.
 - **Goal**: Flag.
 - **Editor utility**: Eraser.
@@ -57,6 +63,16 @@ The selectable tools are:
 Each tile has a built-in fallback preview. Player and enemy tools provide
 action-specific sprite upload dialogs. Static-object tools provide selectable
 visual variants without changing the object's physics or gameplay behavior.
+
+- Select **Boss** to place a boss, then choose a built-in character (Slime
+  King, Robo Crab, or Sky Dragon) or press **＋ Add** beside the character list
+  to upload a custom boss image and name. Custom images are PNG, JPEG, or WebP,
+  up to 5 MB and 4096 × 4096 pixels; a level supports up to 12 custom boss
+  types and 20 MB total custom boss image data. Configure movement (patrol,
+  chase, or leap), special ability (fireballs, ground-pound shockwaves, or
+  both), health (3–10 hits), and speed (40–120 px/s). The selected character,
+  its image, and boss settings are saved with the level and included in
+  campaign exports. Boss settings apply to every Boss placed in the level.
 
 - Ground includes Classic and Ice appearances; Brick includes Classic and
   Mossy. Other static-object tools start with Classic and support custom images.
@@ -74,13 +90,17 @@ visual variants without changing the object's physics or gameplay behavior.
 ### Demo campaign
 
 - Startup loads **Sunny Hills** (96 × 18) into the editor and makes **Cave
-  Crossing** (72 × 18) available in the campaign selector.
-- **Load demos** restores both built-in levels.
+  Crossing** (72 × 18) and **Toolbox Adventure** (112 × 18) available in the
+  campaign selector.
+- **Load demos** restores all three built-in levels.
 - The demos include original bundled SVG art, hazards, collectibles, and a
   playable route. Cave Crossing demonstrates springs, one-way and moving
-  platforms, a Fire Flower, checkpoint, and a switch/door passage.
+  platforms, a Fire Flower, checkpoint, and a switch/door passage. Toolbox
+  Adventure includes every toolbox item, including a boss, and a short in-game
+  hint; try the Mystery Box, Springs, power-ups, Switches, Doors, and boss
+  fight while crossing the level.
 - Creators can add levels up to a total of 50, remove levels (at least one is
-  retained), rename levels through the campaign workflow, and switch between
+  retained), name and position new levels when adding them, and switch between
   them.
 - Campaign changes remain in memory until explicitly downloaded. Individual
   levels and full campaigns can be exported/imported as JSON.
@@ -136,13 +156,14 @@ visual variants without changing the object's physics or gameplay behavior.
 | Ground, Brick, Pipe | Solid collision surfaces; Brick breaks when hit from below. |
 | Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. |
 | Spring | Landing launches the player upward at 640 px/s. |
-| Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; supports and carries the player. |
+| Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
 | One-way platform | Player can jump through from below and land on top. |
 | Switch | Touching it activates it and opens every closed Door in that level. |
 | Door | Solid until a Switch is activated. |
 | Checkpoint | The last touched checkpoint is the respawn point. Falling there costs one life; if lives remain, the player respawns after a short animation with temporary powers cleared. |
 | Goomba, Koopa | Ground patrol enemies; Koopa is faster than Goomba. |
 | Bat | Flying enemy moving through the air. |
+| Boss | Choose Slime King, Robo Crab, Sky Dragon, or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, and 40–120 px/s speed. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
 | Coin | Collects for one point. |
 | Mushroom | Grows the player, increasing movement speed and jump height; a hit removes the growth before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
@@ -173,12 +194,15 @@ campaign level when one exists, otherwise the campaign can be replayed.
 - An individual level is a JSON world snapshot containing dimensions, tile
   matrix, per-cell tile appearance IDs, visual-variant catalog/data URLs,
   active tool, sprite metadata/data URLs, sound metadata/data URLs, and
-  mystery-box reward.
+  mystery-box reward, boss type/behavior/health/speed settings, and uploaded
+  custom boss images and names.
 - A campaign is JSON with format `little-level-lab-campaign`, version `1`, and
   a `levels` array of `{name, snapshot}`. Campaigns contain 1–50 levels.
 - Import validation checks world dimensions (8–256 columns and 8–40 rows),
   matrix dimensions, tile IDs, visual-variant IDs and image limits,
-  mystery-box reward IDs, and sound metadata.
+  mystery-box reward IDs, boss configuration and custom boss image validation,
+  and sound metadata. Older level files without custom boss data continue to
+  load with the built-in roster.
 - Older world files may omit audio settings or reward selection and use defaults.
 - Best scores are saved per campaign index and level name in browser
   `localStorage`; they are not included in exported files and do not sync across

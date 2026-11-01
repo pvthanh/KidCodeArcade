@@ -1,3 +1,10 @@
+import {
+  BOSS_ABILITIES,
+  BOSS_MOVEMENTS,
+  BOSS_TYPES,
+  DEFAULT_BOSS_CONFIG
+} from '../core/StateManager.js';
+
 const TILES = [
   { id: 'Player', name: 'Player', icon: '🧑', description: 'Place the player start', color: '#347bd1' },
   { id: 'Ground', name: 'Ground', icon: '🟩', description: 'Solid platform', color: '#58a65c' },
@@ -13,6 +20,7 @@ const TILES = [
   { id: 'Goomba', name: 'Goomba', icon: '🍄', description: 'Slow ground walker', color: '#a94b38' },
   { id: 'Koopa', name: 'Koopa', icon: '🐢', description: 'Armored ground patrol', color: '#4f9b59' },
   { id: 'Bat', name: 'Bat', icon: '🦇', description: 'Flying enemy', color: '#64558f' },
+  { id: 'Boss', name: 'Boss', icon: '👹', description: 'A powerful level boss with custom moves', color: '#9b4b96' },
   { id: 'Coin', name: 'Coin', icon: '🪙', description: 'Collect for points', color: '#f0c84b' },
   { id: 'Mushroom', name: 'Super mushroom', icon: '🍄', description: 'Grow big and jump higher', color: '#e47759' },
   { id: 'Star', name: 'Star power', icon: '⭐', description: 'Invincible for 8 seconds', color: '#f1ad3e' },
@@ -59,6 +67,7 @@ export class PaletteView {
     this.selectedTileId = 'Ground';
     this.tileVariantCatalog = {};
     this.selectedTileVariants = {};
+    this.customBosses = [];
     this.renderPalette();
     this.bindEvents();
     this.selectTile('Ground');
@@ -67,6 +76,12 @@ export class PaletteView {
 
   bindEvents() {
     this.container.addEventListener('click', event => {
+      if (event.target.closest('[data-add-boss]')) {
+        event.stopPropagation();
+        this.openBossUploadDialog();
+        return;
+      }
+
       const applyVariantButton = event.target.closest('[data-apply-variant]');
       if (applyVariantButton) {
         event.stopPropagation();
@@ -116,19 +131,41 @@ export class PaletteView {
         return;
       }
 
+      if (event.target.closest('[data-boss-setting]')) {
+        this.emitBossConfig();
+        return;
+      }
+
       const variantInput = event.target.closest('[data-variant-upload]');
       if (!variantInput || !variantInput.files?.[0]) return;
       this.handleTileVariantUpload(variantInput.dataset.variantUpload, variantInput.files[0]);
       variantInput.value = '';
     });
 
+    this.container.addEventListener('input', event => {
+      if (!event.target.matches('[data-boss-setting="speed"]')) return;
+      const output = this.container.querySelector('[data-boss-speed-value]');
+      output.value = `${event.target.value} px/s`;
+      this.emitBossConfig();
+    });
+
     this.eventBus.on('historyChanged', ({ canUndo, canRedo }) => {
       this.container.querySelector('#btn-undo').disabled = !canUndo;
       this.container.querySelector('#btn-redo').disabled = !canRedo;
     });
-    this.eventBus.on('levelLoaded', ({ mysteryBoxReward = 'Mushroom' } = {}) => {
+    this.eventBus.on('levelLoaded', ({
+      mysteryBoxReward = 'Mushroom',
+      bossConfig = DEFAULT_BOSS_CONFIG,
+      customBosses = []
+    } = {}) => {
       const rewardSelect = this.container.querySelector('[data-mystery-reward]');
       if (rewardSelect) rewardSelect.value = mysteryBoxReward;
+      this.setBossTypes(customBosses);
+      this.setBossConfigControls(bossConfig);
+    });
+    this.eventBus.on('bossTypesChanged', ({ customBosses = [], bossConfig = DEFAULT_BOSS_CONFIG } = {}) => {
+      this.setBossTypes(customBosses);
+      this.setBossConfigControls(bossConfig);
     });
     this.eventBus.on('tileVariantsChanged', ({ catalog, selectedTileVariants = {} } = {}) => {
       this.tileVariantCatalog = catalog || {};
@@ -188,7 +225,7 @@ export class PaletteView {
       <div class="tiles-container">
         ${this.tileTypes.map(tile => {
           const animated = Boolean(ANIMATIONS[tile.id]);
-          const configurable = !animated && tile.id !== 'Player';
+            const configurable = !animated && tile.id !== 'Player' && tile.id !== 'Boss';
           return `
             <article class="tile-item" data-tile-id="${tile.id}">
               <button class="tile-select" type="button" aria-pressed="false">
@@ -198,7 +235,40 @@ export class PaletteView {
                   <span class="tile-description">${tile.description}</span>
                 </span>
               </button>
-              ${animated
+              ${tile.id === 'Boss' ? `
+                <div class="tile-settings boss-settings">
+                  <label>
+                    <span>Boss character</span>
+                    <span class="boss-character-control">
+                      <select data-boss-setting="type" aria-label="Boss character">
+                        ${BOSS_TYPES.map(boss => `<option value="${boss.id}">${boss.name}</option>`).join('')}
+                      </select>
+                      <button class="secondary-button boss-add-button" type="button" data-add-boss aria-label="Add custom boss" title="Add a boss character">＋ Add</button>
+                    </span>
+                  </label>
+                  <label>
+                    Movement
+                    <select data-boss-setting="movement" aria-label="Boss movement">
+                      ${BOSS_MOVEMENTS.map(movement => `<option value="${movement.id}">${movement.name}</option>`).join('')}
+                    </select>
+                  </label>
+                  <label>
+                    Special ability
+                    <select data-boss-setting="ability" aria-label="Boss ability">
+                      ${BOSS_ABILITIES.map(ability => `<option value="${ability.id}">${ability.name}</option>`).join('')}
+                    </select>
+                  </label>
+                  <label class="boss-range-label">
+                    Health <output data-boss-health-value>5 hits</output>
+                    <input type="range" min="3" max="10" step="1" value="${DEFAULT_BOSS_CONFIG.health}" data-boss-setting="health" aria-label="Boss health">
+                  </label>
+                  <label class="boss-range-label">
+                    Speed <output data-boss-speed-value>70 px/s</output>
+                    <input type="range" min="40" max="120" step="10" value="${DEFAULT_BOSS_CONFIG.speed}" data-boss-setting="speed" aria-label="Boss speed">
+                  </label>
+                  <span class="variant-help">These settings apply to every Boss tile in this level.</span>
+                </div>
+              ` : animated
                 ? `<button class="animation-configure" type="button" data-tile-id="${tile.id}">Motion</button>`
                 : configurable ? `
                   <div class="tile-variant-actions">
@@ -232,6 +302,206 @@ export class PaletteView {
       </div>
       <p class="palette-hint">Try the ready-made demo, or drag across the board to paint.</p>
     `;
+  }
+
+  emitBossConfig() {
+    const config = {};
+    for (const setting of this.container.querySelectorAll('[data-boss-setting]')) {
+      config[setting.dataset.bossSetting] = setting.type === 'range'
+        ? Number(setting.value)
+        : setting.value;
+    }
+    const healthValue = this.container.querySelector('[data-boss-health-value]');
+    healthValue.value = `${config.health} hits`;
+    this.eventBus.emit('bossConfigChanged', config);
+  }
+
+  setBossConfigControls(config = DEFAULT_BOSS_CONFIG) {
+    for (const setting of this.container.querySelectorAll('[data-boss-setting]')) {
+      setting.value = config[setting.dataset.bossSetting] ?? DEFAULT_BOSS_CONFIG[setting.dataset.bossSetting];
+    }
+    const healthValue = this.container.querySelector('[data-boss-health-value]');
+    const speedValue = this.container.querySelector('[data-boss-speed-value]');
+    if (healthValue) healthValue.value = `${config.health ?? DEFAULT_BOSS_CONFIG.health} hits`;
+    if (speedValue) speedValue.value = `${config.speed ?? DEFAULT_BOSS_CONFIG.speed} px/s`;
+    this.updateBossPreview(config.type);
+  }
+
+  setBossTypes(customBosses = []) {
+    this.customBosses = customBosses;
+    const select = this.container.querySelector('[data-boss-setting="type"]');
+    if (!select) return;
+    const options = [...BOSS_TYPES, ...customBosses].map(boss => new Option(boss.name, boss.id));
+    select.replaceChildren(...options);
+  }
+
+  updateBossPreview(type) {
+    const preview = this.container.querySelector('[data-tile-id="Boss"] .tile-icon');
+    if (!preview) return;
+    const customBoss = this.customBosses.find(boss => boss.id === type);
+    if (!customBoss) {
+      preview.textContent = '👹';
+      return;
+    }
+    const image = document.createElement('img');
+    image.src = customBoss.dataUrl;
+    image.alt = `${customBoss.name} boss preview`;
+    preview.replaceChildren(image);
+  }
+
+  openBossUploadDialog() {
+    this.closeBossUploadDialog();
+    this.bossDialog = document.createElement('section');
+    this.bossDialog.className = 'animation-modal';
+    this.bossDialog.setAttribute('role', 'dialog');
+    this.bossDialog.setAttribute('aria-modal', 'true');
+    this.bossDialog.setAttribute('aria-labelledby', 'boss-dialog-title');
+    this.bossDialog.innerHTML = `
+      <div class="animation-dialog boss-dialog">
+        <header class="animation-dialog-header">
+          <div>
+            <span class="eyebrow">CUSTOM BOSS</span>
+            <h2 id="boss-dialog-title">Add a boss character</h2>
+            <p>Upload an image, then choose its movement and special ability in the toolbox.</p>
+          </div>
+          <button class="animation-dialog-close" type="button" aria-label="Close boss dialog">✕</button>
+        </header>
+        <div class="boss-upload-content">
+          <div class="boss-upload-preview" data-boss-upload-preview aria-label="Boss image preview">👹</div>
+          <label class="boss-upload-field">
+            Boss name
+            <input type="text" data-boss-upload-name maxlength="40" placeholder="My Boss" autocomplete="off">
+          </label>
+          <label class="animation-upload-button boss-image-upload">
+            <span>Choose image</span>
+            <input type="file" data-boss-upload-image accept="image/png,image/jpeg,image/webp" aria-label="Upload boss image">
+          </label>
+          <span class="variant-help">PNG, JPEG, or WebP · up to 5 MB and 4096 × 4096 pixels.</span>
+          <p class="boss-upload-error" data-boss-upload-error role="alert" hidden></p>
+        </div>
+        <footer class="animation-dialog-footer">
+          <span>Custom bosses are saved with this level.</span>
+          <span>
+            <button class="secondary-button" type="button" data-cancel-boss>Cancel</button>
+            <button class="primary-button" type="button" data-save-boss>Add boss</button>
+          </span>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(this.bossDialog);
+    const dialog = this.bossDialog;
+    dialog.querySelector('.animation-dialog-close').addEventListener('click', () => this.closeBossUploadDialog());
+    dialog.querySelector('[data-cancel-boss]').addEventListener('click', () => this.closeBossUploadDialog());
+    dialog.addEventListener('pointerdown', event => {
+      if (event.target === dialog) this.closeBossUploadDialog();
+    });
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') this.closeBossUploadDialog();
+    });
+    const nameInput = dialog.querySelector('[data-boss-upload-name]');
+    const fileInput = dialog.querySelector('[data-boss-upload-image]');
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      if (!nameInput.value.trim()) {
+        nameInput.value = file.name.replace(/\.[^.]+$/, '').slice(0, 40);
+      }
+      this.previewBossUpload(file, dialog);
+    });
+    dialog.querySelector('[data-save-boss]').addEventListener('click', () => {
+      this.handleBossTypeUpload(dialog);
+    });
+    dialog.querySelector('.animation-dialog-close').focus();
+  }
+
+  closeBossUploadDialog() {
+    this.bossDialog?.remove();
+    this.bossDialog = null;
+  }
+
+  async previewBossUpload(file, dialog) {
+    const preview = dialog.querySelector('[data-boss-upload-preview]');
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new RangeError('Choose an image that is 5 MB or smaller.');
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        throw new TypeError('Choose a PNG, JPEG, or WebP image for your boss.');
+      }
+      const dataUrl = await this.readBossImage(file);
+      const image = await this.decodeBossImage(dataUrl);
+      if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
+        throw new RangeError('Boss images must be no larger than 4096 × 4096 pixels.');
+      }
+      preview.replaceChildren(image);
+      dialog.querySelector('[data-boss-upload-error]').hidden = true;
+    } catch (error) {
+      this.showBossUploadError(dialog, error);
+    }
+  }
+
+  async handleBossTypeUpload(dialog) {
+    const button = dialog.querySelector('[data-save-boss]');
+    const file = dialog.querySelector('[data-boss-upload-image]').files?.[0];
+    const name = dialog.querySelector('[data-boss-upload-name]').value.trim();
+    button.disabled = true;
+    try {
+      if (!name || name.length > 40) throw new TypeError('Enter a boss name up to 40 characters long.');
+      if (!file) throw new TypeError('Choose an image for your boss.');
+      if (file.size > 5 * 1024 * 1024) throw new RangeError('Choose an image that is 5 MB or smaller.');
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        throw new TypeError('Choose a PNG, JPEG, or WebP image for your boss.');
+      }
+      const dataUrl = await this.readBossImage(file);
+      const image = await this.decodeBossImage(dataUrl);
+      if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
+        throw new RangeError('Boss images must be no larger than 4096 × 4096 pixels.');
+      }
+      const id = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      this.eventBus.emit('bossTypeUploaded', {
+        id,
+        name,
+        dataUrl,
+        fileName: file.name,
+        fileType: file.type,
+        imageWidth: image.naturalWidth,
+        imageHeight: image.naturalHeight
+      });
+      this.closeBossUploadDialog();
+    } catch (error) {
+      this.showBossUploadError(dialog, error);
+    } finally {
+      if (dialog.isConnected) button.disabled = false;
+    }
+  }
+
+  readBossImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+          reject(new Error('The image file could not be read.'));
+          return;
+        }
+        resolve(reader.result);
+      };
+      reader.onerror = () => reject(new Error('The image file could not be read.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  decodeBossImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('The selected file is not a supported image.'));
+      image.src = dataUrl;
+    });
+  }
+
+  showBossUploadError(dialog, error) {
+    const errorElement = dialog.querySelector('[data-boss-upload-error]');
+    errorElement.textContent = error.message || 'The boss image could not be added.';
+    errorElement.hidden = false;
+    this.eventBus.emit('status', errorElement.textContent);
   }
 
   openAnimationDialog(entityType) {

@@ -12,6 +12,7 @@ const TILE_COLORS = {
   Goomba: '#a94b38',
   Koopa: '#4f9b59',
   Bat: '#64558f',
+  Boss: '#9b4b96',
   Coin: '#f0c84b',
   Flag: '#378bd0',
   Player: '#347bd1',
@@ -35,6 +36,7 @@ const TILE_LABELS = {
   Goomba: '●',
   Koopa: 'K',
   Bat: 'B',
+  Boss: '★',
   Coin: '●',
   Flag: '⚑',
   Player: '●',
@@ -50,11 +52,16 @@ export class GridCanvas {
     if (!this.canvas) throw new Error(`Canvas element "${canvasId}" was not found.`);
     this.stateManager = stateManager;
     this.eventBus = eventBus;
+    this.board = document.getElementById('editor-board');
+    if (!this.board) throw new Error('The editor board was not found.');
     this.context = this.canvas.getContext('2d');
     if (!this.context) throw new Error('A 2D canvas context is unavailable.');
     this.spriteImages = new Map();
     this.variantImages = new Map();
     this.isPainting = false;
+    this.isPanning = false;
+    this.panMode = false;
+    this.lastPanPosition = null;
     this.lastPaintedCell = '';
     this.bindEvents();
     this.eventBus.on('spriteAnimationUploaded', ({ entityType, animationType, dataUrl }) => {
@@ -68,22 +75,55 @@ export class GridCanvas {
   bindEvents() {
     this.canvas.addEventListener('pointerdown', event => {
       if (event.button !== 0) return;
+      if (this.panMode) {
+        event.preventDefault();
+        this.isPanning = true;
+        this.lastPanPosition = { x: event.clientX, y: event.clientY };
+        this.canvas.setPointerCapture(event.pointerId);
+        return;
+      }
       this.isPainting = true;
       this.canvas.setPointerCapture(event.pointerId);
       this.paintAt(event);
     });
     this.canvas.addEventListener('pointermove', event => {
+      if (this.isPanning && this.lastPanPosition) {
+        const deltaX = event.clientX - this.lastPanPosition.x;
+        const deltaY = event.clientY - this.lastPanPosition.y;
+        this.board.scrollLeft -= deltaX;
+        this.board.scrollTop -= deltaY;
+        this.lastPanPosition = { x: event.clientX, y: event.clientY };
+        return;
+      }
       if (this.isPainting) this.paintAt(event);
     });
     this.canvas.addEventListener('pointerup', () => {
       this.isPainting = false;
+      this.isPanning = false;
+      this.lastPanPosition = null;
       this.lastPaintedCell = '';
     });
     this.canvas.addEventListener('pointercancel', () => {
       this.isPainting = false;
+      this.isPanning = false;
+      this.lastPanPosition = null;
+      this.lastPaintedCell = '';
+    });
+    this.canvas.addEventListener('lostpointercapture', () => {
+      this.isPainting = false;
+      this.isPanning = false;
+      this.lastPanPosition = null;
       this.lastPaintedCell = '';
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
+    this.eventBus.on('boardPanModeChanged', enabled => {
+      this.panMode = enabled;
+      this.isPainting = false;
+      this.isPanning = false;
+      this.lastPanPosition = null;
+      this.lastPaintedCell = '';
+      this.board.classList.toggle('is-panning', enabled);
+    });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.loadSprite(tileId, dataUrl));
     this.eventBus.on('tileVariantsChanged', ({ catalog = {} } = {}) => {
       for (const [tileType, variants] of Object.entries(catalog)) {
@@ -224,7 +264,15 @@ export class GridCanvas {
       ?.find(variant => variant.id === variantId);
     const spriteMetadata = this.stateManager.spriteMetadata[type];
     const legacyCustomSprite = variantId === 'classic' && spriteMetadata?.fileName;
-    const image = legacyCustomSprite
+    const selectedBoss = type === 'Boss'
+      ? this.stateManager.customBosses.find(boss => boss.id === this.stateManager.bossConfig.type)
+      : null;
+    const bossImageKey = selectedBoss ? `Boss:${selectedBoss.id}` : null;
+    let image = selectedBoss ? this.spriteImages.get(bossImageKey) : undefined;
+    if (selectedBoss && !image) {
+      this.loadBossSprite(bossImageKey, selectedBoss);
+    }
+    image ||= legacyCustomSprite
       ? this.spriteImages.get(type)
       : this.variantImages.get(`${type}:${variantId}`) || this.spriteImages.get(type);
     const metadata = legacyCustomSprite
@@ -329,6 +377,22 @@ export class GridCanvas {
         ctx.lineTo(x + tileSize * 3 / 4, y + tileSize);
         ctx.stroke();
       }
+    } else if (type === 'Boss') {
+      ctx.fillStyle = TILE_COLORS.Boss;
+      ctx.beginPath();
+      ctx.ellipse(x + 16, y + 20, 14, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd36e';
+      ctx.fillRect(x + 5, y + 5, 5, 9);
+      ctx.fillRect(x + 22, y + 5, 5, 9);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 10, y + 15, 4, 5);
+      ctx.fillRect(x + 19, y + 15, 4, 5);
+      ctx.fillStyle = '#243847';
+      ctx.fillRect(x + 11, y + 16, 2, 3);
+      ctx.fillRect(x + 20, y + 16, 2, 3);
+      ctx.fillStyle = '#ffe27a';
+      ctx.fillRect(x + 14, y + 26, 5, 2);
     } else if (['Goomba', 'Koopa', 'Bat'].includes(type)) {
       ctx.fillStyle = TILE_COLORS[type];
       ctx.beginPath();
@@ -374,5 +438,20 @@ export class GridCanvas {
       ctx.textBaseline = 'middle';
       ctx.fillText(TILE_LABELS[type] || '', x + tileSize / 2, y + tileSize / 2 + 1);
     }
+  }
+
+  loadBossSprite(key, boss) {
+    if (this.spriteImages.has(key)) return;
+    this.spriteImages.set(key, null);
+    const image = new Image();
+    image.onload = () => {
+      this.spriteImages.set(key, image);
+      this.refresh();
+    };
+    image.onerror = () => {
+      this.spriteImages.delete(key);
+      this.eventBus.emit('status', `Could not display the ${boss.name} boss image.`);
+    };
+    image.src = boss.dataUrl;
   }
 }

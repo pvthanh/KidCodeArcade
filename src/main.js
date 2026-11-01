@@ -20,6 +20,8 @@ const stateManager = new StateManager();
 const firstDemo = stateManager.getWorldSnapshot();
 stateManager.loadDemoTwo();
 const secondDemo = stateManager.getWorldSnapshot();
+stateManager.loadDemoThree();
+const thirdDemo = stateManager.getWorldSnapshot();
 stateManager.restoreWorld(firstDemo);
 const commandManager = new CommandManager();
 const eventBus = new EventBus();
@@ -35,7 +37,12 @@ const uiOverlayEditor = new UIOverlayEditor(
   gridCanvas,
   [
     { name: 'Sunny Hills', snapshot: firstDemo },
-    { name: 'Cave Crossing', snapshot: secondDemo }
+    { name: 'Cave Crossing', snapshot: secondDemo },
+    {
+      name: 'Toolbox Adventure',
+      hint: 'Try every tool: use the Switches and challenge the Boss before reaching the Goal!',
+      snapshot: thirdDemo
+    }
   ]
 );
 const soundEffectsEditor = new SoundEffectsEditor(stateManager, eventBus);
@@ -51,6 +58,34 @@ eventBus.on('tileSelected', tileId => {
 eventBus.on('tileVariantSelected', ({ tileId, variantId }) => {
   if (!stateManager.selectTileVariant(tileId, variantId)) {
     eventBus.emit('status', `Could not select the ${tileId} appearance.`);
+  }
+});
+
+eventBus.on('bossConfigChanged', config => {
+  try {
+    stateManager.setBossConfig(config);
+    gridCanvas.refresh();
+    eventBus.emit('status', 'Boss settings updated for this level.');
+  } catch (error) {
+    console.error('Could not update boss settings:', error);
+    eventBus.emit('status', error.message);
+  }
+});
+
+eventBus.on('bossTypeUploaded', boss => {
+  try {
+    const registeredBoss = stateManager.registerBossType(boss);
+    stateManager.setBossConfig({ ...stateManager.bossConfig, type: registeredBoss.id });
+    gridCanvas.refresh();
+    eventBus.emit('bossTypesChanged', {
+      customBosses: stateManager.customBosses,
+      bossConfig: stateManager.bossConfig
+    });
+    eventBus.emit('status', `Added "${registeredBoss.name}" as a boss character.`);
+  } catch (error) {
+    console.error('Could not add the custom boss:', error);
+    eventBus.emit('status', error.message);
+    throw error;
   }
 });
 
@@ -232,7 +267,11 @@ function startGame() {
   activeModal.innerHTML = `
     <div class="game-window">
       <header class="game-header">
-        <div><strong>Play your level</strong><span>Move with arrows or A/D · Jump with W, ↑ or Space</span></div>
+        <div>
+          <strong>Play your level</strong>
+          <span>Move with arrows or A/D · Jump with W, ↑ or Space</span>
+          <span class="game-level-hint" hidden></span>
+        </div>
         <div class="game-header-actions">
           <button class="touch-toggle" type="button" aria-controls="touch-controls" aria-expanded="false">
             Show touch controls
@@ -316,6 +355,9 @@ function launchCampaignLevel(index) {
   message.hidden = true;
   activeModal.querySelector('.game-header strong').textContent =
     `Level ${index + 1}: ${level.name}`;
+  const levelHint = activeModal.querySelector('.game-level-hint');
+  levelHint.textContent = level.hint || '';
+  levelHint.hidden = !level.hint;
 
   if (activeGame) {
     activeGame.destroy(true);

@@ -10,10 +10,12 @@ export class UIOverlayEditor {
     this.gridCanvas = gridCanvas;
     this.demoLevels = demoLevels.map(level => ({
       name: level.name,
+      hint: level.hint || '',
       snapshot: JSON.parse(JSON.stringify(level.snapshot))
     }));
     this.levels = this.demoLevels.map(level => ({
       name: level.name,
+      hint: level.hint,
       snapshot: JSON.parse(JSON.stringify(level.snapshot))
     }));
     this.currentLevelIndex = 0;
@@ -32,6 +34,28 @@ export class UIOverlayEditor {
         <button id="open-campaign-button" class="secondary-button" type="button">Open campaign</button>
         <input id="open-campaign" type="file" accept="application/json,.json" hidden>
       </div>
+      <dialog id="new-level-dialog" class="level-dialog" aria-labelledby="new-level-title">
+        <form id="new-level-form" class="level-dialog-form">
+          <header class="level-dialog-header">
+            <span class="eyebrow">CAMPAIGN</span>
+            <h2 id="new-level-title">Create a level</h2>
+            <p>Choose a name and where it belongs. You’ll start with a blank board.</p>
+          </header>
+          <label class="level-dialog-field" for="new-level-name">
+            Level name
+            <input id="new-level-name" name="name" type="text" maxlength="60" required
+              autocomplete="off" placeholder="e.g. Forest Run">
+          </label>
+          <label class="level-dialog-field" for="new-level-position">
+            Campaign position
+            <select id="new-level-position" name="position"></select>
+          </label>
+          <footer class="level-dialog-actions">
+            <button id="cancel-new-level" class="secondary-button" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Create level</button>
+          </footer>
+        </form>
+      </dialog>
       <form class="world-size-form" id="world-size-form">
         <span class="toolbar-label">World size</span>
         <label>Width <input id="world-cols" type="number" min="8" max="256" step="1" value="${this.stateManager.cols}"></label>
@@ -41,6 +65,8 @@ export class UIOverlayEditor {
         <button class="secondary-button" type="submit">Resize</button>
       </form>
       <div class="toolbar-actions">
+        <button id="toggle-board-pan" class="secondary-button" type="button"
+          aria-pressed="false" aria-label="Move the board by dragging">✋ Move board</button>
         <button id="load-demo" class="secondary-button" type="button">Load demos</button>
         <button id="save-level" class="secondary-button" type="button">Save</button>
         <button id="load-level-button" class="secondary-button" type="button">Open</button>
@@ -80,16 +106,44 @@ export class UIOverlayEditor {
     this.toolbar.querySelector('#load-demo').addEventListener('click', () => {
       this.levels = this.demoLevels.map(level => ({
         name: level.name,
+        hint: level.hint,
         snapshot: JSON.parse(JSON.stringify(level.snapshot))
       }));
       this.currentLevelIndex = 0;
       this.applyLevelSnapshot(this.levels[0].snapshot);
-      this.setStatus('Two demo levels loaded. Play level 1 and continue to level 2.');
+      this.setStatus('Three demo levels loaded. Play Toolbox Adventure to explore every tool.');
     });
     this.toolbar.querySelector('#campaign-level').addEventListener('change', event => {
       this.switchCampaignLevel(Number(event.target.value));
     });
-    this.toolbar.querySelector('#add-campaign-level').addEventListener('click', () => this.addCampaignLevel());
+    this.toolbar.querySelector('#add-campaign-level').addEventListener('click', () => this.showNewLevelDialog());
+    this.toolbar.querySelector('#new-level-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const nameInput = this.toolbar.querySelector('#new-level-name');
+      const name = nameInput.value.trim();
+      if (!name) {
+        nameInput.setCustomValidity('Enter a name for this level.');
+        nameInput.reportValidity();
+        return;
+      }
+      nameInput.setCustomValidity('');
+      const position = Number(this.toolbar.querySelector('#new-level-position').value);
+      this.toolbar.querySelector('#new-level-dialog').close();
+      this.addCampaignLevel(name, position);
+    });
+    this.toolbar.querySelector('#new-level-name').addEventListener('input', event =>
+      event.currentTarget.setCustomValidity(''));
+    this.toolbar.querySelector('#cancel-new-level').addEventListener('click', () =>
+      this.toolbar.querySelector('#new-level-dialog').close());
+    this.toolbar.querySelector('#toggle-board-pan').addEventListener('click', event => {
+      const enabled = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      event.currentTarget.setAttribute('aria-pressed', String(enabled));
+      event.currentTarget.textContent = enabled ? '✋ Move board: On' : '✋ Move board';
+      this.eventBus.emit('boardPanModeChanged', enabled);
+      this.setStatus(enabled
+        ? 'Move board is on. Drag the canvas to pan; tap Move board again to paint.'
+        : 'Move board is off. Choose a tool and drag to paint.');
+    });
     this.toolbar.querySelector('#remove-campaign-level').addEventListener('click', () => this.removeCampaignLevel());
     this.toolbar.querySelector('#save-campaign').addEventListener('click', () => this.saveCampaign());
     this.toolbar.querySelector('#open-campaign-button').addEventListener('click', () =>
@@ -154,7 +208,9 @@ export class UIOverlayEditor {
     });
     this.eventBus.emit('levelLoaded', {
       activeTileType: this.stateManager.activeTileType,
-      mysteryBoxReward: this.stateManager.mysteryBoxReward
+      mysteryBoxReward: this.stateManager.mysteryBoxReward,
+      bossConfig: this.stateManager.bossConfig,
+      customBosses: this.stateManager.customBosses
     });
     this.updateHistory();
     this.renderCampaignOptions();
@@ -175,22 +231,50 @@ export class UIOverlayEditor {
     this.setStatus(`Editing level ${index + 1}: ${this.levels[index].name}.`);
   }
 
-  addCampaignLevel() {
+  showNewLevelDialog() {
     if (this.levels.length >= 50) {
       this.setStatus('A campaign can contain up to 50 levels.');
       return;
     }
+    const positionSelect = this.toolbar.querySelector('#new-level-position');
+    const positions = this.levels.map((level, index) => {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = `Before Level ${index + 1}: ${level.name}`;
+      return option;
+    });
+    const finalPosition = document.createElement('option');
+    finalPosition.value = String(this.levels.length);
+    finalPosition.textContent = `After Level ${this.levels.length}: ${this.levels.at(-1).name}`;
+    positions.push(finalPosition);
+    positionSelect.replaceChildren(...positions);
+    positionSelect.value = String(Math.min(this.currentLevelIndex + 1, this.levels.length));
+    const nameInput = this.toolbar.querySelector('#new-level-name');
+    nameInput.value = '';
+    nameInput.setCustomValidity('');
+    this.toolbar.querySelector('#new-level-dialog').showModal();
+    nameInput.focus();
+  }
+
+  addCampaignLevel(name, position) {
+    if (this.levels.length >= 50) {
+      this.setStatus('A campaign can contain up to 50 levels.');
+      return;
+    }
+    if (!Number.isInteger(position) || position < 0 || position > this.levels.length) {
+      throw new RangeError('Choose a valid position in the campaign.');
+    }
     this.saveCurrentLevel();
     const snapshot = this.stateManager.getWorldSnapshot();
     snapshot.tiles = Array.from({ length: snapshot.rows }, (_, row) =>
-      Array.from({ length: snapshot.cols }, () => row === snapshot.rows - 1 ? 'Ground' : null));
-    snapshot.tiles[snapshot.rows - 2][1] = 'Player';
-    snapshot.activeTileType = 'Ground';
-    const name = `New level ${this.levels.length + 1}`;
-    this.levels.push({ name, snapshot });
-    this.currentLevelIndex = this.levels.length - 1;
+      Array(snapshot.cols).fill(null));
+    snapshot.tileVariants = Array.from({ length: snapshot.rows }, () =>
+      Array(snapshot.cols).fill(null));
+    snapshot.activeTileType = 'Player';
+    this.levels.splice(position, 0, { name: name.trim(), hint: '', snapshot });
+    this.currentLevelIndex = position;
     this.applyLevelSnapshot(snapshot);
-    this.setStatus(`${name} added. Build it, then use Play level to test the campaign.`);
+    this.setStatus(`${name.trim()} added as level ${position + 1}. The empty board is ready to build.`);
   }
 
   removeCampaignLevel() {
@@ -208,6 +292,7 @@ export class UIOverlayEditor {
     if (index === this.currentLevelIndex) this.saveCurrentLevel();
     return {
       name: this.levels[index].name,
+      hint: this.levels[index].hint || '',
       snapshot: JSON.parse(JSON.stringify(this.levels[index].snapshot))
     };
   }
@@ -246,8 +331,13 @@ export class UIOverlayEditor {
           throw new TypeError(`Campaign level ${index + 1} needs a name.`);
         }
         this.stateManager.validateWorld(level.snapshot);
+        if (level.hint !== undefined &&
+          (typeof level.hint !== 'string' || level.hint.length > 200)) {
+          throw new TypeError(`Campaign level ${index + 1} has an invalid hint.`);
+        }
         return {
           name: level.name.trim().slice(0, 60),
+          hint: level.hint || '',
           snapshot: JSON.parse(JSON.stringify(level.snapshot))
         };
       });

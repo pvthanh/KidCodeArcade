@@ -38,6 +38,7 @@ export class EntityFactory {
       ['Goomba', (scene, x, y, options = {}) => this.createEnemy(scene, 'Goomba', x, y, options)],
       ['Koopa', (scene, x, y, options = {}) => this.createEnemy(scene, 'Koopa', x, y, options)],
       ['Bat', (scene, x, y, options = {}) => this.createEnemy(scene, 'Bat', x, y, options)],
+      ['Boss', (scene, x, y, options = {}) => this.createBoss(scene, x, y, options)],
       ['Coin', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Coin', x, y, options)],
       ['Flag', (scene, x, y, options = {}) => this.createStaticSprite(scene, 'Flag', x, y, options)],
       ['Mushroom', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Mushroom').setDisplaySize(32, 32)],
@@ -87,6 +88,18 @@ export class EntityFactory {
 
   createEnemy(scene, type, x, y, options = {}) {
     return scene.physics.add.sprite(x, y, options.textureKey || type).setCollideWorldBounds(true);
+  }
+
+  createBoss(scene, x, y, options = {}) {
+    const type = options.bossConfig?.type || 'slimeKing';
+    const texture = `Boss-${type}`;
+    const boss = scene.physics.add.sprite(
+      x,
+      y,
+      scene.textures.exists(texture) ? texture : 'Boss-slimeKing'
+    ).setDisplaySize(48, 48);
+    boss.body.setSize(38, 34).setOffset(5, 12);
+    return boss.setCollideWorldBounds(true);
   }
 
   createTextures(scene) {
@@ -245,6 +258,67 @@ export class EntityFactory {
       graphics.fillStyle(0xd5e9f7, 1);
       graphics.fillRect(8, 2, 48, 2);
       graphics.generateTexture('MovingPlatform', 64, 16);
+      graphics.destroy();
+    }
+
+    const bossStyles = {
+      slimeKing: { body: 0xb94f91, trim: 0xf6c776 },
+      roboCrab: { body: 0x438ab1, trim: 0xf0a85e },
+      skyDragon: { body: 0x5ca66b, trim: 0xf07f61 }
+    };
+    for (const [type, colors] of Object.entries(bossStyles)) {
+      const key = `Boss-${type}`;
+      if (scene.textures.exists(key)) continue;
+      const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      graphics.fillStyle(0x493a64, 1);
+      if (type === 'roboCrab') {
+        graphics.fillRect(7, 37, 8, 8);
+        graphics.fillRect(33, 37, 8, 8);
+        graphics.fillTriangle(8, 22, 0, 15, 7, 9);
+        graphics.fillTriangle(40, 22, 48, 15, 41, 9);
+        graphics.fillStyle(colors.body, 1);
+        graphics.fillRoundedRect(5, 17, 38, 25, 9);
+        graphics.fillStyle(colors.trim, 1);
+        graphics.fillRoundedRect(12, 12, 24, 21, 8);
+        graphics.lineStyle(2, 0x284d6a, 1);
+        graphics.strokeRoundedRect(12, 12, 24, 21, 8);
+      } else {
+        graphics.fillTriangle(6, 18, 12, 3, 18, 20);
+        graphics.fillTriangle(30, 20, 36, 3, 42, 18);
+        graphics.fillStyle(colors.body, 1);
+        graphics.fillRoundedRect(5, 16, 38, 28, 14);
+        if (type === 'slimeKing') {
+          graphics.fillStyle(colors.trim, 1);
+          graphics.fillTriangle(9, 17, 12, 4, 18, 14);
+          graphics.fillTriangle(17, 14, 24, 1, 31, 14);
+          graphics.fillTriangle(29, 14, 36, 4, 39, 17);
+          graphics.fillRect(10, 14, 28, 5);
+        } else {
+          graphics.fillStyle(colors.trim, 1);
+          graphics.fillTriangle(8, 20, 0, 7, 17, 17);
+          graphics.fillTriangle(40, 20, 48, 7, 31, 17);
+          graphics.fillTriangle(20, 16, 24, 6, 28, 16);
+        }
+      }
+      graphics.fillStyle(0xffffff, 1);
+      graphics.fillCircle(16, 25, 4);
+      graphics.fillCircle(32, 25, 4);
+      graphics.fillStyle(0x243847, 1);
+      graphics.fillCircle(17, 26, 2);
+      graphics.fillCircle(33, 26, 2);
+      graphics.fillStyle(0xffe6a1, 1);
+      graphics.fillRect(20, 34, 8, 3);
+      graphics.generateTexture(key, 48, 48);
+      graphics.destroy();
+    }
+
+    if (!scene.textures.exists('BossProjectile')) {
+      const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      graphics.fillStyle(0x8c4dbe, 1);
+      graphics.fillCircle(8, 8, 7);
+      graphics.fillStyle(0xffd66b, 1);
+      graphics.fillCircle(8, 8, 3);
+      graphics.generateTexture('BossProjectile', 16, 16);
       graphics.destroy();
     }
   }

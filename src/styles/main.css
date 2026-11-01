@@ -349,6 +349,137 @@ button {
   font-size: 10px;
 }
 
+.boss-settings > label:not(.boss-range-label) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #687d89;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.boss-character-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.boss-character-control select {
+  flex: 1;
+  width: auto;
+}
+
+.boss-add-button {
+  min-height: 27px;
+  padding: 0 7px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.boss-settings select {
+  width: 100%;
+  min-width: 0;
+  height: 27px;
+  padding: 0 6px;
+  border: 1px solid #e3e9ed;
+  border-radius: 5px;
+  background: #fff;
+  color: #526977;
+  font-size: 10px;
+}
+
+.boss-range-label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 6px;
+  color: #687d89;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.boss-range-label output {
+  color: #526977;
+  font-variant-numeric: tabular-nums;
+}
+
+.boss-range-label input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #9b4b96;
+}
+
+.boss-upload-content {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px;
+}
+
+.boss-upload-preview {
+  display: flex;
+  width: 84px;
+  height: 84px;
+  grid-row: span 3;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #e0e8ed;
+  border-radius: 12px;
+  background: #eff5f8;
+  font-size: 38px;
+}
+
+.boss-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.boss-upload-field {
+  display: flex;
+  min-width: 0;
+  grid-column: 2 / -1;
+  flex-direction: column;
+  gap: 5px;
+  color: #687d89;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.boss-upload-field input {
+  width: 100%;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid #dfe7ec;
+  border-radius: 7px;
+  color: #405b6b;
+  font-size: 12px;
+}
+
+.boss-image-upload {
+  justify-self: start;
+}
+
+.boss-upload-content > .variant-help {
+  grid-column: 2 / -1;
+}
+
+.boss-upload-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ad3f46;
+  font-size: 11px;
+}
+
+.boss-dialog .animation-dialog-footer > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .animation-configure {
   grid-area: action;
   padding: 6px 8px;
@@ -434,6 +565,70 @@ button {
   font-size: 12px;
 }
 
+.level-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid #dce5eb;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 28%);
+}
+
+.level-dialog::backdrop {
+  background: rgb(13 27 38 / 58%);
+  backdrop-filter: blur(2px);
+}
+
+.level-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+}
+
+.level-dialog-header h2 {
+  margin: 0;
+  color: #284354;
+  font-size: 21px;
+}
+
+.level-dialog-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.level-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #435b69;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.level-dialog-field input,
+.level-dialog-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #395365;
+  font-size: 14px;
+}
+
+.level-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 2px;
+}
+
 .world-size-form,
 .toolbar-actions {
   display: flex;
@@ -497,6 +692,30 @@ button {
   background-position: 0 0;
   background-size: 18px 18px;
   overscroll-behavior: contain;
+  scrollbar-color: #8ba3b1 #dce5eb;
+  scrollbar-width: auto;
+}
+
+.editor-board::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.editor-board::-webkit-scrollbar-track {
+  border-radius: 8px;
+  background: #dce5eb;
+}
+
+.editor-board::-webkit-scrollbar-thumb {
+  min-width: 40px;
+  min-height: 40px;
+  border: 4px solid #dce5eb;
+  border-radius: 10px;
+  background: #8ba3b1;
+}
+
+.editor-board::-webkit-scrollbar-thumb:hover {
+  background: #607d8b;
 }
 
 #grid-canvas {
@@ -507,6 +726,21 @@ button {
   box-shadow: 0 8px 26px rgb(34 62 81 / 14%);
   image-rendering: pixelated;
   touch-action: none;
+}
+
+.editor-board.is-panning #grid-canvas {
+  cursor: grab;
+}
+
+.editor-board.is-panning #grid-canvas:active {
+  cursor: grabbing;
+}
+
+#toggle-board-pan[aria-pressed="true"] {
+  border-color: #1976d2;
+  background: #eaf4fd;
+  color: #155e9f;
+  box-shadow: inset 0 0 0 1px #1976d2;
 }
 
 .game-modal {
@@ -559,6 +793,12 @@ button {
 .game-header span {
   color: #788892;
   font-size: 10px;
+}
+
+.game-header .game-level-hint {
+  color: #41845a;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .game-header-actions {
@@ -1040,6 +1280,32 @@ button {
 
   .animation-dialog-header {
     padding: 15px 15px 10px;
+  }
+
+  @media (pointer: coarse) {
+    #toggle-board-pan {
+      min-height: 44px;
+      padding-right: 12px;
+      padding-left: 12px;
+      font-size: 12px;
+    }
+  }
+
+  .boss-upload-content {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+    padding: 15px;
+  }
+
+  .boss-upload-preview {
+    width: 60px;
+    height: 60px;
+  }
+
+  .boss-upload-field,
+  .boss-upload-content > .variant-help,
+  .boss-image-upload {
+    grid-column: 2;
   }
 
   .animation-list {
