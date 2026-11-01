@@ -1,4 +1,5 @@
 import { Input, Scene, Scenes } from 'phaser';
+import { characterArt } from '../assets/demo/CharacterArt.js';
 import { SoundManager } from './SoundManager.js';
 
 export class GameScene extends Scene {
@@ -50,6 +51,10 @@ export class GameScene extends Scene {
   }
 
   preload() {
+    for (const [bossId, dataUrl] of Object.entries(characterArt.bosses)) {
+      this.load.image(`Boss-${bossId}`, dataUrl);
+    }
+
     for (const [entityType, metadata] of Object.entries(this.worldSnapshot.spriteMetadata || {})) {
       if (!metadata.dataUrl) continue;
       if (metadata.imageWidth && metadata.imageHeight) {
@@ -208,7 +213,8 @@ export class GameScene extends Scene {
           entity.setData('wasAirborne', false);
           entity.setData('hurtUntil', 0);
           entity.body.setAllowGravity(true);
-          entity.body.setSize(38, 34).setOffset(5, 12);
+          entity.body.setSize(38 / entity.scaleX, 34 / entity.scaleY)
+            .setOffset(5 / entity.scaleX, 12 / entity.scaleY);
           entity.setVelocityX(-config.speed);
           entity.setData('healthBar', this.add.rectangle(x, y - 34, 52, 6, 0x7d344d)
             .setOrigin(0, 0.5).setDepth(8));
@@ -235,8 +241,11 @@ export class GameScene extends Scene {
         textureKey: this.getInitialTexture('Player')
       }
     );
-    this.player.setSize(22, 28).setOffset(5, 4);
+    this.player.setSize(22 / this.player.scaleX, 28 / this.player.scaleY)
+      .setOffset(5 / this.player.scaleX, 4 / this.player.scaleY);
+    this.playerBaseScale = this.player.scaleX;
     this.applyMushroomGrowth();
+    this.player.body.reset(this.player.x, this.player.y);
     if (this.hasFire) this.player.setTint(0xff7848);
     if (this.starPowerRemainingMs > 0) {
       this.starPowerUntil = this.time.now + this.starPowerRemainingMs;
@@ -749,7 +758,11 @@ export class GameScene extends Scene {
       player.body.checkCollision.none = false;
       player.setVelocity(0, 0);
       this.mushroomGrowth = 0;
-      player.setScale(1).setSize(22, 28).setOffset(5, 4);
+      player.setDisplaySize(32, 32);
+      player.setSize(22 / player.scaleX, 28 / player.scaleY)
+        .setOffset(5 / player.scaleX, 4 / player.scaleY);
+      this.playerBaseScale = player.scaleX;
+      player.body.reset(player.x, player.y);
       player.clearTint();
       this.hasFire = false;
       this.starPowerUntil = 0;
@@ -1062,7 +1075,7 @@ export class GameScene extends Scene {
   applyMushroomGrowth() {
     if (!this.player?.body) return;
     const previousBottom = this.player.body.bottom;
-    this.player.setScale(1 + this.mushroomGrowth * 0.25);
+    this.player.setScale(this.playerBaseScale * (1 + this.mushroomGrowth * 0.25));
     this.player.body.updateFromGameObject();
     this.player.y += previousBottom - this.player.body.bottom;
     this.player.body.updateFromGameObject();

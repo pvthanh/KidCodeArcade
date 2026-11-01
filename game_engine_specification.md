@@ -132,10 +132,15 @@ visual variants without changing the object's physics or gameplay behavior.
   custom Creepy types: idle/walk. Each action can have its own sprite sheet and
   frame dimensions/frame rate.
 - Uploaded images and their metadata are included in exported level JSON.
-- The default built-in art uses an original sunny pixel-art theme: an animated
-  chick adventurer, bumble-bug and flower-snail characters, pastel blocks,
-  garden collectibles, and flower-meadow ground. Tile appearance is independent
-  from physics and gameplay behavior.
+- The default built-in art uses an original sunny storybook theme. Player,
+  Creepy, and Boss characters use detailed vector artwork drawn in a 128 × 128
+  viewBox and smoothly rendered to 32 × 32 animation frames (48 × 48 for
+  built-in Boss art). Bosses retain their configurable display size. The
+  detailed vector shapes improve clarity without enlarging collision bodies
+  or changing movement. Custom character uploads are rendered at their normal
+  game size. Coin and Mystery Box artwork is drawn from 128 × 128 vector
+  sources and displayed at the standard 32 × 32 tile size. Tile appearance is
+  independent from physics and gameplay behavior.
 
 ## 4. Gameplay specification
 

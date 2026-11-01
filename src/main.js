@@ -454,7 +454,8 @@ function createGameInstance(snapshot, levelName, levelIndex, progress) {
     width: 960,
     height: 540,
     backgroundColor: '#98d6f2',
-    pixelArt: true,
+    antialias: true,
+    pixelArt: false,
     physics: {
       default: 'arcade',
       arcade: { gravity: { y: 800 }, debug: false }

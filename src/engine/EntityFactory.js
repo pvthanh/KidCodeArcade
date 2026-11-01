@@ -24,7 +24,7 @@ export class EntityFactory {
   constructor() {
     this.registry = new Map([
       ['Player', (scene, x, y, options = {}) =>
-        scene.physics.add.sprite(x, y, options.textureKey || 'Player')],
+        scene.physics.add.sprite(x, y, options.textureKey || 'Player').setDisplaySize(32, 32)],
       ['Ground', (scene, x, y, options = {}) => this.createPlatform(scene, 'Ground', x, y, options)],
       ['Brick', (scene, x, y, options = {}) => this.createPlatform(scene, 'Brick', x, y, options)],
       ['MysteryBox', (scene, x, y, options = {}) => this.createPlatform(scene, 'MysteryBox', x, y, options)],
@@ -87,7 +87,9 @@ export class EntityFactory {
   }
 
   createEnemy(scene, type, x, y, options = {}) {
-    return scene.physics.add.sprite(x, y, options.textureKey || type).setCollideWorldBounds(true);
+    return scene.physics.add.sprite(x, y, options.textureKey || type)
+      .setDisplaySize(32, 32)
+      .setCollideWorldBounds(true);
   }
 
   createBoss(scene, x, y, options = {}) {

@@ -257,10 +257,16 @@ fit its container.
 
 ## 6. Asset and feedback pipeline
 
-- Built-in character actions are stored independently (for example
-  `Player-idle.svg`, `Player-walk.svg`, `Player-run.svg`, and `Player-jump.svg`).
-  Sprite metadata contains the image data, frame width/height/count, and frame
-  rate. The editor can replace these with uploaded images/sprite sheets.
+- Built-in Player, Goomba, Koopa, Bat, Boss, Coin, and Mystery Box art is
+  generated as scalable, detailed vector artwork in
+  `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
+  viewBox and is smoothly rendered into 32 × 32 animation frames (48 × 48 for
+  built-in Boss art); Coin and Mystery Box artwork is also rendered from
+  128 × 128 sources at the normal 32 × 32 tile size. This preserves normal
+  character dimensions and physics. Boss sprites retain their configured
+  display size.
+  `StateManager` records per-action frame dimensions and frame rate, and the
+  editor can replace these with uploaded images/sprite sheets.
 - The supported character animation sets are Player (`idle`, `walk`, `run`,
   `jump`) and Goomba/Koopa/Bat (`idle`, `walk`).
 - Tile images and audio are loaded as data URLs into the level snapshot.

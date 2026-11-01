@@ -1,24 +1,13 @@
-import playerSprite from '../assets/demo/SunnyHero.svg?inline';
+import { characterArt } from '../assets/demo/CharacterArt.js';
 import groundSprite from '../assets/demo/MeadowGround.svg?inline';
 import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
-import mysteryBoxSprite from '../assets/demo/SunnyMysteryBox.svg?inline';
 import pipeSprite from '../assets/demo/Pipe.svg?inline';
-import goombaSprite from '../assets/demo/BumbleBug.svg?inline';
-import koopaSprite from '../assets/demo/FlowerSnail.svg?inline';
-import batSprite from '../assets/demo/Bat.svg?inline';
-import coinSprite from '../assets/demo/SunnyCoin.svg?inline';
 import flagSprite from '../assets/demo/Flag.svg?inline';
 import mushroomSprite from '../assets/demo/SunnyMushroom.svg?inline';
 import starSprite from '../assets/demo/SunnyStar.svg?inline';
 import extraLifeSprite from '../assets/demo/SunnyHeart.svg?inline';
 import iceGroundSprite from '../assets/demo/Ground-Ice.svg?inline';
 import mossBrickSprite from '../assets/demo/Brick-Moss.svg?inline';
-import playerIdle from '../assets/demo/SunnyHero-idle.svg?inline';
-import playerWalk from '../assets/demo/SunnyHero-walk.svg?inline';
-import playerRun from '../assets/demo/SunnyHero-run.svg?inline';
-import playerJump from '../assets/demo/SunnyHero-jump.svg?inline';
-import goombaIdle from '../assets/demo/BumbleBug.svg?inline';
-import goombaWalk from '../assets/demo/BumbleBug-walk.svg?inline';
 
 const MIN_COLS = 8;
 const MAX_COLS = 256;
@@ -90,31 +79,31 @@ const builtinAnimation = (dataUrl, fileName, frameRate, imageWidth = 128, imageH
 });
 
 const BUILTIN_SPRITES = {
-  Player: { dataUrl: playerSprite },
+  Player: { dataUrl: characterArt.player },
   Ground: { dataUrl: groundSprite },
   Brick: { dataUrl: brickSprite },
-  MysteryBox: { dataUrl: mysteryBoxSprite },
+  MysteryBox: { dataUrl: characterArt.mysteryBox },
   Pipe: { dataUrl: pipeSprite },
-  Goomba: { dataUrl: goombaSprite },
-  Koopa: { dataUrl: koopaSprite },
-  Bat: { dataUrl: batSprite },
-  Coin: { dataUrl: coinSprite },
+  Goomba: { dataUrl: characterArt.goomba },
+  Koopa: { dataUrl: characterArt.koopa },
+  Bat: { dataUrl: characterArt.bat },
+  Coin: { dataUrl: characterArt.coin },
   Flag: { dataUrl: flagSprite },
   Mushroom: { dataUrl: mushroomSprite },
   Star: { dataUrl: starSprite },
   ExtraLife: { dataUrl: extraLifeSprite }
 };
 
-const builtinVariant = (id, name, dataUrl, fileName = null) => ({
+const builtinVariant = (id, name, dataUrl, fileName = null, imageSize = 32) => ({
   id,
   name,
   dataUrl,
   fileName,
   fileType: dataUrl ? 'image/svg+xml' : null,
-  imageWidth: 32,
-  imageHeight: 32,
-  frameWidth: 32,
-  frameHeight: 32
+  imageWidth: imageSize,
+  imageHeight: imageSize,
+  frameWidth: imageSize,
+  frameHeight: imageSize
 });
 
 const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType => [
@@ -122,7 +111,9 @@ const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType
   [builtinVariant(
     'classic',
     tileType === 'Ground' ? 'Sunny meadow' : tileType === 'Brick' ? 'Pastel brick' : 'Classic',
-    BUILTIN_SPRITES[tileType]?.dataUrl || null
+    BUILTIN_SPRITES[tileType]?.dataUrl || null,
+    null,
+    ['MysteryBox', 'Coin'].includes(tileType) ? 128 : 32
   )]
 ]));
 BUILTIN_TILE_VARIANTS.Ground.push(builtinVariant('ice', 'Ice', iceGroundSprite, 'Ground-Ice.svg'));
@@ -150,14 +141,22 @@ const MAX_CUSTOM_BOSS_IMAGES_BYTES = 20 * 1024 * 1024;
 const CUSTOM_BOSS_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 BUILTIN_SPRITES.Player.animations = {
-  idle: builtinAnimation(playerIdle, 'Player-idle.svg', 4),
-  walk: builtinAnimation(playerWalk, 'Player-walk.svg', 8),
-  run: builtinAnimation(playerRun, 'Player-run.svg', 12),
-  jump: builtinAnimation(playerJump, 'Player-jump.svg', 8)
+  idle: builtinAnimation(characterArt.playerIdle, 'Player-idle.svg', 4),
+  walk: builtinAnimation(characterArt.playerWalk, 'Player-walk.svg', 8),
+  run: builtinAnimation(characterArt.playerRun, 'Player-run.svg', 12),
+  jump: builtinAnimation(characterArt.playerJump, 'Player-jump.svg', 8)
 };
 BUILTIN_SPRITES.Goomba.animations = {
-  idle: builtinAnimation(goombaIdle, 'BumbleBug.svg', 4, 32, 32),
-  walk: builtinAnimation(goombaWalk, 'BumbleBug-walk.svg', 7)
+  idle: builtinAnimation(characterArt.goombaIdle, 'BumbleBug-idle.svg', 4),
+  walk: builtinAnimation(characterArt.goombaWalk, 'BumbleBug-walk.svg', 7)
+};
+BUILTIN_SPRITES.Koopa.animations = {
+  idle: builtinAnimation(characterArt.koopaIdle, 'Koopa-idle.svg', 3),
+  walk: builtinAnimation(characterArt.koopaWalk, 'Koopa-walk.svg', 7)
+};
+BUILTIN_SPRITES.Bat.animations = {
+  idle: builtinAnimation(characterArt.batIdle, 'Bat-idle.svg', 5),
+  walk: builtinAnimation(characterArt.batWalk, 'Bat-walk.svg', 9)
 };
 
 export class StateManager {
