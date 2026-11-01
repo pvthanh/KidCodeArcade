@@ -115,6 +115,8 @@ navigation does not place tiles accidentally.
    level-specific record ID to `GameScene`.
 3. `GameScene` creates textures, world/camera bounds, entity groups, physics
    colliders and overlaps, keyboard input, HUD, animations, and sound handling.
+   It emits `gameReady` after setup so `main.js` can dismiss the modal's
+   loading screen.
    Play mode uses a 1.35× follow-camera zoom and Phaser's pixel-art rendering.
    Player and Creepy sprites display at 48 × 48 pixels while their collision
    bodies retain their previous dimensions; editor tiles remain 32 × 32. The score,

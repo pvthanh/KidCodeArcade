@@ -348,6 +348,7 @@ export class GameScene extends Scene {
     this.flyingEnemies.children.iterate(enemy =>
       this.spriteAnimator.play(enemy, enemy.getData('tileType'), 'walk'));
     this.updateHud();
+    this.eventBus.emit('gameReady');
   }
 
   createBackdrop() {

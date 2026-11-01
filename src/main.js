@@ -16,6 +16,10 @@ import { GameScene } from './engine/GameScene.js';
 import { EntityFactory } from './engine/EntityFactory.js';
 import { SpriteAnimator } from './engine/SpriteAnimator.js';
 
+const isInstalledApp = window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+if (isInstalledApp) document.documentElement.classList.add('installed-app');
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register(`${import.meta.env.BASE_URL}service-worker.js`, {
     scope: import.meta.env.BASE_URL
@@ -368,7 +372,12 @@ function startGame() {
           <button class="game-close" type="button" aria-label="Close game">✕</button>
         </div>
       </header>
-      <div id="game-stage" class="game-stage">
+      <div id="game-stage" class="game-stage" aria-busy="true">
+        <div class="game-loading" role="status" aria-live="polite">
+          <span class="game-loading-spinner" aria-hidden="true"></span>
+          <strong>Getting your level ready…</strong>
+          <span>Loading the game and its artwork</span>
+        </div>
         <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
           <div class="game-message-card">
             <span class="game-message-text"></span>
@@ -436,13 +445,22 @@ function startGame() {
     }
   });
   campaignProgress = initialCampaignProgress();
+  setGameLoading(true);
   launchCampaignLevel(uiOverlayEditor.currentLevelIndex);
   closeButton.focus();
+}
+
+function setGameLoading(loading) {
+  const stage = activeModal?.querySelector('#game-stage');
+  if (!stage) return;
+  stage.setAttribute('aria-busy', String(loading));
+  stage.querySelector('.game-loading').hidden = !loading;
 }
 
 function launchCampaignLevel(index, progress = campaignProgress) {
   const level = uiOverlayEditor.getCampaignLevel(index);
   if (!level || !activeModal) return;
+  setGameLoading(true);
   runLevelIndex = index;
   campaignProgress = { ...progress };
   currentLevelEntryProgress = { ...campaignProgress };
@@ -506,6 +524,8 @@ function createGameInstance(snapshot, levelName, levelIndex, progress) {
   });
   window.game = activeGame;
 }
+
+eventBus.on('gameReady', () => setGameLoading(false));
 
 eventBus.on('gameMessage', result => {
   const gameMessage = activeModal?.querySelector('#game-message');

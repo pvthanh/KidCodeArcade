@@ -236,7 +236,11 @@ export class UIOverlayEditor {
     this.toolbar.querySelector('#toggle-board-pan').addEventListener('click', event => {
       const enabled = event.currentTarget.getAttribute('aria-pressed') !== 'true';
       event.currentTarget.setAttribute('aria-pressed', String(enabled));
-      event.currentTarget.textContent = enabled ? '✋ Move board: On' : '✋ Move board';
+      event.currentTarget.setAttribute(
+        'aria-label',
+        enabled ? 'Move the board by dragging (on)' : 'Move the board by dragging'
+      );
+      event.currentTarget.dataset.tooltip = enabled ? 'Move board: On' : 'Move board';
       this.eventBus.emit('boardPanModeChanged', enabled);
       this.setStatus(enabled
         ? 'Move board is on. Drag the canvas to pan; tap Move board again to paint.'

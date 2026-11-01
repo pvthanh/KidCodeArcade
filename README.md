@@ -112,6 +112,8 @@ HTTPS host (GitHub Pages already uses HTTPS), you can install it from a phone:
 - **iPhone or iPad:** Open the site in Safari, tap **Share**, then choose **Add
   to Home Screen**. iOS does not show the Android-style install prompt.
 
+The installed app requests landscape orientation. If iOS does not rotate the
+app automatically, a rotate-device notice asks you to turn the device sideways.
 The app shell and built-in game assets are cached after the first successful
 online visit, so the editor can reopen offline. Internet access is still needed
 for the first visit and for future site updates. Export levels and campaigns

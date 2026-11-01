@@ -23,6 +23,9 @@ support.
 - GitHub Actions builds use `/KidCodeArcade/` as the Vite base path. The
   included Pages workflow publishes `dist` after pushes to `main`; GitHub
   repository Pages settings must use **GitHub Actions** as the source.
+- The production site is installable as a PWA. Its manifest requests landscape
+  orientation; installed apps show a rotate-device notice in portrait on iOS,
+  where orientation locking is not supported.
 - The application requires a modern browser with Canvas, local file APIs, and
   Web Audio support for synthesized sounds. Uploaded audio playback depends on
   browser codec support.
@@ -40,7 +43,8 @@ support.
   position in the campaign. The new level starts with a completely empty
   board, with the Player tool selected so its start point can be placed.
 - On touch devices, use **Move board** to switch from painting to drag-to-pan
-  navigation. Turn it off to resume painting. The board also has a larger,
+  navigation. Its icon stays compact and displays a selected indicator while
+  active. Turn it off to resume painting. The board also has a larger,
   higher-contrast scrollbar where the browser displays scrollbars.
 - Undo and redo support placement, removal, resizing, and clear-grid commands;
   the command history is limited to 100 operations.
