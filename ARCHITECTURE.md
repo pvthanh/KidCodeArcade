@@ -222,8 +222,9 @@ automatically opens its group, and only one group stays expanded at a time.
 The Eraser remains a separate, always-visible editor tool near Undo and Redo.
 
 The current editor palette selects one mystery-box reward and one boss
-configuration for each level. Boss settings choose one of the built-in Slime
-King, Robo Crab, and Sky Dragon characters or a custom character uploaded for
+configuration for each level. Mystery boxes can grant a selected power-up or
+choose a random power-up independently each time a box is hit. Boss settings
+choose one of the ten built-in characters or a custom character uploaded for
 the level. Users can add up to
 12 custom bosses per level using a PNG, JPEG, or WebP image up to 5 MB and
 4096 × 4096 pixels; their combined image data is limited to 20 MB. The selected
@@ -243,7 +244,7 @@ hint, which is preserved when a campaign is exported or imported.
 
 | Mechanic | Current behavior |
 |---|---|
-| Player movement | Keyboard arrows/A-D move; W, Up, or Space jumps; Shift runs; X or J shoots while Fire-powered. Touch controls provide left, right, and jump. |
+| Player movement | Keyboard arrows/A-D move; W, Up, or Space jumps; Shift runs; X or J shoots while Fire-powered. Touch controls provide left, right, jump, and fireball buttons. |
 | Jump feel | 120 ms jump buffering and coyote time; holding jump changes jump height; wall slide caps fall speed at 120 px/s; wall jump launches away from the contacted wall and briefly prioritizes that direction. |
 | Movement speed | Normal horizontal movement is 180 px/s; run is 290 px/s; the big-player speed is 220 px/s unless running. |
 | Spring | Landing launches the player upward at 640 px/s. |
@@ -253,7 +254,7 @@ hint, which is preserved when a campaign is exported or imported.
 | Checkpoint | The latest touched checkpoint becomes the respawn position. Falling costs a life; if lives remain, the player respawns there after a short animation, in normal form and without Fire/Star powers. |
 | Enemies | Goomba and Koopa patrol horizontally; Bat and configured flying Creepy types fly. Creepy movement, speed, and health are configured per type. Stomps, Star power, and fireballs defeat enemies. |
 | Boss | Selected boss movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. The goal stays locked until every Boss in the level is defeated. |
-| Fire Flower | Grants a Fire ability. X/J emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
+| Fire Flower | Grants a Fire ability. X/J or the touch fireball button emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
 
@@ -273,8 +274,8 @@ fit its container.
   generated as scalable, detailed vector artwork in
   `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
   viewBox. Built-in Player and Creepy animation sheets are rasterized from the
-  vector art into 256 × 256 frames, while Coin and Mystery Box artwork is
-  rendered from 128 × 128 sources at the normal 32 × 32 tile size. Player and
+  vector art into 256 × 256 frames, while Coin, power-up, and Mystery Box
+  artwork is rendered from 128 × 128 sources at the normal 32 × 32 tile size. Player and
   Creepy sprites are displayed at 48 × 48 in play mode with their previous
   collision sizes; Boss sprites retain their configured display size.
   `StateManager` records per-action frame dimensions and frame rate, and the

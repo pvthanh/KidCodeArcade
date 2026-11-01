@@ -1,7 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" shape-rendering="crispEdges">
-  <path fill="#7d5130" d="M14 1h4v5h3v4h9v4h-7v3h-2v3h3v7h-4v-3h-4v-2h-3v4h-3v-6h2v-4H3v-4h9l2-4z"/>
-  <path fill="#f3ac37" d="M15 2h2v5h3v4h8v2h-7v4h-2v3h3v6h-2v-3h-5v-2h-3v4h-1v-5h2v-5H4v-2h8l2-4z"/>
-  <path fill="#ffe96a" d="M15 5h2v5h3v3h-3v4h-2v-4h-2v-2h2zM7 14h7v2h-2v2H9v-2H7zM18 17h2v3h2v3h-3v-3h-2v-2h1z"/>
-  <path fill="#fff8d2" d="M16 7h1v3h-1zM9 14h4v1H9z"/>
-  <path fill="#f6c94b" d="M13 22h3v2h-3z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fff28c"/>
+      <stop offset=".5" stop-color="#ffc53d"/>
+      <stop offset="1" stop-color="#e9872e"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="116" rx="38" ry="6" fill="#355b4b" opacity=".14"/>
+  <path d="m64 10 14 31 34 4-25 23 7 34-30-17-30 17 7-34-25-23 34-4z"
+    fill="url(#gold)" stroke="#75492c" stroke-width="6" stroke-linejoin="round"/>
+  <path d="m64 24 10 25 25 3-18 17 5 25-22-13-22 13 5-25-18-17 25-3z"
+    fill="#ffe96c" opacity=".88"/>
+  <path d="M45 45q7-8 15-7" fill="none" stroke="#fff9cd" stroke-width="6" stroke-linecap="round"/>
+  <ellipse cx="52" cy="60" rx="7" ry="9" fill="#fff" stroke="#67432e" stroke-width="3"/>
+  <ellipse cx="76" cy="60" rx="7" ry="9" fill="#fff" stroke="#67432e" stroke-width="3"/>
+  <ellipse cx="54" cy="62" rx="3" ry="4" fill="#263e4d"/>
+  <ellipse cx="74" cy="62" rx="3" ry="4" fill="#263e4d"/>
+  <path d="M56 77q8 8 16 0" fill="none" stroke="#67432e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="40" cy="74" r="4" fill="#f28d85"/>
+  <circle cx="88" cy="74" r="4" fill="#f28d85"/>
 </svg>

@@ -165,7 +165,14 @@ eventBus.on('applyTileVariantToAll', ({ tileId, variantId }) => {
 eventBus.on('mysteryBoxRewardSelected', rewardType => {
   stateManager.mysteryBoxReward = rewardType;
   gridCanvas.refresh();
-  eventBus.emit('status', `Mystery boxes now contain ${rewardType === 'Mushroom' ? 'a super mushroom' : rewardType === 'Star' ? 'star power' : 'an extra life'}.`);
+  const rewardLabels = {
+    Random: 'a random power-up',
+    Mushroom: 'a super mushroom',
+    Star: 'star power',
+    ExtraLife: 'an extra life',
+    FireFlower: 'a fire flower'
+  };
+  eventBus.emit('status', `Mystery boxes now contain ${rewardLabels[rewardType] || 'a super mushroom'}.`);
 });
 
 eventBus.on('levelLoaded', ({ activeTileType }) => {
@@ -343,7 +350,7 @@ function startGame() {
       <header class="game-header">
         <div>
           <strong>Play your level</strong>
-          <span>Move with arrows or A/D · Jump with W, ↑ or Space</span>
+          <span>Move with arrows or A/D · Jump with W, ↑ or Space · Fireball with X/J</span>
           <span class="game-level-hint" hidden></span>
         </div>
         <div class="game-header-actions">
@@ -360,6 +367,7 @@ function startGame() {
           <button type="button" data-control="left" aria-label="Move left">◀</button>
           <button type="button" data-control="right" aria-label="Move right">▶</button>
           <button type="button" data-control="jump" aria-label="Jump">⤒</button>
+          <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
         </div>
       </div>
       <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
@@ -379,14 +387,16 @@ function startGame() {
   };
   activeModal.addEventListener('keydown', handleEscape);
 
-  touchState = { left: false, right: false, jump: false };
+  touchState = { left: false, right: false, jump: false, shoot: false };
   const touchPanel = activeModal.querySelector('#touch-controls');
   const touchToggle = activeModal.querySelector('.touch-toggle');
   touchToggle.addEventListener('click', () => {
     touchPanel.hidden = !touchPanel.hidden;
     touchToggle.setAttribute('aria-expanded', String(!touchPanel.hidden));
     touchToggle.textContent = touchPanel.hidden ? 'Show touch controls' : 'Hide touch controls';
-    if (touchPanel.hidden) Object.assign(touchState, { left: false, right: false, jump: false });
+    if (touchPanel.hidden) {
+      Object.assign(touchState, { left: false, right: false, jump: false, shoot: false });
+    }
   });
   makeDraggable(touchPanel, touchPanel.querySelector('.touch-handle'));
   touchPanel.querySelectorAll('[data-control]').forEach(button => {
@@ -442,7 +452,7 @@ function launchCampaignLevel(index, progress = campaignProgress) {
     activeGame.destroy(true);
     activeGame = null;
     if (window.game) delete window.game;
-    Object.assign(touchState, { left: false, right: false, jump: false });
+    Object.assign(touchState, { left: false, right: false, jump: false, shoot: false });
     clearTimeout(gameRestartTimer);
     gameRestartTimer = setTimeout(() => {
       gameRestartTimer = null;

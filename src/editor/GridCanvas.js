@@ -42,6 +42,7 @@ const TILE_LABELS = {
   Coin: '●',
   Flag: '⚑',
   Player: '●',
+  Random: '?',
   Mushroom: 'M',
   Star: '★',
   ExtraLife: '+',
@@ -219,7 +220,13 @@ export class GridCanvas {
 
   drawRewardBadge(ctx, x, y, tileSize) {
     const reward = this.stateManager.mysteryBoxReward || 'Mushroom';
-    const colors = { Mushroom: '#e47759', Star: '#f1ad3e', ExtraLife: '#e76568' };
+    const colors = {
+      Random: '#8b70b5',
+      Mushroom: '#e47759',
+      Star: '#f1ad3e',
+      ExtraLife: '#e76568',
+      FireFlower: '#ed7645'
+    };
     ctx.beginPath();
     ctx.arc(x + tileSize - 5, y + tileSize - 5, 8, 0, Math.PI * 2);
     ctx.fillStyle = '#fff8e6';

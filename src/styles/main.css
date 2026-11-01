@@ -1158,9 +1158,13 @@ button {
   touch-action: none;
 }
 
-.touch-buttons button:last-child {
+.touch-buttons [data-control="jump"] {
   margin-left: 9px;
   background: #d9eeff;
+}
+
+.touch-buttons [data-control="shoot"] {
+  background: #ffe2c4;
 }
 
 .touch-buttons button:active {

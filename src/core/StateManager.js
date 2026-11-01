@@ -6,6 +6,7 @@ import flagSprite from '../assets/demo/Flag.svg?inline';
 import mushroomSprite from '../assets/demo/SunnyMushroom.svg?inline';
 import starSprite from '../assets/demo/SunnyStar.svg?inline';
 import extraLifeSprite from '../assets/demo/SunnyHeart.svg?inline';
+import fireFlowerSprite from '../assets/demo/SunnyFireFlower.svg?inline';
 import iceGroundSprite from '../assets/demo/Ground-Ice.svg?inline';
 import mossBrickSprite from '../assets/demo/Brick-Moss.svg?inline';
 
@@ -77,7 +78,8 @@ const TILE_VARIANT_TYPES = [
   'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
   'Switch', 'Door', 'Checkpoint', 'Coin', 'Flag', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
-const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower'];
+export const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower'];
+export const MYSTERY_BOX_REWARDS = ['Random', ...POWER_UP_TYPES];
 const SOUND_EVENTS = [
   'jump', 'enemyStomp', 'playerHit', 'coin', 'powerUp', 'brickBreak', 'mysteryBox',
   'win', 'lose', 'spring', 'switch', 'checkpoint', 'fireball'
@@ -179,7 +181,8 @@ const BUILTIN_SPRITES = {
   Flag: { dataUrl: flagSprite },
   Mushroom: { dataUrl: mushroomSprite },
   Star: { dataUrl: starSprite },
-  ExtraLife: { dataUrl: extraLifeSprite }
+  ExtraLife: { dataUrl: extraLifeSprite },
+  FireFlower: { dataUrl: fireFlowerSprite }
 };
 
 for (const [tileType, art] of Object.entries(creepyArt)) {
@@ -205,7 +208,7 @@ const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType
     tileType === 'Ground' ? 'Sunny meadow' : tileType === 'Brick' ? 'Pastel brick' : 'Classic',
     BUILTIN_SPRITES[tileType]?.dataUrl || null,
     null,
-    ['MysteryBox', 'Coin'].includes(tileType) ? 128 : 32
+    ['MysteryBox', 'Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'].includes(tileType) ? 128 : 32
   )]
 ]));
 BUILTIN_TILE_VARIANTS.Ground.push(builtinVariant('ice', 'Ice', iceGroundSprite, 'Ground-Ice.svg'));
@@ -906,7 +909,7 @@ export class StateManager {
     }
     this.soundEffects = JSON.parse(JSON.stringify(snapshot.soundEffects || {}));
     this.backgroundMusic = snapshot.backgroundMusic ? { ...snapshot.backgroundMusic } : null;
-    this.mysteryBoxReward = POWER_UP_TYPES.includes(snapshot.mysteryBoxReward)
+    this.mysteryBoxReward = MYSTERY_BOX_REWARDS.includes(snapshot.mysteryBoxReward)
       ? snapshot.mysteryBoxReward
       : 'Mushroom';
     this.customBosses = clone(snapshot.customBosses || []);
@@ -1024,7 +1027,7 @@ export class StateManager {
         throw new TypeError('The level file contains invalid selected tile variants.');
       }
     }
-    if (data.mysteryBoxReward !== undefined && !POWER_UP_TYPES.includes(data.mysteryBoxReward)) {
+    if (data.mysteryBoxReward !== undefined && !MYSTERY_BOX_REWARDS.includes(data.mysteryBoxReward)) {
       throw new TypeError('The level file contains an unsupported mystery-box reward.');
     }
     const customBosses = data.customBosses === undefined ? [] : data.customBosses;

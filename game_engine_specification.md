@@ -145,7 +145,8 @@ physics or gameplay behavior.
 ### Rewards and custom assets
 
 - The Mystery Box reward is selected per level and applies to all its boxes.
-  Supported rewards are Mushroom, Star, Extra Life, and Fire Flower.
+  Supported rewards are Mushroom, Star, Extra Life, Fire Flower, or Random.
+  Random chooses a new reward from the four power-ups each time a box is hit.
 - The chosen reward is previewed on the board and saved with the level.
 - Supported character actions are Player: idle/walk/run/jump; built-in and
   custom Creepy types: idle/walk. Each action can have its own sprite sheet and
@@ -161,9 +162,9 @@ physics or gameplay behavior.
   Player and Creepy sprites are displayed at 48 × 48 pixels (150% of a tile),
   while their collision bodies retain their previous dimensions. Bosses retain
   their configurable display size. Custom character uploads use the same
-  display sizing and remain limited by their uploaded image resolution. Coin
-  and Mystery Box artwork is drawn from 128 × 128 vector sources and displayed
-  at the standard 32 × 32 tile size.
+  display sizing and remain limited by their uploaded image resolution. Coin,
+  power-up, and Mystery Box artwork is drawn from 128 × 128 vector sources and
+  displayed at the standard 32 × 32 tile size.
 
 ## 4. Gameplay specification
 
@@ -173,7 +174,8 @@ physics or gameplay behavior.
 - Jump: **W**, **Up arrow**, or **Space**.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
-- Optional touch controls provide left, right, and jump buttons. They are
+- Optional touch controls provide left, right, jump, and fireball buttons.
+  Fireballs can only be shot after collecting Fire Flower power. Controls are
   hidden by default; use **Show touch controls** in the game header to enable
   them. When shown, drag the control panel's handle to reposition it.
 - Escape, the close button, or clicking outside the game window closes play
@@ -204,7 +206,7 @@ physics or gameplay behavior.
 | Object | Behavior |
 |---|---|
 | Ground, Brick, Pipe | Solid collision surfaces; Brick breaks when hit from below. |
-| Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. |
+| Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, or Fire Flower independently for each box hit. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
 | One-way platform | Player can jump through from below and land on top. |
@@ -217,7 +219,7 @@ physics or gameplay behavior.
 | Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
 | Extra Life | Adds one life. |
-| Fire Flower | Grants Fire power. X/J shoots a directional projectile with a cooldown; it defeats ground/flying enemies and is removed by obstacles or timeout. |
+| Fire Flower | Grants Fire power. X/J or the touch fireball button shoots a directional projectile with a cooldown; it defeats ground/flying enemies and is removed by obstacles or timeout. |
 | Flag | Ends the level as a win when touched. |
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also

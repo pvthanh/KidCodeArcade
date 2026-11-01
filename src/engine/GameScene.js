@@ -1,6 +1,6 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
-import { CREEPY_TYPES, THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+import { CREEPY_TYPES, POWER_UP_TYPES, THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
 import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
 import { SoundManager } from './SoundManager.js';
 
@@ -49,6 +49,7 @@ export class GameScene extends Scene {
     this.jumpBufferUntil = 0;
     this.coyoteUntil = 0;
     this.touchJumpWasDown = false;
+    this.touchShootWasDown = false;
     this.jumpWasHeld = false;
     this.wallJumpDirection = 0;
     this.wallJumpUntil = 0;
@@ -243,7 +244,7 @@ export class GameScene extends Scene {
           flags.add(entity);
         } else if (['Mushroom', 'Star', 'ExtraLife', 'FireFlower'].includes(tileType)) {
           entity.setData('powerUpType', tileType);
-          entity.setSize(22, 24);
+          entity.body.setSize(22 / entity.scaleX, 24 / entity.scaleY);
           this.powerUps.add(entity);
         }
       });
@@ -475,8 +476,10 @@ export class GameScene extends Scene {
       Input.Keyboard.JustDown(this.keys.space) || touchJumpPressed;
     const jumpHeld = this.keys.up.isDown || this.keys.w.isDown ||
       this.keys.space.isDown || this.touchState.jump;
+    const touchShootPressed = this.touchState.shoot && !this.touchShootWasDown;
+    this.touchShootWasDown = this.touchState.shoot;
     if (Input.Keyboard.JustDown(this.keys.shootX) ||
-      Input.Keyboard.JustDown(this.keys.shootJ)) this.shootFireball();
+      Input.Keyboard.JustDown(this.keys.shootJ) || touchShootPressed) this.shootFireball();
     if (jumpPressed) this.jumpBufferUntil = this.time.now + 120;
     if (this.player.body.blocked.down || this.player.body.touching.down) {
       this.coyoteUntil = this.time.now + 120;
@@ -835,10 +838,13 @@ export class GameScene extends Scene {
   }
 
   spawnPowerUp(block) {
-    const rewardType = this.worldSnapshot.mysteryBoxReward || 'Mushroom';
+    const configuredReward = this.worldSnapshot.mysteryBoxReward || 'Mushroom';
+    const rewardType = configuredReward === 'Random'
+      ? POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)]
+      : configuredReward;
     const item = this.entityFactory.create(this, rewardType, block.x, block.y - 20);
     item.setData('powerUpType', rewardType);
-    item.setSize(22, 24);
+    item.body.setSize(22 / item.scaleX, 24 / item.scaleY);
     item.setCollideWorldBounds(true).setBounceX(1);
     this.powerUps.add(item);
     this.tweens.add({

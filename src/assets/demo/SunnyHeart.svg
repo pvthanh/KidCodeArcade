@@ -1,7 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" shape-rendering="crispEdges">
-  <path fill="#743d52" d="M5 3h8v3h6V3h8v3h3v9h-3v5h-4v4h-4v4h-4v-3h-4v-4H7v-4H4v-5H2V6h3z"/>
-  <path fill="#e96b76" d="M5 5h7v3h6V5h7v3h3v7h-3v5h-4v4h-4v3h-2v-3h-4v-4H7v-5H4V8h1z"/>
-  <path fill="#ff9ba0" d="M6 6h5v3h6v2h-2v3h-3v-3H9V9H6z"/>
-  <path fill="#fff0c8" d="M8 7h3v2H8z"/>
-  <path fill="#c94f67" d="M24 13h2v4h-2zM18 23h3v2h-3z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="heart" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff9da7"/>
+      <stop offset=".52" stop-color="#ed5d75"/>
+      <stop offset="1" stop-color="#c93e68"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="116" rx="35" ry="6" fill="#355b4b" opacity=".14"/>
+  <path d="M64 108 22 70Q5 53 18 32 33 9 57 25l7 7 7-7q24-16 39 7 13 21-4 38z"
+    fill="url(#heart)" stroke="#743d52" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M27 39q6-13 18-11m30 1q14-7 24 6" fill="none" stroke="#ffd0cb" stroke-width="7" stroke-linecap="round"/>
+  <path d="M64 51 77 63l-9 1 4 17-17-21 10-1z" fill="#fff4d3" stroke="#9e425d" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="42" cy="56" r="4" fill="#fff0c8" opacity=".8"/>
+  <circle cx="91" cy="51" r="3" fill="#fff0c8" opacity=".8"/>
 </svg>

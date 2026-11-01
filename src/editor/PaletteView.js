@@ -5,6 +5,7 @@ import {
   CREEPY_TYPES,
   DEFAULT_BOSS_CONFIG,
   DEFAULT_CREEPY_CONFIGS,
+  MYSTERY_BOX_REWARDS,
   PLAYER_CHARACTERS
 } from '../core/StateManager.js';
 import { characterArt } from '../assets/demo/CharacterArt.js';
@@ -27,17 +28,18 @@ const TILES = [
   { id: 'Mushroom', name: 'Super mushroom', icon: '🍄', description: 'Grow big and jump higher', color: '#e47759' },
   { id: 'Star', name: 'Star power', icon: '⭐', description: 'Invincible for 8 seconds', color: '#f1ad3e' },
   { id: 'ExtraLife', name: 'Extra life', icon: '❤️', description: 'Add one player life', color: '#e76568' },
-  { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Unlock fireballs with X or J', color: '#ed7645' },
+  { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Unlock fireballs with X, J, or the touch button', color: '#ed7645' },
   { id: 'Flag', name: 'Goal', icon: '🏁', description: 'Reach to win', color: '#378bd0' },
   { id: 'Eraser', name: 'Eraser', icon: '🧽', description: 'Remove a tile', color: '#85939c' }
 ];
 
-const MYSTERY_REWARDS = [
-  { id: 'Mushroom', label: 'Super mushroom' },
-  { id: 'Star', label: 'Star power' },
-  { id: 'ExtraLife', label: 'Extra life' },
-  { id: 'FireFlower', label: 'Fire flower' }
-];
+const MYSTERY_REWARD_LABELS = {
+  Random: 'Random power-up',
+  Mushroom: 'Super mushroom',
+  Star: 'Star power',
+  ExtraLife: 'Extra life',
+  FireFlower: 'Fire flower'
+};
 
 const TOOL_GROUPS = [
   { id: 'start-goal', name: 'Start & Goal', tileIds: ['Player', 'Checkpoint', 'Flag'] },
@@ -567,8 +569,8 @@ export class PaletteView {
                       <label class="mystery-reward-settings">
                         Reward for all boxes
                         <select data-mystery-reward aria-label="Mystery box reward">
-                          ${MYSTERY_REWARDS.map(reward => `
-                            <option value="${reward.id}">${reward.label}</option>
+                          ${MYSTERY_BOX_REWARDS.map(reward => `
+                            <option value="${reward}">${MYSTERY_REWARD_LABELS[reward]}</option>
                           `).join('')}
                         </select>
                       </label>
