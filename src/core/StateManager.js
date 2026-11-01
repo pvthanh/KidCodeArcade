@@ -123,17 +123,29 @@ export const THEMED_TILE_TYPES = new Set([
   'OneWayPlatform', 'Switch', 'Door'
 ]);
 
-const builtinAnimation = (dataUrl, fileName, frameRate, imageWidth = 128, imageHeight = 32) => ({
+const builtinAnimation = (
+  dataUrl,
+  fileName,
+  frameRate,
+  imageWidth = 128,
+  imageHeight = 32,
+  frameWidth = 32,
+  frameHeight = 32
+) => ({
   dataUrl,
   fileName,
   fileType: 'image/svg+xml',
   imageWidth,
   imageHeight,
-  frameWidth: 32,
-  frameHeight: 32,
-  frameCount: imageWidth / 32,
-  frameRate
+  frameWidth,
+  frameHeight,
+  frameCount: imageWidth / frameWidth,
+  frameRate,
+  source: 'builtin'
 });
+
+const builtinCharacterAnimation = (dataUrl, fileName, frameRate) =>
+  builtinAnimation(dataUrl, fileName, frameRate, 1024, 256, 256, 256);
 
 const BUILTIN_SPRITES = {
   Player: { dataUrl: characterArt.player },
@@ -223,20 +235,19 @@ const DEFAULT_PLAYER_ANIMATIONS = {
   run: characterArt.playerRun,
   jump: characterArt.playerJump
 };
+const isUploadedAnimation = animation => animation?.source === 'upload' ||
+  (animation?.dataUrl && animation.fileType !== 'image/svg+xml' && animation.source !== 'builtin');
 const getPlayerAnimations = (characterId, preserve = {}) => {
   const art = characterId === 'storybookHero'
     ? DEFAULT_PLAYER_ANIMATIONS
     : playerCharacterArt[characterId];
   return Object.fromEntries(Object.entries(PLAYER_ANIMATION_RATES).map(([action, frameRate]) => {
     const previous = preserve[action];
-    if (previous?.source === 'upload' ||
-      (previous?.dataUrl && previous.dataUrl !== DEFAULT_PLAYER_ANIMATIONS[action] &&
-        previous.source !== 'builtin')) {
+    if (isUploadedAnimation(previous)) {
       return [action, previous];
     }
     return [action, {
-      ...builtinAnimation(art[action], `Player-${characterId}-${action}.svg`, frameRate),
-      source: 'builtin',
+      ...builtinCharacterAnimation(art[action], `Player-${characterId}-${action}.svg`, frameRate),
       characterId
     }];
   }));
@@ -248,16 +259,16 @@ BUILTIN_SPRITES.Player.animations = {
 BUILTIN_SPRITES.Player.source = 'builtin';
 BUILTIN_SPRITES.Player.characterId = 'storybookHero';
 BUILTIN_SPRITES.Goomba.animations = {
-  idle: builtinAnimation(characterArt.goombaIdle, 'BumbleBug-idle.svg', 4),
-  walk: builtinAnimation(characterArt.goombaWalk, 'BumbleBug-walk.svg', 7)
+  idle: builtinCharacterAnimation(characterArt.goombaIdle, 'BumbleBug-idle.svg', 4),
+  walk: builtinCharacterAnimation(characterArt.goombaWalk, 'BumbleBug-walk.svg', 7)
 };
 BUILTIN_SPRITES.Koopa.animations = {
-  idle: builtinAnimation(characterArt.koopaIdle, 'Koopa-idle.svg', 3),
-  walk: builtinAnimation(characterArt.koopaWalk, 'Koopa-walk.svg', 7)
+  idle: builtinCharacterAnimation(characterArt.koopaIdle, 'Koopa-idle.svg', 3),
+  walk: builtinCharacterAnimation(characterArt.koopaWalk, 'Koopa-walk.svg', 7)
 };
 BUILTIN_SPRITES.Bat.animations = {
-  idle: builtinAnimation(characterArt.batIdle, 'Bat-idle.svg', 5),
-  walk: builtinAnimation(characterArt.batWalk, 'Bat-walk.svg', 9)
+  idle: builtinCharacterAnimation(characterArt.batIdle, 'Bat-idle.svg', 5),
+  walk: builtinCharacterAnimation(characterArt.batWalk, 'Bat-walk.svg', 9)
 };
 
 export class StateManager {
@@ -747,6 +758,10 @@ export class StateManager {
       dataUrl: character.preview,
       source: 'builtin',
       characterId: character.id,
+      imageWidth: 128,
+      imageHeight: 128,
+      frameWidth: 128,
+      frameHeight: 128,
       animations: getPlayerAnimations(character.id, currentPlayer.animations)
     };
     return this.spriteMetadata.Player;
@@ -841,7 +856,23 @@ export class StateManager {
       : PLAYER_CHARACTER_BY_ID.has(this.spriteMetadata.Player.characterId)
         ? this.spriteMetadata.Player.characterId
         : 'storybookHero';
-    this.spriteMetadata.Player.characterId = this.playerCharacterId;
+    this.setPlayerCharacter(this.playerCharacterId);
+    for (const tileType of ['Goomba', 'Koopa', 'Bat']) {
+      const current = this.spriteMetadata[tileType] || {};
+      const defaults = BUILTIN_SPRITES[tileType].animations;
+      this.spriteMetadata[tileType] = {
+        ...current,
+        dataUrl: BUILTIN_SPRITES[tileType].dataUrl,
+        imageWidth: 128,
+        imageHeight: 128,
+        frameWidth: 128,
+        frameHeight: 128,
+        animations: Object.fromEntries(Object.entries(defaults).map(([action, animation]) => [
+          action,
+          isUploadedAnimation(current.animations?.[action]) ? current.animations[action] : animation
+        ]))
+      };
+    }
     this.soundEffects = JSON.parse(JSON.stringify(snapshot.soundEffects || {}));
     this.backgroundMusic = snapshot.backgroundMusic ? { ...snapshot.backgroundMusic } : null;
     this.mysteryBoxReward = POWER_UP_TYPES.includes(snapshot.mysteryBoxReward)

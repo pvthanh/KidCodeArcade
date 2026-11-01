@@ -151,13 +151,14 @@ physics or gameplay behavior.
 - Uploaded images and their metadata are included in exported level JSON.
 - The default built-in art uses an original sunny storybook theme. Player,
   Creepy, and Boss characters use detailed vector artwork drawn in a 128 × 128
-  viewBox and smoothly rendered to 32 × 32 animation frames (48 × 48 for
-  built-in Boss art). In play mode, the Player and Creepy sprites are displayed
-  at 48 × 48 pixels (150% of a tile), while their collision bodies retain their
-  previous dimensions. Bosses retain their configurable display size. Custom
-  character uploads use the same display sizing. Coin and Mystery Box artwork
-  is drawn from 128 × 128 vector sources and displayed at the standard 32 × 32
-  tile size.
+  viewBox. Built-in Player and Creepy animations are rasterized from that art
+  into 256 × 256 frames to retain detail as characters grow. In play mode, the
+  Player and Creepy sprites are displayed at 48 × 48 pixels (150% of a tile),
+  while their collision bodies retain their previous dimensions. Bosses retain
+  their configurable display size. Custom character uploads use the same
+  display sizing and remain limited by their uploaded image resolution. Coin
+  and Mystery Box artwork is drawn from 128 × 128 vector sources and displayed
+  at the standard 32 × 32 tile size.
 
 ## 4. Gameplay specification
 

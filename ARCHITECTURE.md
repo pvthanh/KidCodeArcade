@@ -265,11 +265,11 @@ fit its container.
 - Built-in Player, Goomba, Koopa, Bat, Boss, Coin, and Mystery Box art is
   generated as scalable, detailed vector artwork in
   `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
-  viewBox and is smoothly rendered into 32 × 32 animation frames (48 × 48 for
-  built-in Boss art); Coin and Mystery Box artwork is also rendered from
-  128 × 128 sources at the normal 32 × 32 tile size. Player and Creepy sprites
-  are displayed at 48 × 48 in play mode with their previous collision sizes;
-  Boss sprites retain their configured display size.
+  viewBox. Built-in Player and Creepy animation sheets are rasterized from the
+  vector art into 256 × 256 frames, while Coin and Mystery Box artwork is
+  rendered from 128 × 128 sources at the normal 32 × 32 tile size. Player and
+  Creepy sprites are displayed at 48 × 48 in play mode with their previous
+  collision sizes; Boss sprites retain their configured display size.
   `StateManager` records per-action frame dimensions and frame rate, and the
   editor can replace these with uploaded images/sprite sheets.
 - The Player toolbox includes the original Storybook Hero plus ten built-in

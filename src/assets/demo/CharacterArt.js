@@ -38,9 +38,10 @@ const shell = (content, frameCount = 1, outputFrameSize = 32) => {
   )}`;
 };
 
-const sheet = frames => shell(frames.map((frame, index) =>
+const sheet = (frames, outputFrameSize = 32) => shell(frames.map((frame, index) =>
   `<g transform="translate(${index * 128} 0)">${frame}</g>`
-).join(''), frames.length);
+).join(''), frames.length, outputFrameSize);
+const characterSheet = frames => sheet(frames, 256);
 
 const hero = (pose = 0, jump = false) => {
   const stride = [-5, 0, 5, 0][pose % 4];
@@ -349,11 +350,11 @@ const makePlayerCharacterArt = () => Object.fromEntries(
   Object.entries(playerCharacterLooks).map(([id, character]) => {
     const poses = action => [0, 1, 2, 3].map(pose => playerCharacterFrame(character, pose, action));
     return [id, {
-      sprite: shell(playerCharacterFrame(character, 0, 'idle')),
-      idle: sheet(poses('idle')),
-      walk: sheet(poses('walk')),
-      run: sheet(poses('run')),
-      jump: sheet(poses('jump'))
+      sprite: shell(playerCharacterFrame(character, 0, 'idle'), 1, 128),
+      idle: characterSheet(poses('idle')),
+      walk: characterSheet(poses('walk')),
+      run: characterSheet(poses('run')),
+      jump: characterSheet(poses('jump'))
     }];
   })
 );
@@ -363,20 +364,20 @@ export const playerCharacterArt = makePlayerCharacterArt();
 export const characterArt = {
   coin: shell(coin(), 1, 128),
   mysteryBox: shell(mysteryBox(), 1, 128),
-  player: shell(hero()),
-  playerIdle: sheet(idleFrames(hero)),
-  playerWalk: sheet(idleFrames(hero)),
-  playerRun: sheet([0, 1, 2, 3].map(pose => hero(pose))),
-  playerJump: sheet([0, 1, 2, 3].map(pose => hero(pose, true))),
-  goomba: shell(bug()),
-  goombaIdle: sheet(idleFrames(bug)),
-  goombaWalk: sheet(idleFrames(bug)),
-  koopa: shell(koopa()),
-  koopaIdle: sheet(idleFrames(koopa)),
-  koopaWalk: sheet(idleFrames(koopa)),
-  bat: shell(bat()),
-  batIdle: sheet(idleFrames(bat)),
-  batWalk: sheet(idleFrames(bat)),
+  player: shell(hero(), 1, 128),
+  playerIdle: characterSheet(idleFrames(hero)),
+  playerWalk: characterSheet(idleFrames(hero)),
+  playerRun: characterSheet([0, 1, 2, 3].map(pose => hero(pose))),
+  playerJump: characterSheet([0, 1, 2, 3].map(pose => hero(pose, true))),
+  goomba: shell(bug(), 1, 128),
+  goombaIdle: characterSheet(idleFrames(bug)),
+  goombaWalk: characterSheet(idleFrames(bug)),
+  koopa: shell(koopa(), 1, 128),
+  koopaIdle: characterSheet(idleFrames(koopa)),
+  koopaWalk: characterSheet(idleFrames(koopa)),
+  bat: shell(bat(), 1, 128),
+  batIdle: characterSheet(idleFrames(bat)),
+  batWalk: characterSheet(idleFrames(bat)),
   bosses: {
     slimeKing: shell(boss('slimeKing'), 1, 48),
     roboCrab: shell(boss('roboCrab'), 1, 48),

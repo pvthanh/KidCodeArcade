@@ -1129,9 +1129,11 @@ export class PaletteView {
       const fileName = this.motionDialog.querySelector(`[data-animation-file="${animationType}"]`);
       if (fileName) fileName.textContent = animation.fileName || 'Image uploaded';
       const row = this.motionDialog.querySelector(`[data-animation="${animationType}"]`);
-      if (row && animation.frameWidth && animation.frameHeight) {
-        row.querySelector('[data-animation-width]').value = animation.frameWidth;
-        row.querySelector('[data-animation-height]').value = animation.frameHeight;
+      if (row) {
+        row.querySelector('[data-animation-width]').value =
+          animation.source === 'builtin' ? 32 : animation.frameWidth || 32;
+        row.querySelector('[data-animation-height]').value =
+          animation.source === 'builtin' ? 32 : animation.frameHeight || 32;
         row.querySelector('[data-animation-fps]').value = animation.frameRate || 8;
       }
     }
