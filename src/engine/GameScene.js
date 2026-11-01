@@ -2,7 +2,15 @@ import { Input, Scene, Scenes } from 'phaser';
 import { SoundManager } from './SoundManager.js';
 
 export class GameScene extends Scene {
-  constructor(worldSnapshot, entityFactory, spriteAnimator, touchState, eventBus, levelRecordId = 'level') {
+  constructor(
+    worldSnapshot,
+    entityFactory,
+    spriteAnimator,
+    touchState,
+    eventBus,
+    levelRecordId = 'level',
+    campaignProgress = {}
+  ) {
     super({ key: 'GameScene' });
     this.worldSnapshot = worldSnapshot;
     this.entityFactory = entityFactory;
@@ -11,10 +19,20 @@ export class GameScene extends Scene {
     this.eventBus = eventBus;
     this.levelRecordKey = `little-level-lab:best:${encodeURIComponent(levelRecordId)}`;
     this.bestScore = this.loadBestScore();
-    this.score = 0;
-    this.lives = 3;
-    this.playerIsBig = false;
-    this.hasFire = false;
+    this.score = Number.isSafeInteger(campaignProgress.score) && campaignProgress.score >= 0
+      ? campaignProgress.score
+      : 0;
+    this.lives = Number.isSafeInteger(campaignProgress.lives) && campaignProgress.lives >= 0
+      ? campaignProgress.lives
+      : 3;
+    this.mushroomGrowth = Number.isSafeInteger(campaignProgress.mushroomGrowth) &&
+      campaignProgress.mushroomGrowth >= 0
+      ? campaignProgress.mushroomGrowth
+      : 0;
+    this.hasFire = campaignProgress.hasFire === true;
+    this.starPowerRemainingMs = Number.isFinite(campaignProgress.starPowerRemainingMs)
+      ? Math.max(0, campaignProgress.starPowerRemainingMs)
+      : 0;
     this.starPowerUntil = 0;
     this.fireCooldownUntil = 0;
     this.checkpointPoint = null;
@@ -69,6 +87,9 @@ export class GameScene extends Scene {
         this.load.image(`Boss-${boss.id}`, boss.dataUrl);
       }
     }
+    for (const creepy of this.worldSnapshot.customCreeps || []) {
+      this.load.image(creepy.tileId, creepy.dataUrl);
+    }
   }
 
   create() {
@@ -108,19 +129,24 @@ export class GameScene extends Scene {
         }
         const animations = this.worldSnapshot.spriteMetadata?.[tileType]?.animations || {};
         const animationType = animations.idle ? 'idle' : animations.walk ? 'walk' : null;
+        const customCreepy = (this.worldSnapshot.customCreeps || [])
+          .find(creepy => creepy.tileId === tileType);
         const variantId = this.worldSnapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic';
         const variant = this.worldSnapshot.tileVariantCatalog?.[tileType]
           ?.find(item => item.id === variantId);
         const legacyCustomSprite = variantId === 'classic' &&
           this.worldSnapshot.spriteMetadata?.[tileType]?.fileName;
-        const entity = this.entityFactory.create(this, tileType, x, y, {
+        const createOptions = {
           bossConfig: this.worldSnapshot.bossConfig,
           textureKey: legacyCustomSprite
             ? tileType
             : variant?.dataUrl
             ? `${tileType}--variant--${variant.id}`
             : animationType ? `${tileType}-${animationType}` : undefined
-        });
+        };
+        const entity = customCreepy
+          ? this.entityFactory.createEnemy(this, tileType, x, y, createOptions)
+          : this.entityFactory.create(this, tileType, x, y, createOptions);
         if (this.worldSnapshot.spriteMetadata?.[tileType]?.frames > 1) {
           animatedEntities.push({ entity, tileType });
         }
@@ -140,19 +166,29 @@ export class GameScene extends Scene {
           entity.body.setAllowGravity(false);
           entity.body.setImmovable(true);
           entity.setVelocityX(entity.getData('travelSpeed'));
-        } else if (tileType === 'Goomba' || tileType === 'Koopa') {
-          this.enemies.add(entity);
+        } else if (['Goomba', 'Koopa', 'Bat'].includes(tileType) || customCreepy) {
+          const defaultConfig = tileType === 'Koopa'
+            ? { movement: 'ground', speed: 55, health: 1 }
+            : tileType === 'Bat'
+              ? { movement: 'flying', speed: 60, health: 1 }
+              : { movement: 'ground', speed: 45, health: 1 };
+          const config = this.worldSnapshot.creepyConfigs?.[tileType] || defaultConfig;
+          const flying = config.movement === 'flying';
+          (flying ? this.flyingEnemies : this.enemies).add(entity);
           entity.setData('tileType', tileType);
-          entity.setData('patrolSpeed', tileType === 'Koopa' ? 55 : 45);
-          entity.setVelocityX(tileType === 'Koopa' ? -55 : -45);
-          entity.setBounceX(1);
-        } else if (tileType === 'Bat') {
-          this.flyingEnemies.add(entity);
-          entity.setData('tileType', tileType);
-          entity.setData('flightOrigin', y);
-          entity.setData('flightPhase', colIndex);
-          entity.body.setAllowGravity(false);
-          entity.setVelocityX(-60);
+          entity.setData('patrolSpeed', config.speed);
+          entity.setData('health', config.health);
+          entity.setData('maxHealth', config.health);
+          entity.setData('hurtUntil', 0);
+          if (!flying) {
+            entity.setVelocityX(-config.speed);
+            entity.setBounceX(1);
+          } else {
+            entity.setData('flightOrigin', y);
+            entity.setData('flightPhase', colIndex);
+            entity.body.setAllowGravity(false);
+            entity.setVelocityX(-config.speed);
+          }
         } else if (tileType === 'Boss') {
           const config = this.worldSnapshot.bossConfig;
           this.bosses.add(entity);
@@ -162,6 +198,7 @@ export class GameScene extends Scene {
           entity.setData('maxHealth', config.health);
           entity.setData('health', config.health);
           entity.setData('speed', config.speed);
+          entity.setData('size', config.size || 48);
           entity.setData('originX', x);
           entity.setData('minX', Math.max(24, x - 160));
           entity.setData('maxX', Math.min(worldWidth - 24, x + 160));
@@ -199,6 +236,12 @@ export class GameScene extends Scene {
       }
     );
     this.player.setSize(22, 28).setOffset(5, 4);
+    this.applyMushroomGrowth();
+    if (this.hasFire) this.player.setTint(0xff7848);
+    if (this.starPowerRemainingMs > 0) {
+      this.starPowerUntil = this.time.now + this.starPowerRemainingMs;
+      this.player.setTint(0xffe477);
+    }
     this.physics.add.collider(this.player, platforms, this.handleBlockCollision, undefined, this);
     this.physics.add.collider(this.player, doors);
     this.physics.add.collider(
@@ -267,7 +310,7 @@ export class GameScene extends Scene {
       backgroundColor: '#15334dcc',
       padding: { x: 10, y: 6 }
     }).setScrollFactor(0).setScale(1 / camera.zoom).setDepth(10);
-    this.updateHud();
+    this.updateScore();
     this.spriteAnimator.createAnimations(this, this.worldSnapshot.spriteMetadata || {});
     animatedEntities.forEach(({ entity, tileType }) => this.spriteAnimator.animate(entity, tileType));
     this.spriteAnimator.play(this.player, 'Player', 'idle');
@@ -436,14 +479,14 @@ export class GameScene extends Scene {
       this.player.setVelocityX(0);
       this.spriteAnimator.play(this.player, 'Player', 'idle');
     } else {
-      const speed = this.keys.shift?.isDown ? 290 : this.playerIsBig ? 220 : 180;
+      const speed = this.keys.shift?.isDown ? 290 : this.mushroomGrowth > 0 ? 220 : 180;
       this.player.setVelocityX(left ? -speed : speed);
       this.player.setFlipX(left);
       this.spriteAnimator.play(this.player, 'Player', speed > 200 ? 'run' : 'walk');
     }
 
     if (this.jumpBufferUntil > this.time.now && wallSliding) {
-      this.player.setVelocity(wallDirection * -260, this.playerIsBig ? -520 : -430);
+      this.player.setVelocity(wallDirection * -260, this.mushroomGrowth > 0 ? -520 : -430);
       this.jumpBufferUntil = 0;
       this.coyoteUntil = 0;
       this.wallJumpDirection = wallDirection * -1;
@@ -453,7 +496,7 @@ export class GameScene extends Scene {
       this.jumpWasHeld = false;
       this.soundManager.play('jump');
     } else if (this.jumpBufferUntil > this.time.now && this.coyoteUntil > this.time.now) {
-      this.player.setVelocityY(this.playerIsBig ? -520 : -430);
+      this.player.setVelocityY(this.mushroomGrowth > 0 ? -520 : -430);
       this.jumpBufferUntil = 0;
       this.coyoteUntil = 0;
       this.jumpWasHeld = jumpHeld;
@@ -491,8 +534,9 @@ export class GameScene extends Scene {
     this.flyingEnemies.children.iterate(enemy => {
       if (!enemy?.active) return;
       const halfWidth = enemy.body.width / 2;
-      if (enemy.x < halfWidth) enemy.setVelocityX(60);
-      if (enemy.x > worldWidth - halfWidth) enemy.setVelocityX(-60);
+      const speed = enemy.getData('patrolSpeed');
+      if (enemy.x < halfWidth) enemy.setVelocityX(speed);
+      if (enemy.x > worldWidth - halfWidth) enemy.setVelocityX(-speed);
       enemy.setFlipX(enemy.body.velocity.x > 0);
       enemy.setY(enemy.getData('flightOrigin') +
         Math.sin(this.time.now / 240 + enemy.getData('flightPhase')) * 12);
@@ -543,16 +587,19 @@ export class GameScene extends Scene {
 
     const usesFireballs = ability === 'fireballs' || ability === 'both';
     if (usesFireballs && this.time.now >= boss.getData('nextAttackAt') &&
-      Math.abs(this.player.x - boss.x) < 420) {
+      Math.abs(this.player.x - boss.x) < 850) {
       this.spawnBossFireball(boss);
       boss.setData('nextAttackAt', this.time.now + 1700);
     }
 
     const health = boss.getData('health');
     const maxHealth = boss.getData('maxHealth');
-    boss.getData('healthBar')?.setPosition(boss.x - 26, boss.y - 38);
+    const barWidth = 52 * (boss.getData('size') || 48) / 48;
+    boss.getData('healthBar')?.setPosition(boss.x - barWidth / 2, boss.y - (boss.getData('size') || 48) / 2 - 10)
+      .setSize(barWidth, 6);
     boss.getData('healthFill')
-      ?.setPosition(boss.x - 26, boss.y - 38)
+      ?.setPosition(boss.x - barWidth / 2, boss.y - (boss.getData('size') || 48) / 2 - 10)
+      .setSize(barWidth, 6)
       .setScale(health / maxHealth, 1);
     boss.setFlipX(boss.body.velocity.x > 0);
   }
@@ -565,7 +612,7 @@ export class GameScene extends Scene {
 
   spawnBossFireball(boss) {
     const direction = Math.sign(this.player.x - boss.x) || 1;
-    this.spawnBossProjectile(boss.x + direction * 24, boss.y - 4, direction * 190, 0);
+    this.spawnBossProjectile(boss.x + direction * 24, boss.y - 4, direction * 320, 0, 4500);
   }
 
   spawnGroundShockwaves(boss) {
@@ -576,14 +623,14 @@ export class GameScene extends Scene {
     }
   }
 
-  spawnBossProjectile(x, y, velocityX, velocityY) {
+  spawnBossProjectile(x, y, velocityX, velocityY, lifetime = 2600) {
     const projectile = this.physics.add.sprite(x, y, 'BossProjectile');
     projectile.body.setAllowGravity(false);
     projectile.body.setSize(14, 14);
-    projectile.setVelocity(velocityX, velocityY);
     projectile.setData('bossProjectile', true);
     this.bossProjectiles.add(projectile);
-    this.time.delayedCall(2600, () => {
+    projectile.setVelocity(velocityX, velocityY);
+    this.time.delayedCall(lifetime, () => {
       if (projectile.active) projectile.destroy();
     });
   }
@@ -701,11 +748,12 @@ export class GameScene extends Scene {
       player.body.reset(player.x, player.y);
       player.body.checkCollision.none = false;
       player.setVelocity(0, 0);
+      this.mushroomGrowth = 0;
       player.setScale(1).setSize(22, 28).setOffset(5, 4);
       player.clearTint();
-      this.playerIsBig = false;
       this.hasFire = false;
       this.starPowerUntil = 0;
+      this.starPowerRemainingMs = 0;
       this.jumpBufferUntil = 0;
       this.coyoteUntil = 0;
       this.jumpWasHeld = false;
@@ -806,11 +854,8 @@ export class GameScene extends Scene {
     this.soundManager.play('powerUp');
 
     if (powerUpType === 'Mushroom') {
-      if (!this.playerIsBig) {
-        this.playerIsBig = true;
-        player.setScale(1.25);
-        player.setSize(22, 28).setOffset(5, 4);
-      }
+      this.mushroomGrowth += 1;
+      this.applyMushroomGrowth();
     } else if (powerUpType === 'FireFlower') {
       this.hasFire = true;
       player.setTint(0xff7848);
@@ -837,15 +882,31 @@ export class GameScene extends Scene {
       return;
     }
     if (stomping) {
-      this.emitBurst(enemy.x, enemy.y, 0x9fe278, 10, 30);
-      enemy.destroy();
+      this.damageEnemy(enemy);
       player.setVelocityY(-300);
-      this.score += 1;
-      this.updateScore();
       this.soundManager.play('enemyStomp');
     } else {
       this.damagePlayer(player);
     }
+  }
+
+  damageEnemy(enemy) {
+    if (!enemy?.active || this.time.now < enemy.getData('hurtUntil')) return;
+    const health = Math.max(0, enemy.getData('health') - 1);
+    enemy.setData('health', health);
+    enemy.setData('hurtUntil', this.time.now + 250);
+    if (health > 0) {
+      enemy.setTint(0xffffff);
+      this.time.delayedCall(100, () => {
+        if (enemy.active) enemy.clearTint();
+      });
+      this.emitBurst(enemy.x, enemy.y, 0xf6c776, 6, 20);
+      return;
+    }
+    this.emitBurst(enemy.x, enemy.y, 0x9fe278, 10, 30);
+    enemy.destroy();
+    this.score += 1;
+    this.updateScore();
   }
 
   handleBossCollision(player, boss) {
@@ -916,10 +977,9 @@ export class GameScene extends Scene {
       if (this.starPowerUntil > this.time.now) player.setTint(0xffe477);
       else player.clearTint();
       this.refreshPowerLabel();
-    } else if (this.playerIsBig) {
-      this.playerIsBig = false;
-      player.setScale(1);
-      player.setSize(22, 28).setOffset(5, 4);
+    } else if (this.mushroomGrowth > 0) {
+      this.mushroomGrowth -= 1;
+      this.applyMushroomGrowth();
       this.refreshPowerLabel();
     } else {
       this.lives -= 1;
@@ -983,9 +1043,29 @@ export class GameScene extends Scene {
   finishGame(won) {
     this.eventBus.emit('gameMessage', {
       won,
-      message: won ? 'Goal reached! You win!' : 'Game over! Try again.'
+      message: won ? 'Goal reached! You win!' : 'Game over! Try again.',
+      campaignProgress: won ? this.getCampaignProgress() : null
     });
     this.scene.pause();
+  }
+
+  getCampaignProgress() {
+    return {
+      score: this.score,
+      lives: this.lives,
+      mushroomGrowth: this.mushroomGrowth,
+      hasFire: this.hasFire,
+      starPowerRemainingMs: Math.max(0, this.starPowerUntil - this.time.now)
+    };
+  }
+
+  applyMushroomGrowth() {
+    if (!this.player?.body) return;
+    const previousBottom = this.player.body.bottom;
+    this.player.setScale(1 + this.mushroomGrowth * 0.25);
+    this.player.body.updateFromGameObject();
+    this.player.y += previousBottom - this.player.body.bottom;
+    this.player.body.updateFromGameObject();
   }
 
   updateScore() {
@@ -1036,7 +1116,7 @@ export class GameScene extends Scene {
   refreshPowerLabel() {
     const hasStar = this.starPowerUntil > this.time.now;
     const powers = [];
-    if (this.playerIsBig) powers.push('Big');
+    if (this.mushroomGrowth > 0) powers.push(`Big ×${this.mushroomGrowth}`);
     if (this.hasFire) powers.push('Fire');
     if (hasStar) powers.push('Star');
     this.powerLabel = powers.length ? powers.join(' + ') : 'Normal';
@@ -1068,11 +1148,8 @@ export class GameScene extends Scene {
 
   hitEnemyWithFireball(projectile, enemy) {
     if (!projectile.active || !enemy.active || this.gameEnded) return;
-    this.emitBurst(enemy.x, enemy.y, 0xff8a4c, 12, 36);
     projectile.destroy();
-    enemy.destroy();
-    this.score += 1;
-    this.updateScore();
+    this.damageEnemy(enemy);
     this.soundManager.play('enemyStomp');
   }
 

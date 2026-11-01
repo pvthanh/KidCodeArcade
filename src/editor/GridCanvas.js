@@ -58,6 +58,7 @@ export class GridCanvas {
     if (!this.context) throw new Error('A 2D canvas context is unavailable.');
     this.spriteImages = new Map();
     this.variantImages = new Map();
+    this.loadingSpriteIds = new Set();
     this.isPainting = false;
     this.isPanning = false;
     this.panMode = false;
@@ -69,7 +70,13 @@ export class GridCanvas {
       if (animationType !== 'idle' && hasIdle) return;
       this.loadSprite(entityType, dataUrl);
     });
+    this.eventBus.on('levelLoaded', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
+    this.eventBus.on('creepyTypesChanged', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
     this.refresh();
+  }
+
+  loadCreepySprites(customCreeps) {
+    customCreeps.forEach(creepy => this.loadSprite(creepy.tileId, creepy.dataUrl));
   }
 
   bindEvents() {
@@ -125,6 +132,7 @@ export class GridCanvas {
       this.board.classList.toggle('is-panning', enabled);
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.loadSprite(tileId, dataUrl));
+    this.eventBus.on('creepyTypesChanged', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
     this.eventBus.on('tileVariantsChanged', ({ catalog = {} } = {}) => {
       for (const [tileType, variants] of Object.entries(catalog)) {
         variants.forEach(variant => {
@@ -147,12 +155,18 @@ export class GridCanvas {
   }
 
   loadSprite(tileId, dataUrl) {
+    if (this.loadingSpriteIds.has(tileId)) return;
+    this.loadingSpriteIds.add(tileId);
     const image = new Image();
     image.onload = () => {
+      this.loadingSpriteIds.delete(tileId);
       this.spriteImages.set(tileId, image);
       this.refresh();
     };
-    image.onerror = () => this.eventBus.emit('status', `Could not display the uploaded ${tileId} image.`);
+    image.onerror = () => {
+      this.loadingSpriteIds.delete(tileId);
+      this.eventBus.emit('status', `Could not display the uploaded ${tileId} image.`);
+    };
     image.src = dataUrl;
   }
 
@@ -263,6 +277,10 @@ export class GridCanvas {
     const variantMetadata = this.stateManager.tileVariantCatalog[type]
       ?.find(variant => variant.id === variantId);
     const spriteMetadata = this.stateManager.spriteMetadata[type];
+    const customCreepy = this.stateManager.getCreepyType(type);
+    if (customCreepy && !this.spriteImages.has(type)) {
+      this.loadSprite(type, customCreepy.dataUrl);
+    }
     const legacyCustomSprite = variantId === 'classic' && spriteMetadata?.fileName;
     const selectedBoss = type === 'Boss'
       ? this.stateManager.customBosses.find(boss => boss.id === this.stateManager.bossConfig.type)
@@ -275,7 +293,9 @@ export class GridCanvas {
     image ||= legacyCustomSprite
       ? this.spriteImages.get(type)
       : this.variantImages.get(`${type}:${variantId}`) || this.spriteImages.get(type);
-    const metadata = legacyCustomSprite
+    const metadata = customCreepy
+      ? { frameWidth: customCreepy.imageWidth, frameHeight: customCreepy.imageHeight }
+      : legacyCustomSprite
       ? spriteMetadata
       : variantMetadata?.dataUrl
       ? variantMetadata

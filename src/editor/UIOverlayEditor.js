@@ -210,7 +210,9 @@ export class UIOverlayEditor {
       activeTileType: this.stateManager.activeTileType,
       mysteryBoxReward: this.stateManager.mysteryBoxReward,
       bossConfig: this.stateManager.bossConfig,
-      customBosses: this.stateManager.customBosses
+      customBosses: this.stateManager.customBosses,
+      customCreeps: this.stateManager.customCreeps,
+      creepyConfigs: this.stateManager.creepyConfigs
     });
     this.updateHistory();
     this.renderCampaignOptions();

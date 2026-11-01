@@ -44,8 +44,21 @@ export const DEFAULT_BOSS_CONFIG = {
   movement: 'patrol',
   ability: 'fireballs',
   health: 5,
-  speed: 70
+  speed: 70,
+  size: 48
 };
+
+export const CREEPY_TYPES = [
+  { id: 'Goomba', name: 'Goomba', movement: 'ground', speed: 45, health: 1 },
+  { id: 'Koopa', name: 'Koopa', movement: 'ground', speed: 55, health: 1 },
+  { id: 'Bat', name: 'Bat', movement: 'flying', speed: 60, health: 1 }
+];
+export const DEFAULT_CREEPY_CONFIGS = Object.fromEntries(CREEPY_TYPES.map(creepy => [
+  creepy.id,
+  { movement: creepy.movement, speed: creepy.speed, health: creepy.health }
+]));
+const CREEPY_MOVEMENTS = ['ground', 'flying'];
+const MAX_CUSTOM_CREEPS = 12;
 
 const TILE_TYPES = [
   'Player', 'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
@@ -161,6 +174,8 @@ export class StateManager {
     this.mysteryBoxReward = 'Mushroom';
     this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
     this.customBosses = [];
+    this.customCreeps = [];
+    this.creepyConfigs = clone(DEFAULT_CREEPY_CONFIGS);
     this.activeTileType = 'Ground';
     this.initGrid();
     this.loadDemo();
@@ -178,6 +193,8 @@ export class StateManager {
     this.rows = DEMO_ROWS;
     this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
     this.customBosses = [];
+    this.customCreeps = [];
+    this.creepyConfigs = clone(DEFAULT_CREEPY_CONFIGS);
     this.initGrid();
     const put = (row, col, type) => {
       this.tiles[row][col] = type;
@@ -225,6 +242,8 @@ export class StateManager {
     this.rows = 18;
     this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
     this.customBosses = [];
+    this.customCreeps = [];
+    this.creepyConfigs = clone(DEFAULT_CREEPY_CONFIGS);
     this.initGrid();
     const put = (row, col, type) => {
       this.tiles[row][col] = type;
@@ -267,6 +286,8 @@ export class StateManager {
     this.rows = 18;
     this.bossConfig = { ...DEFAULT_BOSS_CONFIG };
     this.customBosses = [];
+    this.customCreeps = [];
+    this.creepyConfigs = clone(DEFAULT_CREEPY_CONFIGS);
     this.initGrid();
     const put = (row, col, type, variantId = 'classic') => {
       this.tiles[row][col] = type;
@@ -379,11 +400,13 @@ export class StateManager {
   }
 
   setBossConfig(config) {
+    const size = config?.size ?? 48;
     if (!this.getBossTypes().some(boss => boss.id === config?.type) ||
       !BOSS_MOVEMENTS.some(movement => movement.id === config?.movement) ||
       !BOSS_ABILITIES.some(ability => ability.id === config?.ability) ||
       !Number.isInteger(config?.health) || config.health < 3 || config.health > 10 ||
-      !Number.isInteger(config?.speed) || config.speed < 40 || config.speed > 120) {
+      !Number.isInteger(config?.speed) || config.speed < 40 || config.speed > 120 ||
+      !Number.isInteger(size) || size < 32 || size > 128) {
       throw new TypeError('Boss settings contain an unsupported type, ability, movement, health, or speed.');
     }
     this.bossConfig = {
@@ -391,7 +414,8 @@ export class StateManager {
       movement: config.movement,
       ability: config.ability,
       health: config.health,
-      speed: config.speed
+      speed: config.speed,
+      size
     };
   }
 
@@ -435,6 +459,87 @@ export class StateManager {
     };
     this.customBosses.push(registeredBoss);
     return { ...registeredBoss };
+  }
+
+  getCreepyTypes() {
+    return [
+      ...CREEPY_TYPES.map(({ id, name }) => ({ id, name })),
+      ...this.customCreeps.map(({ tileId, name }) => ({ id: tileId, name }))
+    ];
+  }
+
+  getCreepyType(tileType) {
+    return this.customCreeps.find(creepy => creepy.tileId === tileType) || null;
+  }
+
+  getCreepyConfig(tileType) {
+    return this.creepyConfigs[tileType] || DEFAULT_CREEPY_CONFIGS[tileType] || null;
+  }
+
+  setCreepyConfig(tileType, config) {
+    if (!this.getCreepyTypes().some(creepy => creepy.id === tileType) ||
+      !CREEPY_MOVEMENTS.includes(config?.movement) ||
+      !Number.isInteger(config?.speed) || config.speed < 20 || config.speed > 180 ||
+      !Number.isInteger(config?.health) || config.health < 1 || config.health > 5) {
+      throw new TypeError('Creature settings need a supported movement, speed, and health value.');
+    }
+    this.creepyConfigs[tileType] = {
+      movement: config.movement,
+      speed: config.speed,
+      health: config.health
+    };
+  }
+
+  registerCustomCreepy(creepy) {
+    if (this.customCreeps.length >= MAX_CUSTOM_CREEPS) {
+      throw new RangeError(`A level can have up to ${MAX_CUSTOM_CREEPS} custom creepy types.`);
+    }
+    if (typeof creepy?.id !== 'string' || !/^custom-[a-z0-9][a-z0-9-]{0,62}$/i.test(creepy.id) ||
+      this.getCreepyTypes().some(type => type.id === `Creepy-${creepy.id}`)) {
+      throw new TypeError('The custom creature needs a unique identifier.');
+    }
+    if (typeof creepy.name !== 'string' || !creepy.name.trim() || creepy.name.trim().length > 40 ||
+      this.getCreepyTypes().some(type => type.name.toLocaleLowerCase() === creepy.name.trim().toLocaleLowerCase())) {
+      throw new TypeError('Choose a unique creature name up to 40 characters long.');
+    }
+    if (!CUSTOM_BOSS_IMAGE_TYPES.includes(creepy.fileType) ||
+      typeof creepy.dataUrl !== 'string' ||
+      !creepy.dataUrl.startsWith(`data:${creepy.fileType};base64,`) ||
+      creepy.dataUrl.length > MAX_CUSTOM_BOSS_IMAGE_BYTES * 1.4 ||
+      !Number.isInteger(creepy.imageWidth) || creepy.imageWidth < 1 || creepy.imageWidth > 4096 ||
+      !Number.isInteger(creepy.imageHeight) || creepy.imageHeight < 1 || creepy.imageHeight > 4096 ||
+      typeof creepy.fileName !== 'string' || !creepy.fileName.trim() || creepy.fileName.length > 255) {
+      throw new TypeError('The custom creature needs a supported image no larger than 5 MB and 4096 × 4096 pixels.');
+    }
+    if (!CREEPY_MOVEMENTS.includes(creepy.movement) ||
+      !Number.isInteger(creepy.speed) || creepy.speed < 20 || creepy.speed > 180 ||
+      !Number.isInteger(creepy.health) || creepy.health < 1 || creepy.health > 5) {
+      throw new TypeError('The custom creature needs a supported movement, speed, and health setting.');
+    }
+    const currentBytes = this.customCreeps.reduce((total, item) => total + item.dataUrl.length, 0);
+    if (currentBytes + creepy.dataUrl.length > MAX_CUSTOM_BOSS_IMAGES_BYTES * 1.4) {
+      throw new RangeError('Custom creature images may use up to 20 MB per level.');
+    }
+    const registered = {
+      id: creepy.id,
+      tileId: `Creepy-${creepy.id}`,
+      name: creepy.name.trim(),
+      dataUrl: creepy.dataUrl,
+      fileName: creepy.fileName,
+      fileType: creepy.fileType,
+      imageWidth: creepy.imageWidth,
+      imageHeight: creepy.imageHeight,
+      movement: creepy.movement,
+      speed: creepy.speed,
+      health: creepy.health
+    };
+    this.customCreeps.push(registered);
+    this.setCreepyConfig(registered.tileId, {
+      movement: creepy.movement,
+      speed: creepy.speed,
+      health: creepy.health
+    });
+    return { ...registered };
   }
 
   selectTileVariant(tileType, variantId) {
@@ -508,6 +613,7 @@ export class StateManager {
       Koopa: ['idle', 'walk'],
       Bat: ['idle', 'walk']
     };
+    if (this.getCreepyType(entityType)) allowed[entityType] = ['idle', 'walk'];
     if (!allowed[entityType]?.includes(animationType) || !metadata?.dataUrl ||
       !Number.isInteger(metadata.frameWidth) || !Number.isInteger(metadata.frameHeight) ||
       !Number.isInteger(metadata.frameCount) || metadata.frameCount < 1) {
@@ -542,7 +648,7 @@ export class StateManager {
   }
 
   getTileTypes() {
-    return [...TILE_TYPES];
+    return [...TILE_TYPES, ...this.customCreeps.map(creepy => creepy.tileId)];
   }
 
   getWorldSnapshot() {
@@ -558,7 +664,9 @@ export class StateManager {
       soundEffects: JSON.parse(JSON.stringify(this.soundEffects)),
       mysteryBoxReward: this.mysteryBoxReward,
       bossConfig: { ...this.bossConfig },
-      customBosses: clone(this.customBosses)
+      customBosses: clone(this.customBosses),
+      customCreeps: clone(this.customCreeps),
+      creepyConfigs: clone(this.creepyConfigs)
     };
   }
 
@@ -574,7 +682,12 @@ export class StateManager {
       const selected = snapshot.selectedTileVariants?.[type];
       return [type, this.tileVariantCatalog[type].some(variant => variant.id === selected) ? selected : 'classic'];
     }));
-    this.activeTileType = [...TILE_TYPES, 'Eraser'].includes(snapshot.activeTileType)
+    this.customCreeps = clone(snapshot.customCreeps || []);
+    this.creepyConfigs = {
+      ...clone(DEFAULT_CREEPY_CONFIGS),
+      ...clone(snapshot.creepyConfigs || {})
+    };
+    this.activeTileType = [...this.getTileTypes(), 'Eraser'].includes(snapshot.activeTileType)
       ? snapshot.activeTileType
       : 'Ground';
     this.spriteMetadata = {
@@ -587,6 +700,9 @@ export class StateManager {
       : 'Mushroom';
     this.customBosses = clone(snapshot.customBosses || []);
     this.setBossConfig(snapshot.bossConfig || DEFAULT_BOSS_CONFIG);
+    for (const [tileType, config] of Object.entries(this.creepyConfigs)) {
+      this.setCreepyConfig(tileType, config);
+    }
   }
 
   validateWorld(data) {
@@ -596,7 +712,44 @@ export class StateManager {
       data.tiles.some(row => !Array.isArray(row) || row.length !== data.cols)) {
       throw new TypeError('The level file has invalid dimensions or tile data.');
     }
-    if (data.tiles.some(row => row.some(tile => tile !== null && !TILE_TYPES.includes(tile)))) {
+    const customCreeps = data.customCreeps === undefined ? [] : data.customCreeps;
+    if (!Array.isArray(customCreeps) || customCreeps.length > MAX_CUSTOM_CREEPS) {
+      throw new TypeError('The level file contains too many or invalid custom creature types.');
+    }
+    const customCreepIds = new Set();
+    const customCreepNames = new Set();
+    let customCreepImageBytes = 0;
+    for (const creepy of customCreeps) {
+      const normalizedName = typeof creepy?.name === 'string' ? creepy.name.trim().toLocaleLowerCase() : '';
+      if (typeof creepy?.id !== 'string' || !/^custom-[a-z0-9][a-z0-9-]{0,62}$/i.test(creepy.id) ||
+        creepy.tileId !== `Creepy-${creepy.id}` ||
+        customCreepIds.has(creepy.id) || !normalizedName || normalizedName.length > 40 ||
+        CREEPY_TYPES.some(type => type.name.toLocaleLowerCase() === normalizedName) ||
+        customCreepNames.has(normalizedName) ||
+        !CUSTOM_BOSS_IMAGE_TYPES.includes(creepy.fileType) ||
+        typeof creepy.dataUrl !== 'string' ||
+        !creepy.dataUrl.startsWith(`data:${creepy.fileType};base64,`) ||
+        creepy.dataUrl.length > MAX_CUSTOM_BOSS_IMAGE_BYTES * 1.4 ||
+        !Number.isInteger(creepy.imageWidth) || creepy.imageWidth < 1 || creepy.imageWidth > 4096 ||
+        !Number.isInteger(creepy.imageHeight) || creepy.imageHeight < 1 || creepy.imageHeight > 4096 ||
+        typeof creepy.fileName !== 'string' || !creepy.fileName.trim() || creepy.fileName.length > 255 ||
+        !CREEPY_MOVEMENTS.includes(creepy.movement) ||
+        !Number.isInteger(creepy.speed) || creepy.speed < 20 || creepy.speed > 180 ||
+        !Number.isInteger(creepy.health) || creepy.health < 1 || creepy.health > 5) {
+        throw new TypeError('The level file contains an invalid custom creature or image.');
+      }
+      customCreepIds.add(creepy.id);
+      customCreepNames.add(normalizedName);
+      customCreepImageBytes += creepy.dataUrl.length;
+      if (customCreepImageBytes > MAX_CUSTOM_BOSS_IMAGES_BYTES * 1.4) {
+        throw new RangeError('Custom creature images exceed the 20 MB per-level limit.');
+      }
+    }
+    const allowedTileTypes = new Set([
+      ...TILE_TYPES,
+      ...customCreeps.map(creepy => creepy.tileId)
+    ]);
+    if (data.tiles.some(row => row.some(tile => tile !== null && !allowedTileTypes.has(tile)))) {
       throw new TypeError('The level file contains an unknown tile type.');
     }
     if (data.tileVariantCatalog !== undefined) {
@@ -691,13 +844,31 @@ export class StateManager {
       }
     }
     if (data.bossConfig !== undefined) {
-      const { type, movement, ability, health, speed } = data.bossConfig || {};
+      const { type, movement, ability, health, speed, size = 48 } = data.bossConfig || {};
       if (![...BOSS_TYPES, ...customBosses].some(boss => boss.id === type) ||
         !BOSS_MOVEMENTS.some(option => option.id === movement) ||
         !BOSS_ABILITIES.some(option => option.id === ability) ||
         !Number.isInteger(health) || health < 3 || health > 10 ||
-        !Number.isInteger(speed) || speed < 40 || speed > 120) {
+        !Number.isInteger(speed) || speed < 40 || speed > 120 ||
+        !Number.isInteger(size) || size < 32 || size > 128) {
         throw new TypeError('The level file contains invalid boss settings.');
+      }
+    }
+    if (data.creepyConfigs !== undefined) {
+      if (!data.creepyConfigs || typeof data.creepyConfigs !== 'object' ||
+        Array.isArray(data.creepyConfigs)) {
+        throw new TypeError('The level file contains invalid creature settings.');
+      }
+      const allowedCreepyTypes = new Set([
+        ...CREEPY_TYPES.map(type => type.id),
+        ...customCreeps.map(creepy => creepy.tileId)
+      ]);
+      for (const [tileType, config] of Object.entries(data.creepyConfigs)) {
+        if (!allowedCreepyTypes.has(tileType) || !CREEPY_MOVEMENTS.includes(config?.movement) ||
+          !Number.isInteger(config.speed) || config.speed < 20 || config.speed > 180 ||
+          !Number.isInteger(config.health) || config.health < 1 || config.health > 5) {
+          throw new TypeError(`The level file contains invalid settings for "${tileType}".`);
+        }
       }
     }
     if (data.soundEffects !== undefined &&
@@ -726,7 +897,8 @@ export class StateManager {
   }
 
   isEnemy(tileType) {
-    return ['Goomba', 'Koopa', 'Bat', 'Boss'].includes(tileType);
+    return ['Goomba', 'Koopa', 'Bat', 'Boss'].includes(tileType) ||
+      this.customCreeps.some(creepy => creepy.tileId === tileType);
   }
 
   isCollectible(tileType) {

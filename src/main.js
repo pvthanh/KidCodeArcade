@@ -72,6 +72,39 @@ eventBus.on('bossConfigChanged', config => {
   }
 });
 
+eventBus.on('creepyConfigChanged', config => {
+  try {
+    const { tileType, ...settings } = config;
+    stateManager.setCreepyConfig(tileType, settings);
+    eventBus.emit('creepyConfigUpdated', {
+      tileType,
+      config: stateManager.getCreepyConfig(tileType)
+    });
+    gridCanvas.refresh();
+    eventBus.emit('status', 'Creature settings updated for this level.');
+  } catch (error) {
+    console.error('Could not update creature settings:', error);
+    eventBus.emit('status', error.message);
+  }
+});
+
+eventBus.on('customCreepyUploaded', creepy => {
+  try {
+    const registered = stateManager.registerCustomCreepy(creepy);
+    eventBus.emit('creepyTypesChanged', {
+      customCreeps: stateManager.customCreeps,
+      creepyConfigs: stateManager.creepyConfigs,
+      selectedType: registered.tileId
+    });
+    gridCanvas.refresh();
+    paletteView.selectTile(registered.tileId, { configure: false });
+    eventBus.emit('status', `Added "${registered.name}" to the Creepy toolbox.`);
+  } catch (error) {
+    console.error('Could not add the custom creature:', error);
+    eventBus.emit('status', error.message);
+  }
+});
+
 eventBus.on('bossTypeUploaded', boss => {
   try {
     const registeredBoss = stateManager.registerBossType(boss);
@@ -218,11 +251,35 @@ eventBus.on('getAnimationMetadata', entityType => {
   });
 });
 
+eventBus.on('getCreepyPreview', tileType => {
+  const metadata = stateManager.spriteMetadata[tileType];
+  const customCreepy = stateManager.getCreepyType(tileType);
+  const animation = metadata?.animations?.idle?.dataUrl
+    ? metadata.animations.idle
+    : metadata?.animations?.walk;
+  const dataUrl = animation?.dataUrl || metadata?.dataUrl || customCreepy?.dataUrl;
+  eventBus.emit('creepyPreviewChanged', {
+    tileType,
+    dataUrl,
+    frameWidth: animation?.frameWidth,
+    frameHeight: animation?.frameHeight
+  });
+});
+
 let activeGame = null;
 let activeModal = null;
 let touchState = null;
 let runLevelIndex = 0;
 let gameRestartTimer = null;
+const initialCampaignProgress = () => ({
+  score: 0,
+  lives: 3,
+  mushroomGrowth: 0,
+  hasFire: false,
+  starPowerRemainingMs: 0
+});
+let campaignProgress = initialCampaignProgress();
+let currentLevelEntryProgress = initialCampaignProgress();
 
 function closeGame() {
   clearTimeout(gameRestartTimer);
@@ -333,19 +390,24 @@ function startGame() {
     if (action.dataset.action === 'next') {
       launchCampaignLevel(runLevelIndex + 1);
     } else if (action.dataset.action === 'campaign') {
+      campaignProgress = initialCampaignProgress();
       launchCampaignLevel(0);
     } else {
-      launchCampaignLevel(runLevelIndex);
+      campaignProgress = { ...currentLevelEntryProgress };
+      launchCampaignLevel(runLevelIndex, campaignProgress);
     }
   });
+  campaignProgress = initialCampaignProgress();
   launchCampaignLevel(uiOverlayEditor.currentLevelIndex);
   closeButton.focus();
 }
 
-function launchCampaignLevel(index) {
+function launchCampaignLevel(index, progress = campaignProgress) {
   const level = uiOverlayEditor.getCampaignLevel(index);
   if (!level || !activeModal) return;
   runLevelIndex = index;
+  campaignProgress = { ...progress };
+  currentLevelEntryProgress = { ...campaignProgress };
   uiOverlayEditor.switchCampaignLevel(index);
   const snapshot = uiOverlayEditor.getCampaignLevel(index)?.snapshot || level.snapshot;
   const action = activeModal.querySelector('.game-action');
@@ -367,14 +429,14 @@ function launchCampaignLevel(index) {
     clearTimeout(gameRestartTimer);
     gameRestartTimer = setTimeout(() => {
       gameRestartTimer = null;
-      if (activeModal) createGameInstance(snapshot, level.name, index);
+      if (activeModal) createGameInstance(snapshot, level.name, index, campaignProgress);
     }, 150);
     return;
   }
-  createGameInstance(snapshot, level.name, index);
+  createGameInstance(snapshot, level.name, index, campaignProgress);
 }
 
-function createGameInstance(snapshot, levelName, levelIndex) {
+function createGameInstance(snapshot, levelName, levelIndex, progress) {
   const recordId = `${levelIndex + 1}:${levelName}`;
   const scene = new GameScene(
     snapshot,
@@ -382,7 +444,8 @@ function createGameInstance(snapshot, levelName, levelIndex) {
     spriteAnimator,
     touchState,
     eventBus,
-    recordId
+    recordId,
+    progress
   );
   scene.soundManager.startMusic();
   activeGame = new Game({
@@ -411,6 +474,9 @@ eventBus.on('gameMessage', result => {
   const { message, won } = typeof result === 'string'
     ? { message: result, won: false }
     : result;
+  if (won && result.campaignProgress) {
+    campaignProgress = { ...result.campaignProgress };
+  }
   gameMessage.hidden = false;
   gameMessage.querySelector('.game-message-text').textContent = message;
   const action = gameMessage.querySelector('.game-action');

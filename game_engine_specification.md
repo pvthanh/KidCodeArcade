@@ -49,20 +49,37 @@ support.
 
 ### Toolbox content
 
-The selectable tools are:
+The toolbox reduces scrolling by organizing tools into collapsible groups.
+Start & Goal, Terrain, Platforms & Mechanics, and Collectibles & Power-ups
+each provide a selector to choose one item and reveal its image/property
+controls. Creepy and Boss remain in their own separate groups with their
+existing character selectors and configuration controls. Only one group is
+expanded at a time; choosing a tool automatically opens its group. The Eraser
+is a separate, always-visible editor tool near Undo and Redo.
 
-- **Player**: the game start position.
-- **Terrain**: Ground, Brick, Mystery Box, Pipe.
-- **Movement/puzzles**: Spring, Moving platform, One-way platform, Switch,
-  Door, Checkpoint.
-- **Enemies**: Goomba, Koopa, Bat, Boss.
-- **Items**: Coin, Super mushroom, Star power, Extra life, Fire flower.
-- **Goal**: Flag.
+- **Start & Goal**: Player, Checkpoint, Flag.
+- **Terrain**: Ground, Brick, Pipe.
+- **Platforms & Mechanics**: Spring, Moving platform, One-way platform,
+  Mystery Box, Switch, Door.
+- **Creepy**: Goomba, Koopa, Bat, or custom creatures.
+- **Boss**: built-in or custom bosses.
+- **Collectibles & Power-ups**: Coin, Super mushroom, Star power, Extra life,
+  Fire flower.
 - **Editor utility**: Eraser.
 
-Each tile has a built-in fallback preview. Player and enemy tools provide
-action-specific sprite upload dialogs. Static-object tools provide selectable
+Each tile has a built-in fallback preview. Player and Creepy tools have an
+explicit **Motion** button for action-specific sprite upload dialogs; selecting
+either tool does not open the dialog. Static-object tools provide selectable
 visual variants without changing the object's physics or gameplay behavior.
+
+- Select **Creepy** to choose Goomba, Koopa, Bat, or a custom creature. The
+  selected creature is painted as its own type. Configure ground/flying
+  movement, speed (20–180 px/s), and health (1–5 hits). **＋ Add** uploads a
+  custom PNG, JPEG, or WebP creature image (up to 5 MB and 4096 × 4096 pixels);
+  up to 12 custom creatures and 20 MB of creature images are supported per
+  level. Use **Motion** to upload idle and movement sprite sheets for the
+  selected creature. Creature images, motion, and settings are saved with the
+  level and campaign.
 
 - Select **Boss** to place a boss, then choose a built-in character (Slime
   King, Robo Crab, or Sky Dragon) or press **＋ Add** beside the character list
@@ -71,8 +88,9 @@ visual variants without changing the object's physics or gameplay behavior.
   types and 20 MB total custom boss image data. Configure movement (patrol,
   chase, or leap), special ability (fireballs, ground-pound shockwaves, or
   both), health (3–10 hits), and speed (40–120 px/s). The selected character,
-  its image, and boss settings are saved with the level and included in
-  campaign exports. Boss settings apply to every Boss placed in the level.
+  its image, size (32–128 px; default 48 px), and boss settings are saved with
+  the level and included in campaign exports. Boss settings apply to every
+  Boss placed in the level.
 
 - Ground includes Classic and Ice appearances; Brick includes Classic and
   Mossy. Other static-object tools start with Classic and support custom images.
@@ -110,9 +128,9 @@ visual variants without changing the object's physics or gameplay behavior.
 - The Mystery Box reward is selected per level and applies to all its boxes.
   Supported rewards are Mushroom, Star, Extra Life, and Fire Flower.
 - The chosen reward is previewed on the board and saved with the level.
-- Supported character actions are Player: idle/walk/run/jump; Goomba, Koopa,
-  and Bat: idle/walk. Each action can have its own sprite sheet and frame
-  dimensions/frame rate.
+- Supported character actions are Player: idle/walk/run/jump; built-in and
+  custom Creepy types: idle/walk. Each action can have its own sprite sheet and
+  frame dimensions/frame rate.
 - Uploaded images and their metadata are included in exported level JSON.
 - The default built-in art uses an original sunny pixel-art theme: an animated
   chick adventurer, bumble-bug and flower-snail characters, pastel blocks,
@@ -136,6 +154,10 @@ visual variants without changing the object's physics or gameplay behavior.
 ### Player movement
 
 - The player starts with three lives.
+- Score, lives, mushroom growth, Fire Flower power, and any remaining Star
+  duration carry forward when advancing to the next campaign level. Replaying a
+  failed level restores the progress the player had when that level began;
+  replaying the campaign starts a fresh run.
 - Play mode uses a 1.35× camera zoom and crisp pixel-art rendering to make
   characters and objects easier to see. This changes only the view: tile
   dimensions and gameplay collision sizes are unchanged. Score, best score,
@@ -161,11 +183,10 @@ visual variants without changing the object's physics or gameplay behavior.
 | Switch | Touching it activates it and opens every closed Door in that level. |
 | Door | Solid until a Switch is activated. |
 | Checkpoint | The last touched checkpoint is the respawn point. Falling there costs one life; if lives remain, the player respawns after a short animation with temporary powers cleared. |
-| Goomba, Koopa | Ground patrol enemies; Koopa is faster than Goomba. |
-| Bat | Flying enemy moving through the air. |
-| Boss | Choose Slime King, Robo Crab, Sky Dragon, or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, and 40–120 px/s speed. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
+| Creepy | Goomba, Koopa, and Bat are built-in creatures; custom creatures can be added. Each creature can patrol or fly, has configurable speed and 1–5 health, and can use uploaded idle/movement sheets. Stomps and Fire Flower projectiles damage it; Star power defeats it on contact. |
+| Boss | Choose Slime King, Robo Crab, Sky Dragon, or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, 40–120 px/s speed, and 32–128 px size (default 48 px). Boss fireballs travel at 320 px/s for up to 4.5 seconds; attacks can target the player up to 850 px away. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
 | Coin | Collects for one point. |
-| Mushroom | Grows the player, increasing movement speed and jump height; a hit removes the growth before costing a life. |
+| Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
 | Extra Life | Adds one life. |
 | Fire Flower | Grants Fire power. X/J shoots a directional projectile with a cooldown; it defeats ground/flying enemies and is removed by obstacles or timeout. |
@@ -194,15 +215,16 @@ campaign level when one exists, otherwise the campaign can be replayed.
 - An individual level is a JSON world snapshot containing dimensions, tile
   matrix, per-cell tile appearance IDs, visual-variant catalog/data URLs,
   active tool, sprite metadata/data URLs, sound metadata/data URLs, and
-  mystery-box reward, boss type/behavior/health/speed settings, and uploaded
-  custom boss images and names.
+  mystery-box reward, boss type/behavior/health/speed/size settings, uploaded
+  custom boss images and names, creature configuration, and custom creature
+  images and motion metadata.
 - A campaign is JSON with format `little-level-lab-campaign`, version `1`, and
   a `levels` array of `{name, snapshot}`. Campaigns contain 1–50 levels.
 - Import validation checks world dimensions (8–256 columns and 8–40 rows),
   matrix dimensions, tile IDs, visual-variant IDs and image limits,
   mystery-box reward IDs, boss configuration and custom boss image validation,
-  and sound metadata. Older level files without custom boss data continue to
-  load with the built-in roster.
+  creature settings/custom images, and sound metadata. Older level files without
+  boss size or custom creature data continue to load with default settings.
 - Older world files may omit audio settings or reward selection and use defaults.
 - Best scores are saved per campaign index and level name in browser
   `localStorage`; they are not included in exported files and do not sync across

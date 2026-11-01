@@ -2,7 +2,9 @@ import {
   BOSS_ABILITIES,
   BOSS_MOVEMENTS,
   BOSS_TYPES,
-  DEFAULT_BOSS_CONFIG
+  CREEPY_TYPES,
+  DEFAULT_BOSS_CONFIG,
+  DEFAULT_CREEPY_CONFIGS
 } from '../core/StateManager.js';
 
 const TILES = [
@@ -17,9 +19,7 @@ const TILES = [
   { id: 'Switch', name: 'Switch', icon: '🔘', description: 'Touch it to open every door in the level', color: '#e08b48' },
   { id: 'Door', name: 'Door', icon: '🚪', description: 'A solid barrier opened by a switch', color: '#765b90' },
   { id: 'Checkpoint', name: 'Checkpoint', icon: '🚩', description: 'Touch it to respawn here after falling', color: '#43a5a1' },
-  { id: 'Goomba', name: 'Goomba', icon: '🍄', description: 'Slow ground walker', color: '#a94b38' },
-  { id: 'Koopa', name: 'Koopa', icon: '🐢', description: 'Armored ground patrol', color: '#4f9b59' },
-  { id: 'Bat', name: 'Bat', icon: '🦇', description: 'Flying enemy', color: '#64558f' },
+  { id: 'Creepy', name: 'Creepy', icon: '👾', description: 'Choose or create a creature', color: '#64558f' },
   { id: 'Boss', name: 'Boss', icon: '👹', description: 'A powerful level boss with custom moves', color: '#9b4b96' },
   { id: 'Coin', name: 'Coin', icon: '🪙', description: 'Collect for points', color: '#f0c84b' },
   { id: 'Mushroom', name: 'Super mushroom', icon: '🍄', description: 'Grow big and jump higher', color: '#e47759' },
@@ -36,6 +36,32 @@ const MYSTERY_REWARDS = [
   { id: 'ExtraLife', label: 'Extra life' },
   { id: 'FireFlower', label: 'Fire flower' }
 ];
+
+const TOOL_GROUPS = [
+  { id: 'start-goal', name: 'Start & Goal', tileIds: ['Player', 'Checkpoint', 'Flag'] },
+  { id: 'terrain', name: 'Terrain', tileIds: ['Ground', 'Brick', 'Pipe'] },
+  {
+    id: 'mechanics',
+    name: 'Platforms & Mechanics',
+    tileIds: ['Spring', 'MovingPlatform', 'OneWayPlatform', 'MysteryBox', 'Switch', 'Door']
+  },
+  { id: 'creepy', name: 'Creepy', tileIds: ['Creepy'] },
+  { id: 'boss', name: 'Boss', tileIds: ['Boss'] },
+  {
+    id: 'collectibles',
+    name: 'Collectibles & Power-ups',
+    tileIds: ['Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower']
+  }
+];
+
+const GROUP_TILE_DEFAULTS = {
+  'start-goal': 'Player',
+  terrain: 'Ground',
+  mechanics: 'Spring',
+  creepy: 'Creepy',
+  boss: 'Boss',
+  collectibles: 'Coin'
+};
 
 const ANIMATIONS = {
   Player: [
@@ -58,6 +84,22 @@ const ANIMATIONS = {
   ]
 };
 
+const bossPreviewDataUrl = type => {
+  const styles = {
+    slimeKing: { body: '#b94f91', trim: '#f6c776', shape: 'slime' },
+    roboCrab: { body: '#438ab1', trim: '#f0a85e', shape: 'crab' },
+    skyDragon: { body: '#5ca66b', trim: '#f07f61', shape: 'dragon' }
+  };
+  const style = styles[type] || styles.slimeKing;
+  const body = style.shape === 'crab'
+    ? `<path d="M7 39h8v5H7zm26 0h8v5h-8zM8 22 1 15l6-6 7 11m26 2 7-7-6-6-7 11" fill="#493a64"/><rect x="5" y="17" width="38" height="25" rx="9" fill="${style.body}"/><rect x="12" y="12" width="24" height="21" rx="8" fill="${style.trim}" stroke="#284d6a" stroke-width="2"/>`
+    : `<path d="m6 18 6-15 6 17M30 20l6-17 6 15" fill="${style.trim}"/><rect x="5" y="16" width="38" height="28" rx="14" fill="${style.body}"/>${style.shape === 'slime'
+      ? `<path d="m9 17 3-13 6 10 6-13 7 13 5-10 3 13z" fill="${style.trim}"/>`
+      : `<path d="M8 20 1 7l16 10m23 3 7-13-16 10m-7-4 3-7 4 7" fill="${style.trim}"/>`}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">${body}<circle cx="16" cy="25" r="4" fill="white"/><circle cx="32" cy="25" r="4" fill="white"/><circle cx="17" cy="26" r="2" fill="#243847"/><circle cx="33" cy="26" r="2" fill="#243847"/><path d="M20 35h8" stroke="#ffe6a1" stroke-width="3"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+
 export class PaletteView {
   constructor(containerId, eventBus) {
     this.container = document.getElementById(containerId);
@@ -68,17 +110,39 @@ export class PaletteView {
     this.tileVariantCatalog = {};
     this.selectedTileVariants = {};
     this.customBosses = [];
+    this.customCreeps = [];
+    this.creepyConfigs = { ...DEFAULT_CREEPY_CONFIGS };
+    this.selectedCreepyType = 'Goomba';
+    this.selectedGroupTiles = { ...GROUP_TILE_DEFAULTS };
     this.renderPalette();
     this.bindEvents();
     this.selectTile('Ground');
+    this.updateBossPreview(DEFAULT_BOSS_CONFIG.type);
     this.eventBus.emit('getTileVariants');
   }
 
   bindEvents() {
     this.container.addEventListener('click', event => {
+      const groupSummary = event.target.closest('.tool-group-header');
+      if (groupSummary) {
+        const group = groupSummary.closest('[data-tool-group]');
+        if (group && !group.open) {
+          this.container.querySelectorAll('[data-tool-group]').forEach(otherGroup => {
+            if (otherGroup !== group) otherGroup.open = false;
+          });
+        }
+        return;
+      }
+
       if (event.target.closest('[data-add-boss]')) {
         event.stopPropagation();
         this.openBossUploadDialog();
+        return;
+      }
+
+      if (event.target.closest('[data-add-creepy]')) {
+        event.stopPropagation();
+        this.openCreepyUploadDialog();
         return;
       }
 
@@ -103,15 +167,26 @@ export class PaletteView {
       const animationButton = event.target.closest('.animation-configure');
       if (animationButton) {
         event.stopPropagation();
-        this.selectTile(animationButton.dataset.tileId, { configure: false });
-        this.openAnimationDialog(animationButton.dataset.tileId);
+        const entityType = animationButton.dataset.tileId === 'Creepy'
+          ? this.selectedCreepyType
+          : animationButton.dataset.tileId;
+        this.selectTile(entityType, { configure: false });
+        this.openAnimationDialog(entityType);
         return;
       }
 
       const tile = event.target.closest('.tile-item');
       if (tile && event.target.closest('.tile-select')) {
-        this.selectTile(tile.dataset.tileId);
+        this.selectTile(tile.dataset.tileId === 'Creepy' ? this.selectedCreepyType : tile.dataset.tileId);
       }
+    });
+
+    this.container.addEventListener('change', event => {
+      const groupSelect = event.target.closest('[data-group-tile-select]');
+      if (!groupSelect) return;
+      const groupId = groupSelect.dataset.groupTileSelect;
+      this.selectedGroupTiles[groupId] = groupSelect.value;
+      this.selectTile(groupSelect.value, { configure: false });
     });
 
     this.container.addEventListener('change', event => {
@@ -131,6 +206,20 @@ export class PaletteView {
         return;
       }
 
+      const creepyTypeSelect = event.target.closest('[data-creepy-setting="type"]');
+      if (creepyTypeSelect) {
+        this.selectedCreepyType = creepyTypeSelect.value;
+        this.setCreepyConfigControls(this.creepyConfigs[this.selectedCreepyType]);
+        this.selectTile(this.selectedCreepyType, { configure: false });
+        this.updateCreepyPreview();
+        return;
+      }
+
+      if (event.target.closest('[data-creepy-setting]')) {
+        this.emitCreepyConfig();
+        return;
+      }
+
       if (event.target.closest('[data-boss-setting]')) {
         this.emitBossConfig();
         return;
@@ -143,10 +232,19 @@ export class PaletteView {
     });
 
     this.container.addEventListener('input', event => {
-      if (!event.target.matches('[data-boss-setting="speed"]')) return;
-      const output = this.container.querySelector('[data-boss-speed-value]');
-      output.value = `${event.target.value} px/s`;
-      this.emitBossConfig();
+      if (event.target.matches('[data-boss-setting="speed"], [data-boss-setting="size"], [data-boss-setting="health"]')) {
+        const key = event.target.dataset.bossSetting;
+        const output = this.container.querySelector(`[data-boss-${key}-value]`);
+        output.value = key === 'health' ? `${event.target.value} hits`
+          : key === 'size' ? `${event.target.value} px`
+            : `${event.target.value} px/s`;
+        this.emitBossConfig();
+      } else if (event.target.matches('[data-creepy-setting="speed"], [data-creepy-setting="health"]')) {
+        const key = event.target.dataset.creepySetting;
+        const output = this.container.querySelector(`[data-creepy-${key}-value]`);
+        output.value = key === 'health' ? `${event.target.value} hits` : `${event.target.value} px/s`;
+        this.emitCreepyConfig();
+      }
     });
 
     this.eventBus.on('historyChanged', ({ canUndo, canRedo }) => {
@@ -156,16 +254,27 @@ export class PaletteView {
     this.eventBus.on('levelLoaded', ({
       mysteryBoxReward = 'Mushroom',
       bossConfig = DEFAULT_BOSS_CONFIG,
-      customBosses = []
+      customBosses = [],
+      customCreeps = [],
+      creepyConfigs = DEFAULT_CREEPY_CONFIGS
     } = {}) => {
       const rewardSelect = this.container.querySelector('[data-mystery-reward]');
       if (rewardSelect) rewardSelect.value = mysteryBoxReward;
       this.setBossTypes(customBosses);
       this.setBossConfigControls(bossConfig);
+      this.setCreepyTypes(customCreeps, creepyConfigs);
     });
     this.eventBus.on('bossTypesChanged', ({ customBosses = [], bossConfig = DEFAULT_BOSS_CONFIG } = {}) => {
       this.setBossTypes(customBosses);
       this.setBossConfigControls(bossConfig);
+    });
+    this.eventBus.on('creepyTypesChanged', ({ customCreeps = [], creepyConfigs = {}, selectedType } = {}) => {
+      this.setCreepyTypes(customCreeps, creepyConfigs, selectedType);
+    });
+    this.eventBus.on('creepyConfigUpdated', ({ tileType, config } = {}) => {
+      if (!tileType || !config) return;
+      this.creepyConfigs[tileType] = { ...config };
+      if (tileType === this.selectedCreepyType) this.setCreepyConfigControls(config);
     });
     this.eventBus.on('tileVariantsChanged', ({ catalog, selectedTileVariants = {} } = {}) => {
       this.tileVariantCatalog = catalog || {};
@@ -180,35 +289,94 @@ export class PaletteView {
       });
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => {
-      const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`);
+      const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`) ||
+        (this.customCreeps.some(creepy => creepy.tileId === tileId)
+          ? this.container.querySelector('[data-tile-id="Creepy"] .tile-icon')
+          : null);
       if (!preview) return;
       const image = document.createElement('img');
       image.src = dataUrl;
       image.alt = `${tileId} sprite preview`;
       preview.replaceChildren(image);
     });
+    this.eventBus.on('creepyPreviewChanged', ({ tileType, dataUrl, frameWidth, frameHeight } = {}) => {
+      if (tileType === this.selectedCreepyType) {
+        this.renderCreepyPreview(dataUrl, frameWidth, frameHeight);
+      }
+    });
     this.eventBus.on('animationRegistered', ({ entityType, animationType, dataUrl }) => {
-      const preview = this.container.querySelector(`[data-tile-id="${entityType}"] .tile-icon`);
+      if (CREEPY_TYPES.some(type => type.id === entityType) ||
+        this.customCreeps.some(creepy => creepy.tileId === entityType)) {
+        if (entityType === this.selectedCreepyType) this.updateCreepyPreview();
+        const dialogPreview = this.motionDialog?.querySelector(`[data-animation-preview="${animationType}"]`);
+        if (dialogPreview) {
+          const animationImage = document.createElement('img');
+          animationImage.src = dataUrl;
+          animationImage.alt = `${entityType} ${animationType} animation preview`;
+          dialogPreview.replaceChildren(animationImage);
+        }
+        return;
+      }
+      const preview = this.container.querySelector(`[data-tile-id="${entityType}"] .tile-icon`) ||
+        (this.customCreeps.some(creepy => creepy.tileId === entityType)
+          ? this.container.querySelector('[data-tile-id="Creepy"] .tile-icon')
+          : null);
       if (!preview) return;
       const image = document.createElement('img');
       image.src = dataUrl;
       image.alt = `${entityType} ${animationType} animation preview`;
       preview.replaceChildren(image);
-      const dialogPreview = this.motionDialog?.querySelector(`[data-animation-preview="${animationType}"]`);
-      if (dialogPreview) dialogPreview.replaceChildren(image.cloneNode());
     });
   }
 
-  selectTile(tileId, { configure = true } = {}) {
-    if (!this.tileTypes.some(tile => tile.id === tileId)) return;
+  selectTile(tileId, { configure = false } = {}) {
+    const isCreepy = CREEPY_TYPES.some(type => type.id === tileId) ||
+      this.customCreeps.some(creepy => creepy.tileId === tileId);
+    if (!this.tileTypes.some(tile => tile.id === tileId) && !isCreepy) return;
+    if (isCreepy) {
+      this.selectedCreepyType = tileId;
+      this.setCreepyConfigControls(this.creepyConfigs[tileId]);
+    }
     this.selectedTileId = tileId;
+    const selectedCardId = isCreepy ? 'Creepy' : tileId;
+    const selectedCard = this.container.querySelector(`.tile-item[data-tile-id="${selectedCardId}"]`);
+    const group = selectedCard?.closest('[data-tool-group]');
+    if (group) {
+      this.openToolGroup(group);
+      const groupId = group.dataset.toolGroup;
+      if (groupId !== 'creepy' && groupId !== 'boss') {
+        this.selectedGroupTiles[groupId] = selectedCardId;
+        const groupSelect = group.querySelector('[data-group-tile-select]');
+        if (groupSelect) groupSelect.value = selectedCardId;
+        const activeLabel = group.querySelector(`[data-group-active="${groupId}"]`);
+        if (activeLabel) {
+          activeLabel.textContent = groupSelect?.selectedOptions[0]?.textContent || selectedCardId;
+        }
+        group.querySelectorAll('.tile-item').forEach(item => {
+          item.hidden = item !== selectedCard;
+        });
+      } else {
+        const activeLabel = group.querySelector(`[data-group-active="${group.dataset.toolGroup}"]`);
+        if (activeLabel) {
+          activeLabel.textContent = groupId === 'creepy'
+            ? this.container.querySelector('[data-creepy-setting="type"]')?.selectedOptions[0]?.textContent || 'Creepy'
+            : this.container.querySelector('[data-boss-setting="type"]')?.selectedOptions[0]?.textContent || 'Boss';
+        }
+      }
+    }
     this.container.querySelectorAll('.tile-item').forEach(item => {
-      const selected = item.dataset.tileId === tileId;
+      const selected = item.dataset.tileId === selectedCardId;
       item.classList.toggle('active', selected);
       item.setAttribute('aria-pressed', String(selected));
     });
     this.eventBus.emit('tileSelected', tileId);
-    if (configure && ANIMATIONS[tileId]) this.openAnimationDialog(tileId);
+    if (configure && (ANIMATIONS[tileId] || isCreepy)) this.openAnimationDialog(tileId);
+  }
+
+  openToolGroup(group) {
+    this.container.querySelectorAll('[data-tool-group]').forEach(otherGroup => {
+      otherGroup.open = otherGroup === group;
+    });
   }
 
   renderPalette() {
@@ -222,12 +390,54 @@ export class PaletteView {
         <button id="btn-undo" class="secondary-button" type="button" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
         <button id="btn-redo" class="secondary-button" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       </div>
+      <div class="editor-tools">
+        <span class="editor-tools-label">Editor tool</span>
+        ${this.tileTypes.filter(tile => tile.id === 'Eraser').map(tile => `
+          <article class="tile-item" data-tile-id="${tile.id}">
+            <button class="tile-select" type="button" aria-pressed="false">
+              <span class="tile-icon" style="--tile-color:${tile.color}">${tile.icon}</span>
+              <span class="tile-copy">
+                <span class="tile-name">${tile.name}</span>
+                <span class="tile-description">${tile.description}</span>
+              </span>
+            </button>
+          </article>
+        `).join('')}
+      </div>
       <div class="tiles-container">
-        ${this.tileTypes.map(tile => {
-          const animated = Boolean(ANIMATIONS[tile.id]);
-            const configurable = !animated && tile.id !== 'Player' && tile.id !== 'Boss';
+        ${TOOL_GROUPS.map(group => {
+          const tiles = group.tileIds
+            .map(tileId => this.tileTypes.find(tile => tile.id === tileId))
+            .filter(Boolean);
+          const hasGroupSelector = group.id !== 'creepy' && group.id !== 'boss';
+          const selectedTileId = this.selectedGroupTiles[group.id];
           return `
-            <article class="tile-item" data-tile-id="${tile.id}">
+            <details class="tool-group" data-tool-group="${group.id}" ${group.id === 'terrain' ? 'open' : ''}>
+              <summary class="tool-group-header">
+                <span>${group.name}</span>
+                <span class="tool-group-active" data-group-active="${group.id}">
+                  ${group.id === 'creepy'
+                    ? CREEPY_TYPES.find(type => type.id === this.selectedCreepyType)?.name || 'Creepy'
+                    : group.id === 'boss'
+                      ? BOSS_TYPES.find(type => type.id === DEFAULT_BOSS_CONFIG.type)?.name || 'Boss'
+                      : tiles.find(tile => tile.id === selectedTileId)?.name || ''}
+                </span>
+              </summary>
+              <div class="tool-group-content">
+                ${hasGroupSelector ? `
+                  <label class="tool-group-select-label">
+                    Choose item
+                    <select data-group-tile-select="${group.id}" aria-label="${group.name} item">
+                      ${tiles.map(tile => `<option value="${tile.id}" ${tile.id === selectedTileId ? 'selected' : ''}>${tile.name}</option>`).join('')}
+                    </select>
+                  </label>
+                ` : ''}
+        ${tiles.map(tile => {
+          const animated = Boolean(ANIMATIONS[tile.id]);
+          const configurable = !animated && tile.id !== 'Player' && tile.id !== 'Boss' && tile.id !== 'Creepy';
+          return `
+            <article class="tile-item" data-tile-id="${tile.id}"
+              ${hasGroupSelector && tile.id !== selectedTileId ? 'hidden' : ''}>
               <button class="tile-select" type="button" aria-pressed="false">
                 <span class="tile-icon" style="--tile-color:${tile.color}">${tile.icon}</span>
                 <span class="tile-copy">
@@ -266,7 +476,45 @@ export class PaletteView {
                     Speed <output data-boss-speed-value>70 px/s</output>
                     <input type="range" min="40" max="120" step="10" value="${DEFAULT_BOSS_CONFIG.speed}" data-boss-setting="speed" aria-label="Boss speed">
                   </label>
+                  <label class="boss-range-label">
+                    Size <output data-boss-size-value>48 px</output>
+                    <input type="range" min="32" max="128" step="8" value="${DEFAULT_BOSS_CONFIG.size}" data-boss-setting="size" aria-label="Boss size">
+                  </label>
                   <span class="variant-help">These settings apply to every Boss tile in this level.</span>
+                </div>
+              ` : tile.id === 'Creepy' ? `
+                <div class="tile-settings boss-settings creepy-settings">
+                  <label>
+                    Creature
+                    <span class="boss-character-control">
+                      <select data-creepy-setting="type" aria-label="Creature type">
+                        ${[...CREEPY_TYPES, ...this.customCreeps.map(creepy => ({
+                          id: creepy.tileId, name: creepy.name
+                        }))].map(creepy => `<option value="${creepy.id}">${creepy.name}</option>`).join('')}
+                      </select>
+                      <button class="secondary-button boss-add-button" type="button" data-add-creepy
+                        aria-label="Add custom creature" title="Add a creature">＋ Add</button>
+                    </span>
+                  </label>
+                  <label>
+                    Movement
+                    <select data-creepy-setting="movement" aria-label="Creature movement">
+                      <option value="ground">Ground patrol</option>
+                      <option value="flying">Flying</option>
+                    </select>
+                  </label>
+                  <label class="boss-range-label">
+                    Health <output data-creepy-health-value>1 hit</output>
+                    <input type="range" min="1" max="5" step="1" value="1"
+                      data-creepy-setting="health" aria-label="Creature health">
+                  </label>
+                  <label class="boss-range-label">
+                    Speed <output data-creepy-speed-value>45 px/s</output>
+                    <input type="range" min="20" max="180" step="5" value="45"
+                      data-creepy-setting="speed" aria-label="Creature speed">
+                  </label>
+                  <button class="animation-configure" type="button" data-tile-id="Creepy">Motion</button>
+                  <span class="variant-help">Choose a creature, tune its behavior, then paint it on the board.</span>
                 </div>
               ` : animated
                 ? `<button class="animation-configure" type="button" data-tile-id="${tile.id}">Motion</button>`
@@ -299,6 +547,10 @@ export class PaletteView {
             </article>
           `;
         }).join('')}
+              </div>
+            </details>
+          `;
+        }).join('')}
       </div>
       <p class="palette-hint">Try the ready-made demo, or drag across the board to paint.</p>
     `;
@@ -313,18 +565,265 @@ export class PaletteView {
     }
     const healthValue = this.container.querySelector('[data-boss-health-value]');
     healthValue.value = `${config.health} hits`;
+    this.updateBossPreview(config.type);
+    const activeLabel = this.container.querySelector('[data-group-active="boss"]');
+    if (activeLabel) {
+      activeLabel.textContent = this.container.querySelector('[data-boss-setting="type"]')
+        .selectedOptions[0]?.textContent || 'Boss';
+    }
     this.eventBus.emit('bossConfigChanged', config);
   }
 
   setBossConfigControls(config = DEFAULT_BOSS_CONFIG) {
+    config = { ...DEFAULT_BOSS_CONFIG, ...config };
     for (const setting of this.container.querySelectorAll('[data-boss-setting]')) {
       setting.value = config[setting.dataset.bossSetting] ?? DEFAULT_BOSS_CONFIG[setting.dataset.bossSetting];
     }
     const healthValue = this.container.querySelector('[data-boss-health-value]');
     const speedValue = this.container.querySelector('[data-boss-speed-value]');
+    const sizeValue = this.container.querySelector('[data-boss-size-value]');
     if (healthValue) healthValue.value = `${config.health ?? DEFAULT_BOSS_CONFIG.health} hits`;
     if (speedValue) speedValue.value = `${config.speed ?? DEFAULT_BOSS_CONFIG.speed} px/s`;
+    if (sizeValue) sizeValue.value = `${config.size ?? DEFAULT_BOSS_CONFIG.size} px`;
     this.updateBossPreview(config.type);
+    const activeLabel = this.container.querySelector('[data-group-active="boss"]');
+    if (activeLabel) {
+      activeLabel.textContent = this.container.querySelector('[data-boss-setting="type"]')
+        .selectedOptions[0]?.textContent || 'Boss';
+    }
+  }
+
+  emitCreepyConfig() {
+    const config = {
+      tileType: this.selectedCreepyType,
+      movement: this.container.querySelector('[data-creepy-setting="movement"]').value,
+      speed: Number(this.container.querySelector('[data-creepy-setting="speed"]').value),
+      health: Number(this.container.querySelector('[data-creepy-setting="health"]').value)
+    };
+    this.creepyConfigs[config.tileType] = {
+      movement: config.movement,
+      speed: config.speed,
+      health: config.health
+    };
+    this.eventBus.emit('creepyConfigChanged', config);
+  }
+
+  setCreepyConfigControls(config = {}) {
+    const current = {
+      movement: config.movement || 'ground',
+      speed: config.speed || 45,
+      health: config.health || 1
+    };
+    for (const setting of this.container.querySelectorAll('[data-creepy-setting]:not([data-creepy-setting="type"])')) {
+      setting.value = current[setting.dataset.creepySetting];
+    }
+    const health = this.container.querySelector('[data-creepy-health-value]');
+    const speed = this.container.querySelector('[data-creepy-speed-value]');
+    if (health) health.value = `${current.health} ${current.health === 1 ? 'hit' : 'hits'}`;
+    if (speed) speed.value = `${current.speed} px/s`;
+  }
+
+  setCreepyTypes(customCreeps = [], creepyConfigs = {}, selectedType) {
+    this.customCreeps = customCreeps;
+    this.creepyConfigs = {
+      ...DEFAULT_CREEPY_CONFIGS,
+      ...creepyConfigs
+    };
+    const select = this.container.querySelector('[data-creepy-setting="type"]');
+    if (!select) return;
+    select.replaceChildren(...[
+      ...CREEPY_TYPES,
+      ...customCreeps.map(creepy => ({ id: creepy.tileId, name: creepy.name }))
+    ].map(creepy => new Option(creepy.name, creepy.id)));
+    if (selectedType && [...select.options].some(option => option.value === selectedType)) {
+      this.selectedCreepyType = selectedType;
+    } else if (![...select.options].some(option => option.value === this.selectedCreepyType)) {
+      this.selectedCreepyType = 'Goomba';
+    }
+    select.value = this.selectedCreepyType;
+    this.setCreepyConfigControls(this.creepyConfigs[this.selectedCreepyType]);
+    this.updateCreepyPreview();
+  }
+
+  updateCreepyPreview() {
+    const custom = this.customCreeps.find(creepy => creepy.tileId === this.selectedCreepyType);
+    this.renderCreepyPreview(custom?.dataUrl);
+    const activeLabel = this.container.querySelector('[data-group-active="creepy"]');
+    if (activeLabel) {
+      activeLabel.textContent = this.container.querySelector('[data-creepy-setting="type"]')
+        ?.selectedOptions[0]?.textContent || 'Creepy';
+    }
+    this.eventBus.emit('getCreepyPreview', this.selectedCreepyType);
+  }
+
+  renderCreepyPreview(dataUrl, frameWidth, frameHeight) {
+    const preview = this.container.querySelector('[data-tile-id="Creepy"] .tile-icon');
+    if (!preview) return;
+    const custom = this.customCreeps.find(creepy => creepy.tileId === this.selectedCreepyType);
+    const imageUrl = dataUrl || custom?.dataUrl;
+    if (imageUrl) {
+      if (frameWidth && frameHeight) {
+        const frame = document.createElement('span');
+        frame.className = 'sprite-preview-frame';
+        frame.setAttribute('role', 'img');
+        frame.setAttribute('aria-label', `${custom?.name || this.selectedCreepyType} preview`);
+        frame.style.backgroundImage = `url("${imageUrl}")`;
+        preview.replaceChildren(frame);
+        return;
+      }
+      const image = document.createElement('img');
+      image.src = imageUrl;
+      image.alt = `${custom?.name || this.selectedCreepyType} preview`;
+      preview.replaceChildren(image);
+      return;
+    }
+    const icons = { Goomba: '🐞', Koopa: '🐢', Bat: '🦇' };
+    preview.textContent = icons[this.selectedCreepyType] || '👾';
+  }
+
+  openCreepyUploadDialog() {
+    this.closeCreepyUploadDialog();
+    this.creepyDialog = document.createElement('section');
+    this.creepyDialog.className = 'animation-modal';
+    this.creepyDialog.setAttribute('role', 'dialog');
+    this.creepyDialog.setAttribute('aria-modal', 'true');
+    this.creepyDialog.setAttribute('aria-labelledby', 'creepy-dialog-title');
+    this.creepyDialog.innerHTML = `
+      <div class="animation-dialog boss-dialog">
+        <header class="animation-dialog-header">
+          <div>
+            <span class="eyebrow">CUSTOM CREATURE</span>
+            <h2 id="creepy-dialog-title">Add a creepy</h2>
+            <p>Upload an image and set its movement, speed, and health. You can add motion sheets later.</p>
+          </div>
+          <button class="animation-dialog-close" type="button" aria-label="Close creature dialog">✕</button>
+        </header>
+        <div class="boss-upload-content creepy-upload-content">
+          <div class="boss-upload-preview" data-creepy-upload-preview aria-label="Creature image preview">👾</div>
+          <label class="boss-upload-field">
+            Creature name
+            <input type="text" data-creepy-upload-name maxlength="40" placeholder="My creature" autocomplete="off">
+          </label>
+          <label class="boss-upload-field">Movement
+            <select data-creepy-upload-movement>
+              <option value="ground">Ground patrol</option>
+              <option value="flying">Flying</option>
+            </select>
+          </label>
+          <label class="boss-upload-field">Speed
+            <input type="number" data-creepy-upload-speed min="20" max="180" step="5" value="50">
+          </label>
+          <label class="boss-upload-field">Health
+            <input type="number" data-creepy-upload-health min="1" max="5" step="1" value="1">
+          </label>
+          <label class="animation-upload-button boss-image-upload">
+            <span>Choose image</span>
+            <input type="file" data-creepy-upload-image accept="image/png,image/jpeg,image/webp" aria-label="Upload creature image">
+          </label>
+          <span class="variant-help">PNG, JPEG, or WebP · up to 5 MB and 4096 × 4096 pixels.</span>
+          <p class="boss-upload-error" data-creepy-upload-error role="alert" hidden></p>
+        </div>
+        <footer class="animation-dialog-footer">
+          <span>Custom creatures are saved with this level.</span>
+          <span>
+            <button class="secondary-button" type="button" data-cancel-creepy>Cancel</button>
+            <button class="primary-button" type="button" data-save-creepy>Add creature</button>
+          </span>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(this.creepyDialog);
+    const dialog = this.creepyDialog;
+    dialog.querySelector('.animation-dialog-close').addEventListener('click', () => this.closeCreepyUploadDialog());
+    dialog.querySelector('[data-cancel-creepy]').addEventListener('click', () => this.closeCreepyUploadDialog());
+    dialog.addEventListener('pointerdown', event => {
+      if (event.target === dialog) this.closeCreepyUploadDialog();
+    });
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') this.closeCreepyUploadDialog();
+    });
+    const nameInput = dialog.querySelector('[data-creepy-upload-name]');
+    const fileInput = dialog.querySelector('[data-creepy-upload-image]');
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      if (!nameInput.value.trim()) nameInput.value = file.name.replace(/\.[^.]+$/, '').slice(0, 40);
+      this.previewCreepyUpload(file, dialog);
+    });
+    dialog.querySelector('[data-save-creepy]').addEventListener('click', () => this.handleCreepyUpload(dialog));
+    dialog.querySelector('.animation-dialog-close').focus();
+  }
+
+  closeCreepyUploadDialog() {
+    this.creepyDialog?.remove();
+    this.creepyDialog = null;
+  }
+
+  async previewCreepyUpload(file, dialog) {
+    const preview = dialog.querySelector('[data-creepy-upload-preview]');
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new RangeError('Choose an image that is 5 MB or smaller.');
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        throw new TypeError('Choose a PNG, JPEG, or WebP image for the creature.');
+      }
+      const dataUrl = await this.readBossImage(file);
+      const image = await this.decodeBossImage(dataUrl);
+      if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
+        throw new RangeError('Creature images must be no larger than 4096 × 4096 pixels.');
+      }
+      const previewImage = document.createElement('img');
+      previewImage.src = dataUrl;
+      previewImage.alt = 'Custom creature preview';
+      preview.replaceChildren(previewImage);
+      dialog.querySelector('[data-creepy-upload-error]').hidden = true;
+    } catch (error) {
+      this.showCreepyUploadError(dialog, error);
+    }
+  }
+
+  async handleCreepyUpload(dialog) {
+    const button = dialog.querySelector('[data-save-creepy]');
+    const file = dialog.querySelector('[data-creepy-upload-image]').files?.[0];
+    button.disabled = true;
+    try {
+      const name = dialog.querySelector('[data-creepy-upload-name]').value.trim();
+      const movement = dialog.querySelector('[data-creepy-upload-movement]').value;
+      const speed = Number(dialog.querySelector('[data-creepy-upload-speed]').value);
+      const health = Number(dialog.querySelector('[data-creepy-upload-health]').value);
+      if (!name || name.length > 40) throw new TypeError('Enter a creature name up to 40 characters long.');
+      if (!file) throw new TypeError('Choose an image for your creature.');
+      if (!Number.isInteger(speed) || speed < 20 || speed > 180) throw new RangeError('Creature speed must be 20–180 px/s.');
+      if (!Number.isInteger(health) || health < 1 || health > 5) throw new RangeError('Creature health must be 1–5 hits.');
+      const dataUrl = await this.readBossImage(file);
+      const image = await this.decodeBossImage(dataUrl);
+      if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
+        throw new RangeError('Creature images must be no larger than 4096 × 4096 pixels.');
+      }
+      this.eventBus.emit('customCreepyUploaded', {
+        id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        dataUrl,
+        fileName: file.name,
+        fileType: file.type,
+        imageWidth: image.naturalWidth,
+        imageHeight: image.naturalHeight,
+        movement,
+        speed,
+        health
+      });
+      this.closeCreepyUploadDialog();
+    } catch (error) {
+      this.showCreepyUploadError(dialog, error);
+    } finally {
+      if (dialog.isConnected) button.disabled = false;
+    }
+  }
+
+  showCreepyUploadError(dialog, error) {
+    const errorElement = dialog.querySelector('[data-creepy-upload-error]');
+    errorElement.textContent = error.message || 'The creature image could not be added.';
+    errorElement.hidden = false;
+    this.eventBus.emit('status', errorElement.textContent);
   }
 
   setBossTypes(customBosses = []) {
@@ -339,14 +838,12 @@ export class PaletteView {
     const preview = this.container.querySelector('[data-tile-id="Boss"] .tile-icon');
     if (!preview) return;
     const customBoss = this.customBosses.find(boss => boss.id === type);
-    if (!customBoss) {
-      preview.textContent = '👹';
-      return;
-    }
     const image = document.createElement('img');
-    image.src = customBoss.dataUrl;
-    image.alt = `${customBoss.name} boss preview`;
+    image.src = customBoss?.dataUrl || bossPreviewDataUrl(type);
+    image.alt = `${customBoss?.name || BOSS_TYPES.find(boss => boss.id === type)?.name || 'Boss'} preview`;
     preview.replaceChildren(image);
+    const activeLabel = this.container.querySelector('[data-group-active="boss"]');
+    if (activeLabel) activeLabel.textContent = image.alt.replace(/ preview$/, '');
   }
 
   openBossUploadDialog() {
@@ -506,7 +1003,14 @@ export class PaletteView {
 
   openAnimationDialog(entityType) {
     this.motionDialog?.remove();
-    const animations = ANIMATIONS[entityType];
+    const animations = ANIMATIONS[entityType] ||
+      (CREEPY_TYPES.some(type => type.id === entityType) ||
+        this.customCreeps.some(creepy => creepy.tileId === entityType)
+        ? [
+            { id: 'idle', label: 'Idle', description: 'Standing still or hovering' },
+            { id: 'walk', label: 'Move', description: 'Walking or flying' }
+          ]
+        : null);
     if (!animations) return;
     this.motionDialog = document.createElement('section');
     this.motionDialog.className = 'animation-modal';

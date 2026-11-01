@@ -74,7 +74,7 @@ when play starts; it does not edit the live editor grid.
 | Core | `src/core/StateManager.js` | Owns the editable grid, dimensions, tile catalog, per-cell visual variants, demo data, sprite/audio metadata, level snapshot serialization, and validation. |
 | Core | `src/core/CommandManager.js` | Implements tile placement, erasing, bulk visual changes, resizing, clearing, and bounded undo/redo history. |
 | Core | `src/core/EventBus.js` | Provides `on`, `once`, `off`, `emit`, and listener cleanup around Phaser's `Events.EventEmitter`. |
-| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, boss type/behavior, and static-tile appearances, and handles image/animation uploads. |
+| Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, boss and Creepy behavior, static-tile appearances, and image/animation uploads. |
 | Editor | `src/editor/GridCanvas.js` | Renders the non-gridded board and selected per-cell appearances, and translates pointer painting into editor events. |
 | Editor | `src/editor/UIOverlayEditor.js` | Handles level/campaign management, world resizing, file import/export, toolbar actions, and status messages. |
 | Editor | `src/editor/SoundEffectsEditor.js` | Uploads, validates, previews, enables, removes, and adjusts per-event audio. |
@@ -124,7 +124,10 @@ navigation does not place tiles accidentally.
    volume when play mode launches. Touch controls are hidden by default and
    can be shown or hidden with the game-header toggle.
 4. Gameplay events update the scene and emit `gameMessage` when a run ends.
-   `main.js` presents replay, next-level, or replay-campaign actions.
+   On wins, the message includes campaign score, lives, mushroom growth, Fire
+   power, and remaining Star duration. `main.js` passes that run state into the
+   next level; retries restore the state from the start of the current level,
+   while replaying the campaign starts fresh.
 5. Closing the modal destroys the Phaser instance and stops its active sounds.
 
 ```mermaid
@@ -184,21 +187,40 @@ The supported tile IDs are:
 - Movement surfaces and obstacles: `Spring`, `MovingPlatform`,
   `OneWayPlatform`, `Door`.
 - Puzzle and respawn objects: `Switch`, `Checkpoint`.
-- Enemies: `Goomba`, `Koopa`, `Bat`, `Boss`.
+- Enemies: `Goomba`, `Koopa`, `Bat`, custom `Creepy-*` types, and `Boss`.
 - Collectibles and rewards: `Coin`, `Mushroom`, `Star`, `ExtraLife`,
   `FireFlower`.
 - Goal: `Flag`.
 
-The eraser is an editor tool, not a stored tile type. The current editor palette
-selects one mystery-box reward and one boss configuration for each level.
-Boss settings choose one of the built-in Slime King, Robo Crab, and Sky Dragon
-characters or a custom character uploaded for the level. Users can add up to
+The eraser is an editor tool, not a stored tile type. The Player and Creepy
+palette tools open animation uploads only when their explicit **Motion** button
+is pressed. The Creepy tool selects built-in Goomba, Koopa, Bat, or an uploaded
+custom creature, and paints the selected type as a distinct tile ID. Each
+creature supports ground/flying movement, speed from 20–180 px/s, and 1–5
+health. Users can add up to 12 custom creatures per level with PNG, JPEG, or
+WebP images up to 5 MB each and 4096 × 4096 pixels; combined image data is
+limited to 20 MB. Custom creature definitions, settings, images, and optional
+idle/movement sprite sheets are serialized with the level and campaign.
+
+The palette organizes the toolbox into collapsible Start & Goal, Terrain,
+Platforms & Mechanics, Creepy, Boss, and Collectibles & Power-ups groups.
+Non-character groups use a selector to show the chosen item's tile card and
+its existing image/property controls. Creepy and Boss remain separate groups
+with their existing character selectors and configuration. Selecting a tool
+automatically opens its group, and only one group stays expanded at a time.
+The Eraser remains a separate, always-visible editor tool near Undo and Redo.
+
+The current editor palette selects one mystery-box reward and one boss
+configuration for each level. Boss settings choose one of the built-in Slime
+King, Robo Crab, and Sky Dragon characters or a custom character uploaded for
+the level. Users can add up to
 12 custom bosses per level using a PNG, JPEG, or WebP image up to 5 MB and
 4096 × 4096 pixels; their combined image data is limited to 20 MB. The selected
 boss uses the level's patrol/chase/leap movement, fireball/ground-pound/both
-ability, 3–10 health hits, and 40–120 px/s movement speed. The roster,
-artwork, and settings are serialized with the level and included in campaign
-exports.
+ability, 3–10 health hits, 40–120 px/s movement speed, and configurable
+32–128 px display size (default 48 px). Fireball attacks are initiated within
+850 px and travel at 320 px/s for up to 4.5 seconds. The roster, artwork, and
+settings are serialized with the level and included in campaign exports.
 
 The third built-in level, **Toolbox Adventure**, arranges every toolbox item
 along one playable route. It demonstrates power-ups, terrain appearances,
@@ -218,11 +240,16 @@ hint, which is preserved when a campaign is exported or imported.
 | One-way platform | Collides only from above, allowing the player to jump up through it. |
 | Switch and door | Touching one switch disables/removes all closed doors in that level. |
 | Checkpoint | The latest touched checkpoint becomes the respawn position. Falling costs a life; if lives remain, the player respawns there after a short animation, in normal form and without Fire/Star powers. |
-| Enemies | Goomba and Koopa patrol horizontally; Bat flies. Stomps, Star power, and fireballs defeat enemies. |
+| Enemies | Goomba and Koopa patrol horizontally; Bat and configured flying Creepy types fly. Creepy movement, speed, and health are configured per type. Stomps, Star power, and fireballs defeat enemies. |
 | Boss | Selected boss movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. The goal stays locked until every Boss in the level is defeated. |
 | Fire Flower | Grants a Fire ability. X/J emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
+
+Campaign transitions preserve score, lives, cumulative mushroom growth, Fire
+power, and any remaining Star duration. Each Mushroom adds 25% player scale
+without a growth cap; taking damage removes one growth step before costing a
+life.
 
 The Phaser Arcade Physics world uses vertical gravity of 800 px/s². Camera
 tracking follows the player; the rendered game view is 960×540 and scales to
@@ -272,20 +299,24 @@ fit its container.
     "movement": "patrol",
     "ability": "fireballs",
     "health": 5,
-    "speed": 70
+    "speed": 70,
+    "size": 48
   },
-  "customBosses": []
+  "customBosses": [],
+  "creepyConfigs": {},
+  "customCreeps": []
 }
 ```
 
 The abbreviated grid values above are illustrative; real files contain one
 array per row and one nullable tile ID / visual-variant ID per cell. Uploaded
-sprite, variant, custom boss, and audio data URLs are stored inline.
+sprite, variant, custom boss, custom creature, and audio data URLs are stored inline.
 `validateWorld()` checks dimensions, matrix shape, supported tile IDs and
 visual variants, mystery-box reward, boss settings and uploaded boss images,
-and audio metadata. Older files may omit visual variants, `soundEffects`,
-`mysteryBoxReward`, `bossConfig`, or `customBosses`; Classic appearances and
-other defaults are applied when restoring.
+creature settings/images, and audio metadata. Older files may omit visual
+variants, `soundEffects`, `mysteryBoxReward`, `bossConfig`, `customBosses`,
+`creepyConfigs`, or `customCreeps`; Classic appearances and other defaults are
+applied when restoring.
 
 ### Campaigns
 

@@ -97,7 +97,7 @@ export class EntityFactory {
       x,
       y,
       scene.textures.exists(texture) ? texture : 'Boss-slimeKing'
-    ).setDisplaySize(48, 48);
+    ).setDisplaySize(options.bossConfig?.size || 48, options.bossConfig?.size || 48);
     boss.body.setSize(38, 34).setOffset(5, 12);
     return boss.setCollideWorldBounds(true);
   }
