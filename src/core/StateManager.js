@@ -70,12 +70,12 @@ const CREEPY_MOVEMENTS = ['ground', 'flying'];
 const MAX_CUSTOM_CREEPS = 12;
 
 const TILE_TYPES = [
-  'Player', 'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
+  'Player', 'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
   'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', ...CREEPY_TYPES.map(({ id }) => id), 'Coin', 'Flag',
   'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
 const TILE_VARIANT_TYPES = [
-  'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
+  'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
   'Switch', 'Door', 'Checkpoint', 'Coin', 'Flag', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
 export const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower'];
@@ -140,7 +140,7 @@ export const WORLD_THEMES = [
   }
 ];
 export const THEMED_TILE_TYPES = new Set([
-  'Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
+  'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
   'OneWayPlatform', 'Switch', 'Door'
 ]);
 
@@ -1120,7 +1120,8 @@ export class StateManager {
 
   isSolid(tileType) {
     return [
-      'Ground', 'Brick', 'Pipe', 'MysteryBox', 'Spring', 'MovingPlatform', 'OneWayPlatform', 'Door'
+      'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'Pipe', 'MysteryBox', 'Spring',
+      'MovingPlatform', 'OneWayPlatform', 'Door'
     ].includes(tileType);
   }
 

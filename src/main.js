@@ -360,7 +360,14 @@ function startGame() {
           <button class="game-close" type="button" aria-label="Close game">✕</button>
         </div>
       </header>
-      <div id="game-stage" class="game-stage"></div>
+      <div id="game-stage" class="game-stage">
+        <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
+          <div class="game-message-card">
+            <span class="game-message-text"></span>
+            <button class="game-action" type="button" hidden></button>
+          </div>
+        </div>
+      </div>
       <div id="touch-controls" class="touch-controls" hidden>
         <div class="touch-handle">MOVE CONTROLS</div>
         <div class="touch-buttons">
@@ -369,10 +376,6 @@ function startGame() {
           <button type="button" data-control="jump" aria-label="Jump">⤒</button>
           <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
         </div>
-      </div>
-      <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
-        <span class="game-message-text"></span>
-        <button class="game-action" type="button" hidden></button>
       </div>
     </div>
   `;

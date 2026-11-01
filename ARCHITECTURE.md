@@ -128,6 +128,10 @@ navigation does not place tiles accidentally.
    power, and remaining Star duration. `main.js` passes that run state into the
    next level; retries restore the state from the start of the current level,
    while replaying the campaign starts fresh.
+   Wins pause physics for a short, camera-visible fireworks and player-
+   celebration sequence before emitting the result. Game over plays a visible
+   upward spin and fall before fading. The result and replay action render in
+   a centered overlay on the game stage.
 5. Closing the modal destroys the Phaser instance and stops its active sounds.
 
 ```mermaid
@@ -173,6 +177,8 @@ image data URL. `selectedTileVariants` remembers the appearance to use when
 painting each object type. Older snapshots that omit these fields use the
 Classic appearance. Ground provides a built-in Ice variant and Brick a Mossy
 variant; other static-object types can add custom images from the palette.
+The Terrain group also includes solid Sand, Stone, and Snow tiles with
+distinct editor and runtime artwork.
 
 Selecting an appearance affects newly painted instances. **Apply all** updates
 matching objects in the current level through `SetTileVariantCommand`, so the
@@ -188,7 +194,8 @@ physics. Snapshots from older level files default to `storybook`.
 
 The supported tile IDs are:
 
-- Start and terrain: `Player`, `Ground`, `Brick`, `MysteryBox`, `Pipe`.
+- Start and terrain: `Player`, `Ground`, `Sand`, `Stone`, `Snow`, `Brick`,
+  `MysteryBox`, `Pipe`.
 - Movement surfaces and obstacles: `Spring`, `MovingPlatform`,
   `OneWayPlatform`, `Door`.
 - Puzzle and respawn objects: `Switch`, `Checkpoint`.
@@ -220,6 +227,12 @@ its existing image/property controls. Creepy and Boss remain separate groups
 with their existing character selectors and configuration. Selecting a tool
 automatically opens its group, and only one group stays expanded at a time.
 The Eraser remains a separate, always-visible editor tool near Undo and Redo.
+A horizontally scrollable icon strip below the board provides quick access to
+all toolbox tools and built-in creature types. Favorite tools stay pinned at
+the left without a label while the remaining tools scroll independently.
+Icons use the selected or uploaded tool artwork when available, and show their
+full names on hover or keyboard focus. Selecting an icon activates its paint
+tool, expands the owning group, and focuses the related settings.
 
 The current editor palette selects one mystery-box reward and one boss
 configuration for each level. Mystery boxes can grant a selected power-up or

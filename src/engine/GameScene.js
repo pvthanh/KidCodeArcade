@@ -146,6 +146,11 @@ export class GameScene extends Scene {
         const animationType = animations.idle ? 'idle' : animations.walk ? 'walk' : null;
         const customCreepy = (this.worldSnapshot.customCreeps || [])
           .find(creepy => creepy.tileId === tileType);
+        const isCreepy = CREEPY_TYPES.some(type => type.id === tileType) || customCreepy;
+        const defaultConfig = CREEPY_TYPES.find(type => type.id === tileType) ||
+          { movement: 'ground', speed: 45, health: 1 };
+        const config = this.worldSnapshot.creepyConfigs?.[tileType] || defaultConfig;
+        const flying = config.movement === 'flying';
         const variantId = this.worldSnapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic';
         const variant = this.worldSnapshot.tileVariantCatalog?.[tileType]
           ?.find(item => item.id === variantId);
@@ -159,9 +164,9 @@ export class GameScene extends Scene {
             ? `${tileType}--variant--${variant.id}`
             : animationType ? `${tileType}-${animationType}` : undefined
         };
-        const isCreepy = CREEPY_TYPES.some(type => type.id === tileType) || customCreepy;
+        const enemyY = isCreepy && !flying ? y - PLAYER_TILE_ALIGNMENT_OFFSET : y;
         const entity = isCreepy
-          ? this.entityFactory.createEnemy(this, tileType, x, y, createOptions)
+          ? this.entityFactory.createEnemy(this, tileType, x, enemyY, createOptions)
           : this.entityFactory.create(this, tileType, x, y, createOptions);
         if (THEMED_TILE_TYPES.has(tileType)) {
           entity.setTint(this.worldTheme.tileTint);
@@ -178,7 +183,9 @@ export class GameScene extends Scene {
         } else if (tileType === 'Door') {
           entity.setData('tileType', tileType);
           doors.add(entity);
-        } else if (['Ground', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'OneWayPlatform'].includes(tileType)) {
+        } else if ([
+          'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'OneWayPlatform'
+        ].includes(tileType)) {
           platforms.add(entity);
         } else if (tileType === 'MovingPlatform') {
           movingPlatforms.add(entity);
@@ -193,10 +200,6 @@ export class GameScene extends Scene {
             (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / 2 / entity.scaleX,
             (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / entity.scaleY
           );
-          const defaultConfig = CREEPY_TYPES.find(type => type.id === tileType) ||
-            { movement: 'ground', speed: 45, health: 1 };
-          const config = this.worldSnapshot.creepyConfigs?.[tileType] || defaultConfig;
-          const flying = config.movement === 'flying';
           (flying ? this.flyingEnemies : this.enemies).add(entity);
           entity.setData('tileType', tileType);
           entity.setData('patrolSpeed', config.speed);
@@ -1040,7 +1043,7 @@ export class GameScene extends Scene {
     this.gameEnded = true;
     this.soundManager.play(won ? 'win' : 'lose');
     if (won) {
-      this.finishGame(true);
+      this.celebrateWin();
       return;
     }
 
@@ -1050,24 +1053,130 @@ export class GameScene extends Scene {
       this.finishGame(false);
       return;
     }
-    player.body.checkCollision.none = true;
-    player.setVelocityX(0);
-    if (cause === 'fall') {
-      player.setAngularVelocity(300);
-    } else {
-      player.setVelocityY(-330);
-      player.setAngularVelocity(420);
+    const camera = this.cameras.main;
+    camera.stopFollow();
+    const view = camera.worldView;
+    if (cause === 'fall' ||
+      player.x < view.left || player.x > view.right || player.y < view.top || player.y > view.bottom) {
+      player.setPosition(
+        Math.max(view.left + 48, Math.min(view.right - 48, player.x)),
+        view.top + view.height * 0.55
+      );
     }
+    player.body.checkCollision.none = true;
+    player.body.enable = false;
+    player.setVelocity(0, 0);
+    player.setAngularVelocity(0);
+    player.setFlipY(true);
+    player.setAlpha(1);
+    this.physics.world.pause();
+    const startY = player.y;
+    const landingY = Math.min(startY + 92, view.bottom - 48);
     this.cameras.main.shake(220, 0.012);
-
-    const deathDuration = cause === 'fall' ? 650 : 900;
     this.tweens.add({
       targets: player,
-      alpha: 0,
-      duration: deathDuration,
-      ease: 'Cubic.easeIn'
+      y: startY - 92,
+      angle: 360,
+      duration: 420,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        if (!player.active) {
+          this.finishGame(false);
+          return;
+        }
+        this.tweens.add({
+          targets: player,
+          y: landingY,
+          angle: 720,
+          alpha: 0,
+          duration: 520,
+          ease: 'Cubic.easeIn',
+          onComplete: () => this.finishGame(false)
+        });
+      }
     });
-    this.time.delayedCall(deathDuration, () => this.finishGame(false));
+  }
+
+  celebrateWin() {
+    const player = this.player;
+    if (!player?.active) {
+      this.finishGame(true);
+      return;
+    }
+
+    player.body.checkCollision.none = true;
+    player.body.enable = false;
+    player.setVelocity(0, 0);
+    player.setAngularVelocity(0);
+    player.setAlpha(1);
+    this.cameras.main.stopFollow();
+    this.physics.world.pause();
+    const view = this.cameras.main.worldView;
+
+    const burstColors = [0xffd34e, 0xff6d8b, 0x71dcff, 0x8be28b, 0xc98bff];
+    const burstPoints = [
+      { x: 0.24, y: 0.22 },
+      { x: 0.5, y: 0.16 },
+      { x: 0.76, y: 0.24 },
+      { x: 0.36, y: 0.42 },
+      { x: 0.66, y: 0.4 }
+    ];
+    burstPoints.forEach((point, index) => {
+      this.time.delayedCall(index * 210, () => {
+        const x = view.left + view.width * point.x;
+        const y = view.top + view.height * point.y;
+        this.emitFirework(x, y, burstColors[index]);
+      });
+    });
+    this.tweens.add({
+      targets: player,
+      y: player.y - 36,
+      angle: 360,
+      duration: 650,
+      ease: 'Cubic.easeOut',
+      yoyo: true,
+      onComplete: () => player.setAngle(0)
+    });
+    this.cameras.main.flash(220, 255, 249, 218, false);
+    this.time.delayedCall(1450, () => this.finishGame(true));
+  }
+
+  emitFirework(x, y, color) {
+    const burst = this.add.circle(x, y, 4, color).setDepth(20);
+    const ring = this.add.circle(x, y, 3, color, 0).setStrokeStyle(2, color, 0.9)
+      .setDepth(19);
+    this.tweens.add({
+      targets: burst,
+      radius: 30,
+      alpha: 0,
+      duration: 520,
+      ease: 'Cubic.easeOut',
+      onComplete: () => burst.destroy()
+    });
+    this.tweens.add({
+      targets: ring,
+      radius: 38,
+      alpha: 0,
+      duration: 620,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy()
+    });
+    for (let index = 0; index < 24; index += 1) {
+      const angle = Math.PI * 2 * index / 24;
+      const distance = 48 + Math.random() * 48;
+      const spark = this.add.circle(x, y, 2 + Math.random() * 2, color)
+        .setDepth(20);
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        scale: 0.15,
+        duration: 540 + Math.random() * 180,
+        ease: 'Cubic.easeOut',
+        onComplete: () => spark.destroy()
+      });
+    }
   }
 
   finishGame(won) {

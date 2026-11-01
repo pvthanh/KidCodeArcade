@@ -1,5 +1,8 @@
 const COLORS = {
   Ground: 0x58a65c,
+  Sand: 0xd8b56b,
+  Stone: 0x788994,
+  Snow: 0xb8ddeb,
   Brick: 0xb9683f,
   MysteryBox: 0xe0aa28,
   Pipe: 0x308c62,
@@ -30,6 +33,9 @@ export class EntityFactory {
         scene.physics.add.sprite(x, y, options.textureKey || 'Player')
           .setDisplaySize(CHARACTER_DISPLAY_SIZE, CHARACTER_DISPLAY_SIZE)],
       ['Ground', (scene, x, y, options = {}) => this.createPlatform(scene, 'Ground', x, y, options)],
+      ['Sand', (scene, x, y, options = {}) => this.createPlatform(scene, 'Sand', x, y, options)],
+      ['Stone', (scene, x, y, options = {}) => this.createPlatform(scene, 'Stone', x, y, options)],
+      ['Snow', (scene, x, y, options = {}) => this.createPlatform(scene, 'Snow', x, y, options)],
       ['Brick', (scene, x, y, options = {}) => this.createPlatform(scene, 'Brick', x, y, options)],
       ['MysteryBox', (scene, x, y, options = {}) => this.createPlatform(scene, 'MysteryBox', x, y, options)],
       ['Pipe', (scene, x, y, options = {}) => this.createPlatform(scene, 'Pipe', x, y, options)],
@@ -112,6 +118,9 @@ export class EntityFactory {
     const styles = {
       Player: { color: 0x347bd1, shape: 'player' },
       Ground: { color: COLORS.Ground, shape: 'block' },
+      Sand: { color: COLORS.Sand, shape: 'sand' },
+      Stone: { color: COLORS.Stone, shape: 'stone' },
+      Snow: { color: COLORS.Snow, shape: 'snow' },
       Brick: { color: COLORS.Brick, shape: 'block' },
       MysteryBox: { color: COLORS.MysteryBox, shape: 'question' },
       Pipe: { color: COLORS.Pipe, shape: 'pipe' },
@@ -237,6 +246,32 @@ export class EntityFactory {
         graphics.fillCircle(16, 16, 7);
         graphics.fillStyle(0xffffff, 1);
         graphics.fillCircle(12, 12, 3);
+      } else if (style.shape === 'sand') {
+        graphics.fillRect(1, 1, 30, 30);
+        graphics.fillStyle(0xf0d79c, 1);
+        graphics.fillRect(2, 8, 28, 2);
+        graphics.fillRect(2, 19, 28, 2);
+        graphics.fillStyle(0xb68e4d, 1);
+        graphics.fillCircle(8, 14, 1.5);
+        graphics.fillCircle(23, 25, 1.5);
+      } else if (style.shape === 'stone') {
+        graphics.fillRect(1, 1, 30, 30);
+        graphics.lineStyle(2, 0xbdc8cc, 1);
+        graphics.lineBetween(1, 11, 31, 11);
+        graphics.lineBetween(1, 22, 31, 22);
+        graphics.lineBetween(12, 1, 12, 11);
+        graphics.lineBetween(21, 11, 21, 22);
+        graphics.lineBetween(8, 22, 8, 31);
+        graphics.lineStyle(2, 0xe4eaec, 1);
+        graphics.lineBetween(2, 2, 30, 2);
+      } else if (style.shape === 'snow') {
+        graphics.fillStyle(0x83b9cc, 1);
+        graphics.fillRect(1, 1, 30, 30);
+        graphics.fillStyle(0xf3fbff, 1);
+        graphics.fillPoints([
+          { x: 1, y: 9 }, { x: 7, y: 4 }, { x: 13, y: 9 },
+          { x: 20, y: 4 }, { x: 31, y: 9 }, { x: 31, y: 31 }, { x: 1, y: 31 }
+        ], true);
       } else {
         graphics.fillRoundedRect(1, 1, 30, 30, 3);
         graphics.lineStyle(2, 0xffffff, 0.6);

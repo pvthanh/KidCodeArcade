@@ -58,7 +58,8 @@ expanded at a time; choosing a tool automatically opens its group. The Eraser
 is a separate, always-visible editor tool near Undo and Redo.
 
 - **Start & Goal**: Player, Checkpoint, Flag.
-- **Terrain**: Ground, Brick, Pipe.
+- **Terrain**: Ground, Sand, Stone, Snow, Brick, Pipe. Sand, Stone, and Snow
+  are new solid terrain choices with distinct editor and in-game artwork.
 - **Platforms & Mechanics**: Spring, Moving platform, One-way platform,
   Mystery Box, Switch, Door.
 - **Creepy**: Goomba, Koopa, Bat, Firefly, Cloud Puff, Jellyfish, Ladybug,
@@ -69,7 +70,16 @@ is a separate, always-visible editor tool near Undo and Redo.
   Fire flower.
 - **Editor utility**: Eraser.
 
-Each tile has a built-in fallback preview. The Player tool offers the original
+The bottom of the editor board has a quick-select toolbar for every tool and
+built-in creature. Favorite tools stay pinned at the left while the remaining
+tools scroll horizontally. Icons use the corresponding selected or uploaded
+artwork when available. Selecting an icon changes the active paint tool, opens
+its toolbox group, and focuses the matching settings or selector. Hovering or
+focusing an icon reveals its full tool name.
+
+Each tile has a built-in fallback preview. Quick-tool names appear on hover or
+keyboard focus; favorite tools stay pinned at the left without a separate
+Favorites label. The Player tool offers the original
 Storybook Hero and ten built-in characters: Pudgy Dino Pirate, Bubble Robot,
 Mushroom Explorer, Cactus Cowboy, Unicorn Cat, Ninja Hamster, Sloth Racer,
 Viking Penguin, Pizza Slice Knight, and Bee Astronaut. Each has idle, walk,
@@ -205,7 +215,8 @@ physics or gameplay behavior.
 
 | Object | Behavior |
 |---|---|
-| Ground, Brick, Pipe | Solid collision surfaces; Brick breaks when hit from below. |
+| Ground, Sand, Stone, Snow | Solid terrain tiles with distinct appearances. |
+| Brick, Pipe | Solid terrain; Brick breaks when hit from below. |
 | Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, or Fire Flower independently for each box hit. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
@@ -224,7 +235,11 @@ physics or gameplay behavior.
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also
 ends the run. Game-over provides a replay action; winning advances to the next
-campaign level when one exists, otherwise the campaign can be replayed.
+campaign level when one exists, otherwise the campaign can be replayed. A win
+pauses gameplay for a brief player celebration with colorful, camera-visible
+firework bursts. Game over uses a visible upward spin and fall before fading.
+The win/game-over message and replay or campaign action appear centered over
+the game stage.
 
 ### Feedback and audio
 

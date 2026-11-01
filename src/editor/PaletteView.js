@@ -13,6 +13,9 @@ import { characterArt } from '../assets/demo/CharacterArt.js';
 const TILES = [
   { id: 'Player', name: 'Player', icon: '🧑', description: 'Place the player start', color: '#347bd1' },
   { id: 'Ground', name: 'Ground', icon: '🟩', description: 'Solid platform', color: '#58a65c' },
+  { id: 'Sand', name: 'Sand', icon: '🏜️', description: 'Warm sandy ground', color: '#d8b56b' },
+  { id: 'Stone', name: 'Stone', icon: '🪨', description: 'Solid rocky ground', color: '#788994' },
+  { id: 'Snow', name: 'Snow', icon: '❄️', description: 'Snow-covered ground', color: '#b8ddeb' },
   { id: 'Brick', name: 'Brick', icon: '🧱', description: 'Breakable block', color: '#b9683f' },
   { id: 'MysteryBox', name: 'Mystery Box', icon: '❔', description: 'Bump from below', color: '#e0aa28' },
   { id: 'Pipe', name: 'Pipe', icon: '🟩', description: 'Solid obstacle', color: '#308c62' },
@@ -43,7 +46,7 @@ const MYSTERY_REWARD_LABELS = {
 
 const TOOL_GROUPS = [
   { id: 'start-goal', name: 'Start & Goal', tileIds: ['Player', 'Checkpoint', 'Flag'] },
-  { id: 'terrain', name: 'Terrain', tileIds: ['Ground', 'Brick', 'Pipe'] },
+  { id: 'terrain', name: 'Terrain', tileIds: ['Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'Pipe'] },
   {
     id: 'mechanics',
     name: 'Platforms & Mechanics',
@@ -66,6 +69,27 @@ const GROUP_TILE_DEFAULTS = {
   boss: 'Boss',
   collectibles: 'Coin'
 };
+
+const QUICK_TOOL_FAVORITES = ['Player', 'Ground', 'MysteryBox', 'Goomba', 'Boss', 'Coin', 'Eraser'];
+
+const QUICK_TOOL_ARTWORK = {
+  Spring: '<rect x="3" y="24" width="26" height="5" rx="2" fill="#70495a"/><path d="m7 23 5-7 5 7 5-7 5 7" fill="none" stroke="#d86783" stroke-width="3"/><rect x="4" y="27" width="24" height="3" fill="#f6c2cd"/>',
+  MovingPlatform: '<rect x="1" y="4" width="62" height="12" rx="3" fill="#325c7c"/><rect x="3" y="2" width="58" height="6" fill="#4c86b8"/><rect x="8" y="3" width="48" height="2" fill="#d5e9f7"/>',
+  OneWayPlatform: '<rect x="1" y="6" width="30" height="5" fill="#795631"/><rect x="2" y="3" width="28" height="4" fill="#d1a96a"/>',
+  Switch: '<rect x="3" y="21" width="26" height="8" rx="2" fill="#70495a"/><circle cx="16" cy="17" r="8" fill="#f6c776"/><circle cx="16" cy="17" r="5" fill="#e08b48"/>',
+  Door: '<rect x="3" y="2" width="26" height="28" rx="4" fill="#765b90"/><rect x="7" y="8" width="18" height="19" fill="#c9b4d7"/><circle cx="21" cy="18" r="2" fill="#765b90"/>',
+  Checkpoint: '<rect x="7" y="5" width="4" height="25" fill="#5c5044"/><path d="m11 6 16 5-16 5z" fill="#43a5a1"/>',
+  Sand: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#d8b56b"/><path d="M2 9h28M2 20h28" stroke="#f0d79c" stroke-width="2"/><circle cx="8" cy="15" r="1.5" fill="#b68e4d"/><circle cx="23" cy="26" r="1.5" fill="#b68e4d"/>',
+  Stone: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#788994"/><path d="M1 11h30M1 22h30M12 1v10m9 0v11M8 22v9" stroke="#bdc8cc" stroke-width="2"/><path d="M2 2h28" stroke="#e4eaec" stroke-width="2"/>',
+  Snow: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#83b9cc"/><path d="M1 9q6-5 12 0t18 0v22H1z" fill="#f3fbff"/><path d="M3 13q5-3 10 0" fill="none" stroke="#d7eff8" stroke-width="2"/>'
+};
+
+const QUICK_TOOL_ARTWORK_URLS = Object.fromEntries(
+  Object.entries(QUICK_TOOL_ARTWORK).map(([tileId, artwork]) => [
+    tileId,
+    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tileId === 'MovingPlatform' ? 64 : 32} ${tileId === 'MovingPlatform' ? 16 : 32}">${artwork}</svg>`)}`
+  ])
+);
 
 const ANIMATIONS = {
   Player: [
@@ -113,6 +137,7 @@ export class PaletteView {
     this.selectedTileId = 'Ground';
     this.tileVariantCatalog = {};
     this.selectedTileVariants = {};
+    this.quickToolImages = {};
     this.customBosses = [];
     this.customCreeps = [];
     this.creepyConfigs = { ...DEFAULT_CREEPY_CONFIGS };
@@ -123,10 +148,18 @@ export class PaletteView {
     this.setPlayerCharacter('storybookHero');
     this.selectTile('Ground');
     this.updateBossPreview(DEFAULT_BOSS_CONFIG.type);
+    this.renderQuickTools();
     this.eventBus.emit('getTileVariants');
   }
 
   bindEvents() {
+    this.quickTools = document.getElementById('quick-tools');
+    this.quickTools?.addEventListener('click', event => {
+      const button = event.target.closest('[data-quick-tool]');
+      if (!button) return;
+      this.selectTile(button.dataset.quickTool, { focus: true });
+    });
+
     this.container.addEventListener('click', event => {
       const groupSummary = event.target.closest('.tool-group-header');
       if (groupSummary) {
@@ -276,13 +309,16 @@ export class PaletteView {
       this.setBossConfigControls(bossConfig);
       this.setCreepyTypes(customCreeps, creepyConfigs);
       this.setPlayerCharacter(playerCharacterId);
+      this.renderQuickTools();
     });
     this.eventBus.on('bossTypesChanged', ({ customBosses = [], bossConfig = DEFAULT_BOSS_CONFIG } = {}) => {
       this.setBossTypes(customBosses);
       this.setBossConfigControls(bossConfig);
+      this.renderQuickTools();
     });
     this.eventBus.on('creepyTypesChanged', ({ customCreeps = [], creepyConfigs = {}, selectedType } = {}) => {
       this.setCreepyTypes(customCreeps, creepyConfigs, selectedType);
+      this.renderQuickTools();
     });
     this.eventBus.on('creepyConfigUpdated', ({ tileType, config } = {}) => {
       if (!tileType || !config) return;
@@ -300,21 +336,28 @@ export class PaletteView {
         select.value = variants.some(variant => variant.id === selected) ? selected : 'classic';
         this.updateTilePreview(tileId, select.value);
       });
+      this.renderQuickTools();
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => {
+      if (dataUrl) this.quickToolImages[tileId] = dataUrl;
       if (tileId === 'Player') {
         this.setPlayerCharacter(this.playerCharacterId || 'storybookHero');
+        this.renderQuickTools();
         return;
       }
       const preview = this.container.querySelector(`[data-tile-id="${tileId}"] .tile-icon`) ||
         (this.customCreeps.some(creepy => creepy.tileId === tileId)
           ? this.container.querySelector('[data-tile-id="Creepy"] .tile-icon')
           : null);
-      if (!preview) return;
+      if (!preview) {
+        this.renderQuickTools();
+        return;
+      }
       const image = document.createElement('img');
       image.src = dataUrl;
       image.alt = `${tileId} sprite preview`;
       preview.replaceChildren(image);
+      this.renderQuickTools();
     });
     this.eventBus.on('creepyPreviewChanged', ({ tileType, dataUrl, frameWidth, frameHeight } = {}) => {
       if (tileType === this.selectedCreepyType) {
@@ -350,12 +393,14 @@ export class PaletteView {
     });
   }
 
-  selectTile(tileId, { configure = false } = {}) {
+  selectTile(tileId, { configure = false, focus = false } = {}) {
     const isCreepy = CREEPY_TYPES.some(type => type.id === tileId) ||
       this.customCreeps.some(creepy => creepy.tileId === tileId);
     if (!this.tileTypes.some(tile => tile.id === tileId) && !isCreepy) return;
     if (isCreepy) {
       this.selectedCreepyType = tileId;
+      const creatureSelect = this.container.querySelector('[data-creepy-setting="type"]');
+      if (creatureSelect) creatureSelect.value = tileId;
       this.setCreepyConfigControls(this.creepyConfigs[tileId]);
     }
     this.selectedTileId = tileId;
@@ -390,8 +435,112 @@ export class PaletteView {
       item.classList.toggle('active', selected);
       item.setAttribute('aria-pressed', String(selected));
     });
+    this.quickTools?.querySelectorAll('[data-quick-tool]').forEach(button => {
+      const active = button.dataset.quickTool === tileId;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    if (focus) {
+      const focusTarget = group
+        ? selectedCard?.querySelector('select') ||
+          selectedCard?.querySelector('input:not([type="file"]), .animation-configure') ||
+          selectedCard?.querySelector('.tile-select')
+        : selectedCard?.querySelector('.tile-select');
+      focusTarget?.focus({ preventScroll: true });
+      selectedCard?.scrollIntoView({ block: 'nearest' });
+    }
     this.eventBus.emit('tileSelected', tileId);
     if (configure && (ANIMATIONS[tileId] || isCreepy)) this.openAnimationDialog(tileId);
+  }
+
+  renderQuickTools() {
+    if (!this.quickTools) return;
+    const creatureIcons = {
+      Goomba: '🐞', Koopa: '🐢', Bat: '🦇',
+      'Creepy-Firefly': '✨', 'Creepy-CloudPuff': '☁️', 'Creepy-Jellyfish': '🪼',
+      'Creepy-Ladybug': '🐞', 'Creepy-Hedgehog': '🦔', 'Creepy-Duckling': '🐥',
+      'Creepy-FoxKit': '🦊', 'Creepy-Bumblebee': '🐝', 'Creepy-Froglet': '🐸',
+      'Creepy-Starfish': '⭐', 'Creepy-Ghost': '👻', 'Creepy-MiniDino': '🦕'
+    };
+    const quickTools = this.tileTypes.flatMap(tile => {
+      if (tile.id === 'Creepy') {
+        return [
+          ...CREEPY_TYPES.map(creature => ({
+            id: creature.id,
+            name: creature.name,
+            icon: creatureIcons[creature.id] || tile.icon,
+            color: tile.color
+          })),
+          ...this.customCreeps.map(creature => ({
+            id: creature.tileId,
+            name: creature.name,
+            icon: '👾',
+            color: tile.color
+          }))
+        ];
+      }
+      if (tile.id === 'Boss') {
+        return [{ ...tile, id: 'Boss' }];
+      }
+      return [tile];
+    });
+    const playerCharacter = PLAYER_CHARACTERS.find(item => item.id === this.playerCharacterId);
+    const bossType = this.container.querySelector('[data-boss-setting="type"]')?.value || DEFAULT_BOSS_CONFIG.type;
+    const customBoss = this.customBosses.find(boss => boss.id === bossType);
+    const images = new Map(quickTools.map(tool => {
+      const variantId = this.selectedTileVariants[tool.id] || 'classic';
+      const selectedVariant = this.tileVariantCatalog[tool.id]?.find(variant => variant.id === variantId);
+      const creepy = this.customCreeps.find(item => item.tileId === tool.id);
+      const previewImage = this.container.querySelector(`[data-tile-id="${tool.id}"] .tile-icon img`);
+      let imageUrl = selectedVariant?.dataUrl || creepy?.dataUrl || this.quickToolImages[tool.id] ||
+        previewImage?.src || QUICK_TOOL_ARTWORK_URLS[tool.id] || '';
+      if (tool.id === 'Player') imageUrl = playerCharacter?.preview || imageUrl;
+      if (tool.id === 'Boss') {
+        imageUrl = customBoss?.dataUrl || characterArt.bosses[bossType] || bossPreviewDataUrl(bossType);
+      }
+      if (tool.id === this.selectedCreepyType) {
+        imageUrl = creepy?.dataUrl || this.quickToolImages[tool.id] || imageUrl;
+      }
+      return [tool.id, imageUrl];
+    }));
+    const renderButton = tool => {
+      const imageUrl = images.get(tool.id);
+      const button = document.createElement('button');
+      button.className = 'quick-tool-button';
+      button.type = 'button';
+      button.dataset.quickTool = tool.id;
+      button.setAttribute('aria-label', tool.name);
+      button.dataset.tooltip = tool.name;
+      button.title = tool.name;
+      button.setAttribute('aria-pressed', String(tool.id === this.selectedTileId));
+      const icon = document.createElement('span');
+      icon.className = 'quick-tool-icon';
+      icon.style.setProperty('--tile-color', tool.color);
+      if (imageUrl) {
+        const image = document.createElement('img');
+        image.src = imageUrl;
+        image.alt = '';
+        image.draggable = false;
+        icon.append(image);
+      } else {
+        icon.textContent = tool.icon;
+      }
+      button.append(icon);
+      return button;
+    };
+    const favorites = quickTools.filter(tool => QUICK_TOOL_FAVORITES.includes(tool.id));
+    const favoriteIds = new Set(favorites.map(tool => tool.id));
+    const remaining = quickTools.filter(tool => !favoriteIds.has(tool.id));
+    const favoriteGroup = document.createElement('div');
+    favoriteGroup.className = 'quick-tools-favorites';
+    favoriteGroup.setAttribute('aria-label', 'Favorite tools');
+    favoriteGroup.append(...favorites.map(renderButton));
+    const scrollGroup = document.createElement('div');
+    scrollGroup.className = 'quick-tools-scroll';
+    scrollGroup.setAttribute('aria-label', 'All tools');
+    scrollGroup.append(...remaining.map(renderButton));
+    this.quickTools.replaceChildren(favoriteGroup, scrollGroup);
+    this.quickTools.querySelector(`[data-quick-tool="${this.selectedTileId}"]`)?.classList.add('active');
   }
 
   openToolGroup(group) {
@@ -687,6 +836,7 @@ export class PaletteView {
         ?.selectedOptions[0]?.textContent || 'Creepy';
     }
     this.eventBus.emit('getCreepyPreview', this.selectedCreepyType);
+    this.renderQuickTools();
   }
 
   renderCreepyPreview(dataUrl, frameWidth, frameHeight) {
@@ -883,6 +1033,7 @@ export class PaletteView {
     preview.replaceChildren(image);
     const activeLabel = this.container.querySelector('[data-group-active="boss"]');
     if (activeLabel) activeLabel.textContent = image.alt.replace(/ preview$/, '');
+    this.renderQuickTools();
   }
 
   openBossUploadDialog() {
@@ -1264,6 +1415,7 @@ export class PaletteView {
     } else {
       preview.textContent = tile.icon;
     }
+    this.renderQuickTools();
   }
 
   getSelectedTileId() {
@@ -1283,6 +1435,7 @@ export class PaletteView {
       image.alt = `${character.name} preview`;
       preview.replaceChildren(image);
     }
+    this.renderQuickTools();
   }
 
   getTileTypes() {

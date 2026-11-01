@@ -2,6 +2,9 @@ import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
 
 const TILE_COLORS = {
   Ground: '#58a65c',
+  Sand: '#d8b56b',
+  Stone: '#788994',
+  Snow: '#b8ddeb',
   Brick: '#b9683f',
   MysteryBox: '#e0aa28',
   Pipe: '#308c62',
@@ -26,6 +29,9 @@ const TILE_COLORS = {
 
 const TILE_LABELS = {
   Ground: '',
+  Sand: '',
+  Stone: '',
+  Snow: '',
   Brick: '▦',
   MysteryBox: '?',
   Pipe: '▤',
@@ -435,6 +441,43 @@ export class GridCanvas {
         ctx.lineTo(x + tileSize * 3 / 4, y + tileSize);
         ctx.stroke();
       }
+    } else if (type === 'Sand') {
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillStyle = 'rgba(255, 239, 190, 0.62)';
+      ctx.fillRect(x + 1, y + 5, tileSize - 2, 2);
+      ctx.fillRect(x + 1, y + 17, tileSize - 2, 2);
+      ctx.fillStyle = 'rgba(132, 95, 43, 0.55)';
+      ctx.fillRect(x + 7, y + 12, 2, 2);
+      ctx.fillRect(x + 22, y + 25, 2, 2);
+    } else if (type === 'Stone') {
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.strokeStyle = 'rgba(229, 238, 241, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 11);
+      ctx.lineTo(x + tileSize, y + 11);
+      ctx.moveTo(x, y + 22);
+      ctx.lineTo(x + tileSize, y + 22);
+      ctx.moveTo(x + 12, y);
+      ctx.lineTo(x + 12, y + 11);
+      ctx.moveTo(x + 21, y + 11);
+      ctx.lineTo(x + 21, y + 22);
+      ctx.moveTo(x + 8, y + 22);
+      ctx.lineTo(x + 8, y + tileSize);
+      ctx.stroke();
+    } else if (type === 'Snow') {
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillStyle = '#f3fbff';
+      ctx.beginPath();
+      ctx.moveTo(x, y + 9);
+      ctx.quadraticCurveTo(x + 7, y + 3, x + 14, y + 9);
+      ctx.quadraticCurveTo(x + 21, y + 3, x + tileSize, y + 9);
+      ctx.lineTo(x + tileSize, y + tileSize);
+      ctx.lineTo(x, y + tileSize);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(215, 239, 248, 0.9)';
+      ctx.fillRect(x + 3, y + 14, 8, 2);
     } else if (type === 'Boss') {
       ctx.fillStyle = TILE_COLORS.Boss;
       ctx.beginPath();
