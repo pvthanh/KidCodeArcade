@@ -14,7 +14,8 @@ export class GameScene extends Scene {
     touchState,
     eventBus,
     levelRecordId = 'level',
-    campaignProgress = {}
+    campaignProgress = {},
+    isCampaignFinal = false
   ) {
     super({ key: 'GameScene' });
     this.worldSnapshot = worldSnapshot;
@@ -23,6 +24,7 @@ export class GameScene extends Scene {
     this.spriteAnimator = spriteAnimator;
     this.touchState = touchState;
     this.eventBus = eventBus;
+    this.isCampaignFinal = isCampaignFinal;
     this.levelRecordKey = `little-level-lab:best:${encodeURIComponent(levelRecordId)}`;
     this.bestScore = this.loadBestScore();
     this.score = Number.isSafeInteger(campaignProgress.score) && campaignProgress.score >= 0
@@ -50,6 +52,7 @@ export class GameScene extends Scene {
     this.coyoteUntil = 0;
     this.touchJumpWasDown = false;
     this.touchShootWasDown = false;
+    this.touchPipeWasDown = false;
     this.jumpWasHeld = false;
     this.wallJumpDirection = 0;
     this.wallJumpUntil = 0;
@@ -120,6 +123,7 @@ export class GameScene extends Scene {
     const platforms = this.physics.add.staticGroup();
     const coins = this.physics.add.staticGroup();
     const flags = this.physics.add.staticGroup();
+    const pipes = this.physics.add.staticGroup();
     const switches = this.physics.add.staticGroup();
     const doors = this.physics.add.staticGroup();
     const checkpoints = this.physics.add.staticGroup();
@@ -183,8 +187,10 @@ export class GameScene extends Scene {
         } else if (tileType === 'Door') {
           entity.setData('tileType', tileType);
           doors.add(entity);
+        } else if (tileType === 'Pipe') {
+          pipes.add(entity);
         } else if ([
-          'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'OneWayPlatform'
+          'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Spring', 'OneWayPlatform'
         ].includes(tileType)) {
           platforms.add(entity);
         } else if (tileType === 'MovingPlatform') {
@@ -253,6 +259,13 @@ export class GameScene extends Scene {
       });
     });
 
+    if (this.worldSnapshot.pipeArrival) {
+      const { row, col } = this.worldSnapshot.pipeArrival;
+      spawnPoint = {
+        x: col * tileSize + tileSize / 2,
+        y: row * tileSize + tileSize / 2 - PLAYER_TILE_ALIGNMENT_OFFSET
+      };
+    }
     this.player = this.entityFactory.create(
       this,
       'Player',
@@ -272,6 +285,7 @@ export class GameScene extends Scene {
       this.player.setTint(0xffe477);
     }
     this.physics.add.collider(this.player, platforms, this.handleBlockCollision, undefined, this);
+    this.physics.add.collider(this.player, pipes);
     this.physics.add.collider(this.player, doors);
     this.physics.add.collider(
       this.player,
@@ -281,20 +295,25 @@ export class GameScene extends Scene {
       this
     );
     this.physics.add.collider(this.enemies, platforms);
+    this.physics.add.collider(this.enemies, pipes);
     this.physics.add.collider(this.enemies, doors);
     this.physics.add.collider(this.enemies, movingPlatforms);
     this.physics.add.collider(this.bosses, platforms);
+    this.physics.add.collider(this.bosses, pipes);
     this.physics.add.collider(this.bosses, doors);
     this.physics.add.collider(this.bosses, movingPlatforms);
     this.physics.add.collider(this.powerUps, platforms);
+    this.physics.add.collider(this.powerUps, pipes);
     this.physics.add.collider(this.powerUps, doors);
     this.physics.add.overlap(this.player, switches, this.activateSwitch, undefined, this);
     this.physics.add.overlap(this.player, checkpoints, this.activateCheckpoint, undefined, this);
     this.physics.add.collider(this.powerUps, movingPlatforms);
     this.physics.add.collider(projectiles, platforms, this.destroyProjectile, undefined, this);
+    this.physics.add.collider(projectiles, pipes, this.destroyProjectile, undefined, this);
     this.physics.add.collider(projectiles, doors, this.destroyProjectile, undefined, this);
     this.physics.add.collider(projectiles, movingPlatforms, this.destroyProjectile, undefined, this);
     this.physics.add.collider(this.bossProjectiles, platforms, this.destroyProjectile, undefined, this);
+    this.physics.add.collider(this.bossProjectiles, pipes, this.destroyProjectile, undefined, this);
     this.physics.add.collider(this.bossProjectiles, doors, this.destroyProjectile, undefined, this);
     this.physics.add.collider(this.bossProjectiles, movingPlatforms, this.destroyProjectile, undefined, this);
     this.physics.add.overlap(projectiles, this.enemies, this.hitEnemyWithFireball, undefined, this);
@@ -308,6 +327,7 @@ export class GameScene extends Scene {
     this.physics.add.overlap(this.player, this.bossProjectiles, this.hitByBossProjectile, undefined, this);
     this.physics.add.overlap(this.player, flags, this.reachGoal, undefined, this);
     this.platforms = platforms;
+    this.pipes = pipes;
     this.movingPlatforms = movingPlatforms;
     this.projectiles = projectiles;
     this.switches = switches;
@@ -319,9 +339,11 @@ export class GameScene extends Scene {
       left: Input.Keyboard.KeyCodes.LEFT,
       right: Input.Keyboard.KeyCodes.RIGHT,
       up: Input.Keyboard.KeyCodes.UP,
+      down: Input.Keyboard.KeyCodes.DOWN,
       a: Input.Keyboard.KeyCodes.A,
       d: Input.Keyboard.KeyCodes.D,
       w: Input.Keyboard.KeyCodes.W,
+      s: Input.Keyboard.KeyCodes.S,
       space: Input.Keyboard.KeyCodes.SPACE,
       shift: Input.Keyboard.KeyCodes.SHIFT,
       shootX: Input.Keyboard.KeyCodes.X,
@@ -473,9 +495,16 @@ export class GameScene extends Scene {
     }
     const left = this.keys.left.isDown || this.keys.a.isDown || this.touchState.left;
     const right = this.keys.right.isDown || this.keys.d.isDown || this.touchState.right;
+    const touchPipePressed = this.touchState.enterPipe && !this.touchPipeWasDown;
+    this.touchPipeWasDown = Boolean(this.touchState.enterPipe);
+    const upPressed = Input.Keyboard.JustDown(this.keys.up);
+    const downPressed = Input.Keyboard.JustDown(this.keys.down) ||
+      Input.Keyboard.JustDown(this.keys.s) || touchPipePressed;
+    if ((downPressed && this.tryUsePipe('down')) ||
+      (upPressed && this.tryUsePipe('up'))) return;
     const touchJumpPressed = this.touchState.jump && !this.touchJumpWasDown;
     this.touchJumpWasDown = this.touchState.jump;
-    const jumpPressed = Input.Keyboard.JustDown(this.keys.up) ||
+    const jumpPressed = upPressed ||
       Input.Keyboard.JustDown(this.keys.w) ||
       Input.Keyboard.JustDown(this.keys.space) || touchJumpPressed;
     const jumpHeld = this.keys.up.isDown || this.keys.w.isDown ||
@@ -573,6 +602,46 @@ export class GameScene extends Scene {
       if (!projectile?.active) return;
       projectile.setRotation(projectile.rotation + 0.08);
     });
+  }
+
+  tryUsePipe(direction) {
+    const destinationIndex = this.worldSnapshot.pipeDestination;
+    if (!Number.isInteger(destinationIndex) || !this.pipes?.getChildren().length) return false;
+    const playerBody = this.player.body;
+    const playerBounds = {
+      left: playerBody.left,
+      right: playerBody.right,
+      top: playerBody.top,
+      bottom: playerBody.bottom
+    };
+    const candidate = this.pipes.getChildren().find(pipe => {
+      if (!pipe.active || !pipe.body) return false;
+      const pipeBody = pipe.body;
+      if (direction === 'down') {
+        return Math.abs(playerBounds.bottom - pipeBody.top) <= 10 &&
+          playerBounds.right > pipeBody.left + 3 &&
+          playerBounds.left < pipeBody.right - 3;
+      }
+      const verticalOverlap = playerBounds.bottom > pipeBody.top + 6 &&
+        playerBounds.top < pipeBody.bottom - 6;
+      const horizontalGap = Math.max(
+        pipeBody.left - playerBounds.right,
+        playerBounds.left - pipeBody.right,
+        0
+      );
+      return verticalOverlap && horizontalGap <= 10;
+    });
+    if (!candidate) return false;
+    this.gameEnded = true;
+    this.player.setVelocity(0, 0).setAlpha(0.45);
+    this.cameras.main.flash(220, 184, 255, 213);
+    this.time.delayedCall(240, () => {
+      this.eventBus.emit('pipeTravel', {
+        destinationIndex,
+        campaignProgress: this.getCampaignProgress()
+      });
+    });
+    return true;
   }
 
   updateBoss(boss) {
@@ -1114,16 +1183,25 @@ export class GameScene extends Scene {
     this.physics.world.pause();
     const view = this.cameras.main.worldView;
 
-    const burstColors = [0xffd34e, 0xff6d8b, 0x71dcff, 0x8be28b, 0xc98bff];
-    const burstPoints = [
-      { x: 0.24, y: 0.22 },
-      { x: 0.5, y: 0.16 },
-      { x: 0.76, y: 0.24 },
-      { x: 0.36, y: 0.42 },
-      { x: 0.66, y: 0.4 }
+    const burstColors = [
+      0xffd34e, 0xff6d8b, 0x71dcff, 0x8be28b,
+      0xc98bff, 0xffa45c, 0x68e0c3, 0xff8ad1
     ];
+    const burstPoints = this.isCampaignFinal
+      ? [
+        { x: 0.16, y: 0.22 }, { x: 0.36, y: 0.15 }, { x: 0.56, y: 0.22 },
+        { x: 0.78, y: 0.16 }, { x: 0.27, y: 0.4 }, { x: 0.49, y: 0.34 },
+        { x: 0.72, y: 0.39 }, { x: 0.88, y: 0.29 }
+      ]
+      : [
+        { x: 0.24, y: 0.22 },
+        { x: 0.5, y: 0.16 },
+        { x: 0.76, y: 0.24 },
+        { x: 0.36, y: 0.42 },
+        { x: 0.66, y: 0.4 }
+      ];
     burstPoints.forEach((point, index) => {
-      this.time.delayedCall(index * 210, () => {
+      this.time.delayedCall(index * (this.isCampaignFinal ? 180 : 210), () => {
         const x = view.left + view.width * point.x;
         const y = view.top + view.height * point.y;
         this.emitFirework(x, y, burstColors[index]);
@@ -1139,7 +1217,7 @@ export class GameScene extends Scene {
       onComplete: () => player.setAngle(0)
     });
     this.cameras.main.flash(220, 255, 249, 218, false);
-    this.time.delayedCall(1450, () => this.finishGame(true));
+    this.time.delayedCall(this.isCampaignFinal ? 2600 : 1450, () => this.finishGame(true));
   }
 
   emitFirework(x, y, color) {
@@ -1183,7 +1261,12 @@ export class GameScene extends Scene {
   finishGame(won) {
     this.eventBus.emit('gameMessage', {
       won,
-      message: won ? 'Goal reached! You win!' : 'Game over! Try again.',
+      campaignComplete: won && this.isCampaignFinal,
+      message: won
+        ? this.isCampaignFinal
+          ? 'CAMPAIGN COMPLETE! Every challenge conquered!'
+          : 'Goal reached! You win!'
+        : 'Game over! Try again.',
       campaignProgress: won ? this.getCampaignProgress() : null
     });
     this.scene.pause();

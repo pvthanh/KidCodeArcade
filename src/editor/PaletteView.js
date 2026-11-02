@@ -18,7 +18,7 @@ const TILES = [
   { id: 'Snow', name: 'Snow', icon: '❄️', description: 'Snow-covered ground', color: '#b8ddeb' },
   { id: 'Brick', name: 'Brick', icon: '🧱', description: 'Breakable block', color: '#b9683f' },
   { id: 'MysteryBox', name: 'Mystery Box', icon: '❔', description: 'Bump from below', color: '#e0aa28' },
-  { id: 'Pipe', name: 'Pipe', icon: '🟩', description: 'Solid obstacle', color: '#308c62' },
+  { id: 'Pipe', name: 'Pipe', icon: '🟩', description: 'Solid; travel to the linked campaign area by pressing down on top or up beside it', color: '#308c62' },
   { id: 'Spring', name: 'Spring', icon: '🌀', description: 'Bounce high when you land on it', color: '#d86783' },
   { id: 'MovingPlatform', name: 'Moving platform', icon: '↔️', description: 'Ride a platform that moves side to side', color: '#4c86b8' },
   { id: 'OneWayPlatform', name: 'One-way platform', icon: '🪵', description: 'Jump up through it and land on top', color: '#b98b52' },

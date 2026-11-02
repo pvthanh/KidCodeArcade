@@ -72,6 +72,7 @@ when play starts; it does not edit the live editor grid.
 |---|---|---|
 | Application | `src/main.js` | Creates the shared editor services, wires events, prepares the demo campaign levels, and opens/restarts Phaser play sessions. |
 | Core | `src/core/StateManager.js` | Owns the editable grid, dimensions, tile catalog, per-cell visual variants, demo data, sprite/audio metadata, level snapshot serialization, and validation. |
+| Core | `src/core/DemoCampaign.js` | Builds the ten themed showcase level snapshots, including the complete built-in Creepy and boss rosters. |
 | Core | `src/core/CommandManager.js` | Implements tile placement, erasing, bulk visual changes, resizing, clearing, and bounded undo/redo history. |
 | Core | `src/core/EventBus.js` | Provides `on`, `once`, `off`, `emit`, and listener cleanup around Phaser's `Events.EventEmitter`. |
 | Editor | `src/editor/PaletteView.js` | Renders/selects tools, configures mystery-box rewards, boss and Creepy behavior, static-tile appearances, and image/animation uploads. |
@@ -89,8 +90,9 @@ when play starts; it does not edit the live editor grid.
 
 ### Editor startup
 
-1. `src/main.js` creates a `StateManager`, snapshots the three built-in demo
-   levels, and restores Sunny Hills as the initial workspace.
+1. `src/main.js` creates a `StateManager`, generates the ten built-in showcase
+   snapshots from its catalogs, and restores Pebble Path as the initial
+   workspace.
 2. The module creates one `EventBus`, `CommandManager`, `PaletteView`,
    `GridCanvas`, `UIOverlayEditor`, `SoundEffectsEditor`, `EntityFactory`, and
    `SpriteAnimator`.
@@ -105,6 +107,10 @@ position. `UIOverlayEditor` inserts a snapshot with an all-empty tile grid,
 selects the Player tool, and makes the new level active. On touch devices,
 **Move board** toggles `GridCanvas` between painting and drag-to-pan input so
 navigation does not place tiles accidentally.
+The **Pipe link** dialog stores a destination campaign index in the level
+snapshot and an optional arrival tile in the destination snapshot. Campaign
+insertions/removals adjust or clear destination indices; imported campaigns
+reject missing and self-referencing destinations.
 
 ### Play-mode startup
 
@@ -125,6 +131,9 @@ navigation does not place tiles accidentally.
    `main.js` starts a synthesized looping background melody at 25% master
    volume when play mode launches. Touch controls are hidden by default and
    can be shown or hidden with the game-header toggle.
+   Linked pipes remain solid colliders. `GameScene` checks directional input
+   against pipe bounds and emits `pipeTravel`; `main.js` launches the destination
+   snapshot with the current score, lives, and power-ups. Travel is not a win.
 4. Gameplay events update the scene and emit `gameMessage` when a run ends.
    On wins, the message includes campaign score, lives, mushroom growth, Fire
    power, and remaining Star duration. `main.js` passes that run state into the
@@ -249,11 +258,11 @@ ability, 3–10 health hits, 40–120 px/s movement speed, and configurable
 850 px and travel at 320 px/s for up to 4.5 seconds. The roster, artwork, and
 settings are serialized with the level and included in campaign exports.
 
-The third built-in level, **Toolbox Adventure**, arranges every toolbox item
-along one playable route. It demonstrates power-ups, terrain appearances,
-hazards, gaps, one-way and moving platforms, spring jumps, checkpoints, and
-two switch-controlled doors. Its campaign entry includes a short play-mode
-hint, which is preserved when a campaign is exported or imported.
+The ten built-in showcase levels spread every supported item across themed
+routes, puzzles, and boss encounters. Each original boss type appears in one
+stage, while every built-in Creepy type is demonstrated across the campaign.
+Campaign entries include short play-mode hints, which are preserved when a
+campaign is exported or imported.
 
 ### Game rules in play mode
 

@@ -309,6 +309,8 @@ export class StateManager {
     this.rows = 15;
     this.tileSize = 32;
     this.worldTheme = 'storybook';
+    this.pipeDestination = null;
+    this.pipeArrival = null;
     this.playerCharacterId = 'storybookHero';
     this.tiles = [];
     this.tileVariants = [];
@@ -515,6 +517,11 @@ export class StateManager {
     );
     this.cols = cols;
     this.rows = rows;
+    if (this.pipeArrival &&
+      (this.pipeArrival.row >= rows || this.pipeArrival.col >= cols ||
+        this.isSolid(this.tiles[this.pipeArrival.row]?.[this.pipeArrival.col]))) {
+      this.pipeArrival = null;
+    }
   }
 
   getTile(row, col) {
@@ -533,6 +540,8 @@ export class StateManager {
     if (this.tiles[row][col] === type && this.tileVariants[row][col] === nextVariant) return false;
     this.tiles[row][col] = type;
     this.tileVariants[row][col] = nextVariant;
+    if (type && this.pipeArrival?.row === row && this.pipeArrival.col === col &&
+      this.isSolid(type)) this.pipeArrival = null;
     return true;
   }
 
@@ -843,6 +852,8 @@ export class StateManager {
       cols: this.cols,
       rows: this.rows,
       worldTheme: this.worldTheme,
+      pipeDestination: this.pipeDestination,
+      pipeArrival: this.pipeArrival ? { ...this.pipeArrival } : null,
       tiles: this.tiles.map(row => [...row]),
       tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
@@ -865,6 +876,8 @@ export class StateManager {
     this.cols = snapshot.cols;
     this.rows = snapshot.rows;
     this.worldTheme = snapshot.worldTheme || 'storybook';
+    this.pipeDestination = snapshot.pipeDestination ?? null;
+    this.pipeArrival = snapshot.pipeArrival ? { ...snapshot.pipeArrival } : null;
     this.tiles = snapshot.tiles.map(row => [...row]);
     this.tileVariantCatalog = mergeVariantCatalog(snapshot.tileVariantCatalog);
     this.tileVariants = this.tiles.map((row, rowIndex) => row.map((tile, colIndex) =>
@@ -928,6 +941,24 @@ export class StateManager {
     }
     if (data.worldTheme !== undefined && !WORLD_THEMES.some(theme => theme.id === data.worldTheme)) {
       throw new TypeError('The level file contains an unsupported world theme.');
+    }
+    if (data.pipeDestination !== undefined && data.pipeDestination !== null &&
+      (!Number.isInteger(data.pipeDestination) || data.pipeDestination < 0 || data.pipeDestination >= 50)) {
+      throw new TypeError('The level file contains an invalid pipe destination.');
+    }
+    if (data.pipeArrival !== undefined && data.pipeArrival !== null) {
+      const { row, col } = data.pipeArrival;
+      if (!Number.isInteger(row) || row < 0 || row >= data.rows ||
+        !Number.isInteger(col) || col < 0 || col >= data.cols) {
+        throw new TypeError('The level file contains an invalid pipe arrival position.');
+      }
+      const arrivalTile = data.tiles[row][col];
+      if (arrivalTile && [
+        'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe',
+        'Spring', 'MovingPlatform', 'OneWayPlatform', 'Door'
+      ].includes(arrivalTile)) {
+        throw new TypeError('The pipe arrival position must be an empty cell.');
+      }
     }
     const customCreeps = data.customCreeps === undefined ? [] : data.customCreeps;
     if (!Array.isArray(customCreeps) || customCreeps.length > MAX_CUSTOM_CREEPS) {

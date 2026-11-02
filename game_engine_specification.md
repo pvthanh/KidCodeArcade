@@ -142,18 +142,26 @@ physics or gameplay behavior.
   appearances survive export/import. Saves are explicit downloads; there is no
   automatic browser or cloud save.
 
-### Demo campaign
+### Showcase campaign
 
-- Startup loads **Sunny Hills** (96 × 18) into the editor and makes **Cave
-  Crossing** (72 × 18) and **Toolbox Adventure** (112 × 18) available in the
-  campaign selector.
-- **Load demos** restores all three built-in levels.
-- The demos include original bundled SVG art, hazards, collectibles, and a
-  playable route. Cave Crossing demonstrates springs, one-way and moving
-  platforms, a Fire Flower, checkpoint, and a switch/door passage. Toolbox
-  Adventure includes every toolbox item, including a boss, and a short in-game
-  hint; try the Mystery Box, Springs, power-ups, Switches, Doors, and boss
-  fight while crossing the level.
+- Startup loads **Pebble Path** and makes the complete ten-level campaign
+  available in the campaign selector. **Load demos** restores all ten
+  built-in showcase levels.
+- The original, bundled-art levels progress through increasingly tricky gaps,
+  ledges, moving platforms, spring jumps, switch-and-door puzzles, checkpoints,
+  enemy encounters, and a boss fight in every stage. Hints describe the main
+  challenge; power-ups, coins, and extra lives reward exploration.
+- Across the campaign, every built-in terrain and collectible appears, all 15
+  original Creepy types are demonstrated, and each level features a different
+  one of the ten built-in boss designs and a mix of their movement and attack
+  settings.
+- Golden Dune Dash and Meadow Machineworks have reciprocal pipe links with
+  configurable arrival tiles. Pipe travel preserves the run's score, lives, and
+  power-ups without counting as a level win.
+- Winning the final level of a run that began at level one triggers an extended
+  fireworks sequence, falling confetti, a trophy, and a campaign-complete
+  message. Starting partway through the campaign does not falsely mark earlier
+  levels as completed.
 - Creators can add levels up to a total of 50, remove levels (at least one is
   retained), name and position new levels when adding them, and switch between
   them.
@@ -190,9 +198,11 @@ physics or gameplay behavior.
 
 - Move: **A/D** or **Left/Right arrows**.
 - Jump: **W**, **Up arrow**, or **Space**.
+- Pipe travel: **Down arrow/S** from the top of a linked pipe, or **Up arrow**
+  beside one.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
-- Optional touch controls provide left, right, jump, and fireball buttons.
+- Optional touch controls provide left, right, jump, fireball, and pipe buttons.
   Fireballs can only be shot after collecting Fire Flower power. Controls are
   hidden by default; use **Show touch controls** in the game header to enable
   them. When shown, drag the control panel's handle to reposition it.
@@ -224,7 +234,8 @@ physics or gameplay behavior.
 | Object | Behavior |
 |---|---|
 | Ground, Sand, Stone, Snow | Solid terrain tiles with distinct appearances. |
-| Brick, Pipe | Solid terrain; Brick breaks when hit from below. |
+| Brick | Solid terrain that breaks when hit from below. |
+| Pipe | Solid terrain. On a linked campaign level, press ↓/S while standing on a pipe or ↑ beside one to travel to its destination. All pipes in a level share that destination; the destination can choose an arrival tile, and a return trip requires configuring a link in the other area. |
 | Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, or Fire Flower independently for each box hit. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
@@ -243,11 +254,16 @@ physics or gameplay behavior.
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also
 ends the run. Game-over provides a replay action; winning advances to the next
-campaign level when one exists, otherwise the campaign can be replayed. A win
-pauses gameplay for a brief player celebration with colorful, camera-visible
-firework bursts. Game over uses a visible upward spin and fall before fading.
-The win/game-over message and replay or campaign action appear centered over
-the game stage.
+campaign level when one exists. Pipe travel does not count as a win; the campaign
+finale requires that every earlier level has been won during the current run.
+Completing the last level after starting at the
+beginning triggers an extended firework finale, animated confetti, a trophy,
+and a campaign-complete message; campaigns can then be replayed. Starting
+mid-campaign does not claim that earlier levels were completed. Each level win
+also pauses gameplay for a player celebration with colorful, camera-visible
+fireworks. Game over uses a visible upward spin and fall before fading. The
+win/game-over message and replay or campaign action appear centered over the
+game stage.
 
 ### Feedback and audio
 

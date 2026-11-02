@@ -774,6 +774,19 @@ button {
   font-size: 14px;
 }
 
+.pipe-arrival-note {
+  margin: -8px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pipe-arrival-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .level-dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -1593,6 +1606,75 @@ button {
 
 .game-message-card .game-action:hover {
   background: #1268bb;
+}
+
+.game-message.is-campaign-complete {
+  overflow: hidden;
+  background: rgb(17 34 47 / 58%);
+}
+
+.game-message.is-campaign-complete::before {
+  position: absolute;
+  inset: -50% 0;
+  background-image:
+    radial-gradient(circle, #ffd34e 2px, transparent 3px),
+    radial-gradient(circle, #ff6d8b 2px, transparent 3px),
+    radial-gradient(circle, #71dcff 2px, transparent 3px),
+    radial-gradient(circle, #8be28b 2px, transparent 3px);
+  background-position: 0 0, 24px 18px, 42px 44px, 12px 58px;
+  background-size: 64px 76px;
+  content: "";
+  opacity: 0.9;
+  animation: campaign-confetti-fall 1.8s linear infinite;
+}
+
+.game-message.is-campaign-complete .game-message-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 520px);
+  gap: 12px;
+  padding: clamp(24px, 5vw, 42px);
+  border: 3px solid #ffd34e;
+  background: linear-gradient(145deg, #fff4bf, #fff 58%, #e8f8ff);
+  box-shadow: 0 0 0 7px rgb(255 211 78 / 28%), 0 22px 64px rgb(6 25 39 / 48%);
+}
+
+.campaign-complete-trophy {
+  font-size: clamp(52px, 10vw, 76px);
+  line-height: 1;
+  filter: drop-shadow(0 5px 3px rgb(143 96 10 / 25%));
+  animation: campaign-trophy-bounce 700ms ease-in-out infinite alternate;
+}
+
+.campaign-complete-trophy[hidden],
+.campaign-complete-caption[hidden] {
+  display: none;
+}
+
+.campaign-complete-caption {
+  color: #4a7055;
+  font-size: clamp(14px, 3vw, 19px);
+  font-weight: 800;
+}
+
+.game-message.is-campaign-complete .game-message-text {
+  color: #805a16;
+  font-size: clamp(27px, 5.5vw, 42px);
+}
+
+.game-message.is-campaign-complete .game-action {
+  min-height: 48px;
+  padding: 0 24px;
+  font-size: 15px;
+}
+
+@keyframes campaign-confetti-fall {
+  to { transform: translateY(76px); }
+}
+
+@keyframes campaign-trophy-bounce {
+  from { transform: translateY(4px) rotate(-5deg) scale(.96); }
+  to { transform: translateY(-5px) rotate(5deg) scale(1.05); }
 }
 
 @keyframes game-message-appear {

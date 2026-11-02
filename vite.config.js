@@ -90,7 +90,14 @@ export default defineConfig({
   base: process.env.GITHUB_ACTIONS ? '/KidCodeArcade/' : '/',
   plugins: [offlineAppShell()],
   build: {
-    chunkSizeWarningLimit: 1700
+    chunkSizeWarningLimit: 1700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/phaser/')) return 'phaser';
+        }
+      }
+    }
   },
   server: {
     port: 3000,

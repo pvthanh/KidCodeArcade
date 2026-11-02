@@ -1,6 +1,7 @@
 import { AUTO, Game, Scale } from 'phaser';
 import './styles/main.css';
 import { StateManager } from './core/StateManager.js';
+import { createShowcaseCampaign } from './core/DemoCampaign.js';
 import {
   CommandManager,
   PlaceTileCommand,
@@ -29,12 +30,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 const stateManager = new StateManager();
-const firstDemo = stateManager.getWorldSnapshot();
-stateManager.loadDemoTwo();
-const secondDemo = stateManager.getWorldSnapshot();
-stateManager.loadDemoThree();
-const thirdDemo = stateManager.getWorldSnapshot();
-stateManager.restoreWorld(firstDemo);
+const demoCampaign = createShowcaseCampaign(stateManager.getWorldSnapshot());
+stateManager.restoreWorld(demoCampaign[0].snapshot);
 const commandManager = new CommandManager();
 const eventBus = new EventBus();
 const paletteView = new PaletteView('palette', eventBus);
@@ -47,15 +44,7 @@ const uiOverlayEditor = new UIOverlayEditor(
   commandManager,
   eventBus,
   gridCanvas,
-  [
-    { name: 'Sunny Hills', snapshot: firstDemo },
-    { name: 'Cave Crossing', snapshot: secondDemo },
-    {
-      name: 'Toolbox Adventure',
-      hint: 'Try every tool: use the Switches and challenge the Boss before reaching the Goal!',
-      snapshot: thirdDemo
-    }
-  ]
+  demoCampaign
 );
 const soundEffectsEditor = new SoundEffectsEditor(stateManager, eventBus);
 
@@ -306,6 +295,8 @@ let activeGame = null;
 let activeModal = null;
 let touchState = null;
 let runLevelIndex = 0;
+let runStartLevelIndex = 0;
+const completedCampaignLevels = new Set();
 let gameRestartTimer = null;
 const initialCampaignProgress = () => ({
   score: 0,
@@ -362,7 +353,7 @@ function startGame() {
       <header class="game-header">
         <div>
           <strong>Play your level</strong>
-          <span>Move with arrows or A/D · Jump with W, ↑ or Space · Fireball with X/J</span>
+          <span>Move with arrows or A/D · Jump with W, ↑ or Space · Pipes: ↓/S or ↑ beside a pipe</span>
           <span class="game-level-hint" hidden></span>
         </div>
         <div class="game-header-actions">
@@ -380,7 +371,9 @@ function startGame() {
         </div>
         <div id="game-message" class="game-message" role="status" aria-live="polite" hidden>
           <div class="game-message-card">
+            <span class="campaign-complete-trophy" aria-hidden="true" hidden>🏆</span>
             <span class="game-message-text"></span>
+            <span class="campaign-complete-caption" hidden></span>
             <button class="game-action" type="button" hidden></button>
           </div>
         </div>
@@ -392,11 +385,13 @@ function startGame() {
           <button type="button" data-control="right" aria-label="Move right">▶</button>
           <button type="button" data-control="jump" aria-label="Jump">⤒</button>
           <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
+          <button type="button" data-control="enterPipe" aria-label="Use pipe" title="Use pipe">⬇</button>
         </div>
       </div>
     </div>
   `;
   document.body.appendChild(activeModal);
+  runStartLevelIndex = uiOverlayEditor.currentLevelIndex;
   const closeButton = activeModal.querySelector('.game-close');
   closeButton.addEventListener('click', closeGame);
   activeModal.addEventListener('pointerdown', event => {
@@ -407,7 +402,7 @@ function startGame() {
   };
   activeModal.addEventListener('keydown', handleEscape);
 
-  touchState = { left: false, right: false, jump: false, shoot: false };
+  touchState = { left: false, right: false, jump: false, shoot: false, enterPipe: false };
   const touchPanel = activeModal.querySelector('#touch-controls');
   const touchToggle = activeModal.querySelector('.touch-toggle');
   touchToggle.addEventListener('click', () => {
@@ -415,7 +410,9 @@ function startGame() {
     touchToggle.setAttribute('aria-expanded', String(!touchPanel.hidden));
     touchToggle.textContent = touchPanel.hidden ? 'Show touch controls' : 'Hide touch controls';
     if (touchPanel.hidden) {
-      Object.assign(touchState, { left: false, right: false, jump: false, shoot: false });
+      Object.assign(touchState, {
+        left: false, right: false, jump: false, shoot: false, enterPipe: false
+      });
     }
   });
   makeDraggable(touchPanel, touchPanel.querySelector('.touch-handle'));
@@ -438,6 +435,8 @@ function startGame() {
       launchCampaignLevel(runLevelIndex + 1);
     } else if (action.dataset.action === 'campaign') {
       campaignProgress = initialCampaignProgress();
+      completedCampaignLevels.clear();
+      runStartLevelIndex = 0;
       launchCampaignLevel(0);
     } else {
       campaignProgress = { ...currentLevelEntryProgress };
@@ -445,6 +444,7 @@ function startGame() {
     }
   });
   campaignProgress = initialCampaignProgress();
+  completedCampaignLevels.clear();
   setGameLoading(true);
   launchCampaignLevel(uiOverlayEditor.currentLevelIndex);
   closeButton.focus();
@@ -471,6 +471,9 @@ function launchCampaignLevel(index, progress = campaignProgress) {
   action.disabled = false;
   const message = activeModal.querySelector('#game-message');
   message.hidden = true;
+  message.classList.remove('is-campaign-complete');
+  activeModal.querySelector('.campaign-complete-trophy').hidden = true;
+  activeModal.querySelector('.campaign-complete-caption').hidden = true;
   activeModal.querySelector('.game-header strong').textContent =
     `Level ${index + 1}: ${level.name}`;
   const levelHint = activeModal.querySelector('.game-level-hint');
@@ -481,18 +484,42 @@ function launchCampaignLevel(index, progress = campaignProgress) {
     activeGame.destroy(true);
     activeGame = null;
     if (window.game) delete window.game;
-    Object.assign(touchState, { left: false, right: false, jump: false, shoot: false });
+    Object.assign(touchState, {
+      left: false, right: false, jump: false, shoot: false, enterPipe: false
+    });
     clearTimeout(gameRestartTimer);
     gameRestartTimer = setTimeout(() => {
       gameRestartTimer = null;
-      if (activeModal) createGameInstance(snapshot, level.name, index, campaignProgress);
+      if (activeModal) {
+        createGameInstance(
+          snapshot,
+          level.name,
+          index,
+          campaignProgress,
+          canCelebrateCampaignCompletion(index)
+        );
+      }
     }, 150);
     return;
   }
-  createGameInstance(snapshot, level.name, index, campaignProgress);
+  createGameInstance(
+    snapshot,
+    level.name,
+    index,
+    campaignProgress,
+    canCelebrateCampaignCompletion(index)
+  );
 }
 
-function createGameInstance(snapshot, levelName, levelIndex, progress) {
+function canCelebrateCampaignCompletion(index) {
+  const finalIndex = uiOverlayEditor.getCampaignLength() - 1;
+  return runStartLevelIndex === 0 && index === finalIndex &&
+    Array.from({ length: finalIndex }, (_, priorIndex) =>
+      completedCampaignLevels.has(priorIndex)
+    ).every(Boolean);
+}
+
+function createGameInstance(snapshot, levelName, levelIndex, progress, isCampaignFinal) {
   const recordId = `${levelIndex + 1}:${levelName}`;
   const scene = new GameScene(
     snapshot,
@@ -501,7 +528,8 @@ function createGameInstance(snapshot, levelName, levelIndex, progress) {
     touchState,
     eventBus,
     recordId,
-    progress
+    progress,
+    isCampaignFinal
   );
   scene.soundManager.startMusic();
   activeGame = new Game({
@@ -527,31 +555,48 @@ function createGameInstance(snapshot, levelName, levelIndex, progress) {
 
 eventBus.on('gameReady', () => setGameLoading(false));
 
+eventBus.on('pipeTravel', ({ destinationIndex, campaignProgress: progress }) => {
+  if (!Number.isInteger(destinationIndex) ||
+    destinationIndex < 0 || destinationIndex >= uiOverlayEditor.getCampaignLength()) {
+    console.error('Cannot travel through pipe: destination is outside the current campaign.');
+    return;
+  }
+  launchCampaignLevel(destinationIndex, progress);
+});
+
 eventBus.on('gameMessage', result => {
   const gameMessage = activeModal?.querySelector('#game-message');
   if (!gameMessage) return;
   const { message, won } = typeof result === 'string'
     ? { message: result, won: false }
     : result;
+  const campaignComplete = won && result.campaignComplete === true;
+  if (won) completedCampaignLevels.add(runLevelIndex);
   if (won && result.campaignProgress) {
     campaignProgress = { ...result.campaignProgress };
   }
   gameMessage.hidden = false;
+  gameMessage.classList.toggle('is-campaign-complete', campaignComplete);
   gameMessage.querySelector('.game-message-text').textContent = message;
+  const trophy = gameMessage.querySelector('.campaign-complete-trophy');
+  trophy.hidden = !campaignComplete;
+  const caption = gameMessage.querySelector('.campaign-complete-caption');
+  caption.textContent = `You conquered all ${uiOverlayEditor.getCampaignLength()} levels!`;
+  caption.hidden = !campaignComplete;
   const action = gameMessage.querySelector('.game-action');
   action.hidden = false;
   action.disabled = false;
   if (!won) {
     action.textContent = 'Replay level';
     action.dataset.action = 'replay';
+  } else if (campaignComplete) {
+    action.textContent = 'Play the campaign again';
+    action.dataset.action = 'campaign';
   } else if (runLevelIndex + 1 < uiOverlayEditor.getCampaignLength()) {
     action.textContent = `Next level (${runLevelIndex + 2})`;
     action.dataset.action = 'next';
-  } else if (uiOverlayEditor.getCampaignLength() > 1) {
-    action.textContent = 'Replay campaign';
-    action.dataset.action = 'campaign';
   } else {
-    action.textContent = 'Replay level';
+    action.textContent = 'Play again';
     action.dataset.action = 'replay';
   }
 });
