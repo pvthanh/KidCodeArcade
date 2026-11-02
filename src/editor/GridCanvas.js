@@ -76,6 +76,13 @@ export class GridCanvas {
     this.isPainting = false;
     this.isPanning = false;
     this.panMode = false;
+    this.selectionMode = false;
+    this.selectedCells = [];
+    this.movePreview = null;
+    this.linkDragSource = null;
+    this.pointerPosition = null;
+    this.isMovingSelection = false;
+    this.isLinkingPipes = false;
     this.lastPanPosition = null;
     this.lastPaintedCell = '';
     this.bindEvents();
@@ -103,6 +110,10 @@ export class GridCanvas {
         this.canvas.setPointerCapture(event.pointerId);
         return;
       }
+      if (this.selectionMode) {
+        this.beginSelectionGesture(event);
+        return;
+      }
       this.isPainting = true;
       this.canvas.setPointerCapture(event.pointerId);
       this.paintAt(event);
@@ -116,9 +127,14 @@ export class GridCanvas {
         this.lastPanPosition = { x: event.clientX, y: event.clientY };
         return;
       }
+      if (this.isMovingSelection || this.isLinkingPipes) {
+        this.updateSelectionGesture(event);
+        return;
+      }
       if (this.isPainting) this.paintAt(event);
     });
-    this.canvas.addEventListener('pointerup', () => {
+    this.canvas.addEventListener('pointerup', event => {
+      if (this.isMovingSelection || this.isLinkingPipes) this.finishSelectionGesture(event);
       this.isPainting = false;
       this.isPanning = false;
       this.lastPanPosition = null;
@@ -129,12 +145,16 @@ export class GridCanvas {
       this.isPanning = false;
       this.lastPanPosition = null;
       this.lastPaintedCell = '';
+      this.clearSelectionGesture();
+      this.refresh();
     });
     this.canvas.addEventListener('lostpointercapture', () => {
       this.isPainting = false;
       this.isPanning = false;
       this.lastPanPosition = null;
       this.lastPaintedCell = '';
+      this.clearSelectionGesture();
+      this.refresh();
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
     this.eventBus.on('boardPanModeChanged', enabled => {
@@ -144,6 +164,25 @@ export class GridCanvas {
       this.lastPanPosition = null;
       this.lastPaintedCell = '';
       this.board.classList.toggle('is-panning', enabled);
+    });
+    this.eventBus.on('selectionModeChanged', enabled => {
+      this.selectionMode = enabled;
+      this.selectedCells = [];
+      this.clearSelectionGesture();
+      this.board.classList.toggle('is-selecting', enabled);
+      this.refresh();
+    });
+    this.eventBus.on('selectionMoved', ({ cells, deltaRow, deltaCol }) => {
+      this.selectedCells = cells.map(cell => ({
+        row: cell.row + deltaRow,
+        col: cell.col + deltaCol
+      }));
+      this.refresh();
+    });
+    this.eventBus.on('levelLoaded', () => {
+      this.selectedCells = [];
+      this.clearSelectionGesture();
+      this.refresh();
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.loadSprite(tileId, dataUrl));
     this.eventBus.on('creepyTypesChanged', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
@@ -157,15 +196,121 @@ export class GridCanvas {
   }
 
   paintAt(event) {
-    const bounds = this.canvas.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) * this.canvas.width / bounds.width;
-    const y = (event.clientY - bounds.top) * this.canvas.height / bounds.height;
-    const cell = this.stateManager.getTileFromPixel(x, y);
+    const point = this.canvasPoint(event);
+    const cell = this.stateManager.getTileFromPixel(point.x, point.y);
     if (!cell) return;
     const key = `${cell.row}:${cell.col}`;
     if (this.lastPaintedCell === key) return;
     this.lastPaintedCell = key;
     this.eventBus.emit('paintTile', cell);
+  }
+
+  canvasPoint(event) {
+    const bounds = this.canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * this.canvas.width / bounds.width,
+      y: (event.clientY - bounds.top) * this.canvas.height / bounds.height
+    };
+  }
+
+  pipeGroupAt(cell) {
+    if (this.stateManager.getTile(cell.row, cell.col) !== 'Pipe') return [cell];
+    let firstRow = cell.row;
+    let lastRow = cell.row;
+    while (this.stateManager.getTile(firstRow - 1, cell.col) === 'Pipe') firstRow -= 1;
+    while (this.stateManager.getTile(lastRow + 1, cell.col) === 'Pipe') lastRow += 1;
+    return Array.from({ length: lastRow - firstRow + 1 }, (_, index) => ({
+      row: firstRow + index,
+      col: cell.col
+    }));
+  }
+
+  beginSelectionGesture(event) {
+    const point = this.canvasPoint(event);
+    const cell = this.stateManager.getTileFromPixel(point.x, point.y);
+    if (!cell) return;
+    const tileType = this.stateManager.getTile(cell.row, cell.col);
+    if (!tileType) {
+      this.selectedCells = [];
+      this.refresh();
+      return;
+    }
+
+    const nextSelection = this.pipeGroupAt(cell);
+    this.selectedCells = nextSelection;
+    const isPipe = tileType === 'Pipe';
+    const groupBottom = nextSelection.at(-1);
+    const handleX = (groupBottom.col + 1) * this.stateManager.tileSize - 7;
+    const handleY = (groupBottom.row + 1) * this.stateManager.tileSize - 7;
+    const onPipeHandle = isPipe &&
+      Math.hypot(point.x - handleX, point.y - handleY) <= 11;
+    const startCell = this.stateManager.getTileFromPixel(point.x, point.y);
+    if (onPipeHandle) {
+      this.isLinkingPipes = true;
+      this.linkDragSource = { ...nextSelection[0] };
+      this.pointerPosition = point;
+    } else {
+      this.isMovingSelection = true;
+      this.moveStartCell = startCell;
+      this.movePreview = { deltaRow: 0, deltaCol: 0 };
+    }
+    this.canvas.setPointerCapture(event.pointerId);
+    this.refresh();
+  }
+
+  updateSelectionGesture(event) {
+    const point = this.canvasPoint(event);
+    this.pointerPosition = point;
+    if (this.isMovingSelection && this.moveStartCell) {
+      const cell = this.stateManager.getTileFromPixel(point.x, point.y);
+      if (cell) {
+        this.movePreview = {
+          deltaRow: cell.row - this.moveStartCell.row,
+          deltaCol: cell.col - this.moveStartCell.col
+        };
+      }
+    }
+    this.refresh();
+  }
+
+  finishSelectionGesture(event) {
+    const point = this.canvasPoint(event);
+    if (this.isLinkingPipes && this.linkDragSource) {
+      const targetCell = this.stateManager.getTileFromPixel(point.x, point.y);
+      if (targetCell && this.stateManager.getTile(targetCell.row, targetCell.col) === 'Pipe') {
+        const target = this.pipeGroupAt(targetCell)[0];
+        if (target.row !== this.linkDragSource.row || target.col !== this.linkDragSource.col) {
+          this.eventBus.emit('pipeLinkRequested', {
+            source: this.linkDragSource,
+            destination: target
+          });
+        } else {
+          this.eventBus.emit('status', 'Choose a different pipe for the connection.');
+        }
+      } else {
+        this.eventBus.emit('status', 'Drop the pipe connection on another pipe.');
+      }
+    } else if (this.isMovingSelection && this.movePreview &&
+      (this.movePreview.deltaRow || this.movePreview.deltaCol)) {
+      const { deltaRow, deltaCol } = this.movePreview;
+      const originalCells = this.selectedCells.map(cell => ({ ...cell }));
+      this.eventBus.emit('moveTiles', {
+        cells: originalCells,
+        deltaRow,
+        deltaCol
+      });
+    }
+    this.clearSelectionGesture();
+    this.refresh();
+  }
+
+  clearSelectionGesture() {
+    this.isMovingSelection = false;
+    this.isLinkingPipes = false;
+    this.linkDragSource = null;
+    this.pointerPosition = null;
+    this.moveStartCell = null;
+    this.movePreview = null;
   }
 
   loadSprite(tileId, dataUrl) {
@@ -221,7 +366,93 @@ export class GridCanvas {
         }
       }
     }
+    if (this.selectionMode) this.drawSelectionOverlay(ctx, tileSize);
+  }
 
+  drawSelectionOverlay(ctx, tileSize) {
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1684c7';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.setLineDash([7, 5]);
+    for (const link of this.stateManager.pipeLinks) {
+      const sourceX = (link.source.col + 0.5) * tileSize;
+      const sourceY = (link.source.row + 0.5) * tileSize;
+      const targetX = (link.destination.col + 0.5) * tileSize;
+      const targetY = (link.destination.row + 0.5) * tileSize;
+      ctx.beginPath();
+      ctx.moveTo(sourceX, sourceY);
+      ctx.quadraticCurveTo((sourceX + targetX) / 2, (sourceY + targetY) / 2 - 28, targetX, targetY);
+      ctx.strokeStyle = 'rgba(20, 118, 176, 0.76)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      this.drawPipeLinkNode(ctx, sourceX, sourceY);
+      this.drawPipeLinkNode(ctx, targetX, targetY);
+    }
+
+    if (this.selectedCells.length) {
+      const offset = this.movePreview || { deltaRow: 0, deltaCol: 0 };
+      for (const cell of this.selectedCells) {
+        const x = (cell.col + offset.deltaCol) * tileSize;
+        const y = (cell.row + offset.deltaRow) * tileSize;
+        const inside = x >= 0 && y >= 0 &&
+          x + tileSize <= this.canvas.width && y + tileSize <= this.canvas.height;
+        ctx.fillStyle = this.isMovingSelection
+          ? inside ? 'rgba(64, 190, 132, 0.2)' : 'rgba(228, 77, 77, 0.2)'
+          : 'rgba(255, 255, 255, 0.17)';
+        ctx.strokeStyle = this.isMovingSelection
+          ? inside ? '#20a873' : '#dc4d4d'
+          : '#1684c7';
+        ctx.setLineDash(this.isMovingSelection ? [5, 3] : []);
+        ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+        ctx.strokeRect(x + 1.5, y + 1.5, tileSize - 3, tileSize - 3);
+      }
+
+      if (this.selectedCells.length > 1 || this.stateManager.getTile(
+        this.selectedCells[0].row,
+        this.selectedCells[0].col
+      ) === 'Pipe') {
+        const end = this.selectedCells.at(-1);
+        const centerX = (end.col + 1) * tileSize - 7;
+        const centerY = (end.row + 1) * tileSize - 7;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = this.isLinkingPipes ? '#f2ad3f' : '#f7fbff';
+        ctx.fill();
+        ctx.strokeStyle = this.isLinkingPipes ? '#945b05' : '#1476b0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#145b7e';
+        ctx.fillText('↗', centerX, centerY);
+      }
+    }
+
+    if (this.isLinkingPipes && this.linkDragSource && this.pointerPosition) {
+      const startX = (this.linkDragSource.col + 0.5) * tileSize;
+      const startY = (this.linkDragSource.row + 0.5) * tileSize;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(this.pointerPosition.x, this.pointerPosition.y);
+      ctx.strokeStyle = '#f2ad3f';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 5]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawPipeLinkNode(ctx, x, y) {
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e7f7ff';
+    ctx.fill();
+    ctx.strokeStyle = '#1476b0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   drawRewardBadge(ctx, x, y, tileSize) {

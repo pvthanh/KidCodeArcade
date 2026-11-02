@@ -4,8 +4,10 @@ import { StateManager } from './core/StateManager.js';
 import { createShowcaseCampaign } from './core/DemoCampaign.js';
 import {
   CommandManager,
+  MoveTilesCommand,
   PlaceTileCommand,
   RemoveTileCommand,
+  SetPipeLinksCommand,
   SetTileVariantCommand
 } from './core/CommandManager.js';
 import { EventBus } from './core/EventBus.js';
@@ -202,6 +204,56 @@ eventBus.on('paintTile', ({ row, col }) => {
   if (!commandManager.executeWithManager(command, stateManager)) return;
   gridCanvas.refresh();
   uiOverlayEditor.updateHistory();
+});
+
+eventBus.on('moveTiles', ({ cells, deltaRow, deltaCol }) => {
+  try {
+    if (!commandManager.executeWithManager(
+      new MoveTilesCommand(cells, deltaRow, deltaCol),
+      stateManager
+    )) {
+      eventBus.emit('status', 'That spot is outside the board or already occupied.');
+      return;
+    }
+    gridCanvas.refresh();
+    uiOverlayEditor.updateHistory();
+    uiOverlayEditor.saveCurrentLevel();
+    eventBus.emit('selectionMoved', { cells, deltaRow, deltaCol });
+    eventBus.emit('status', 'Object moved. Use Undo if you want to put it back.');
+  } catch (error) {
+    console.error('Could not move the selected object:', error);
+    eventBus.emit('status', `Could not move object: ${error.message}`);
+  }
+});
+
+eventBus.on('pipeLinkRequested', ({ source, destination }) => {
+  try {
+    const sameEndpoint = (left, right) => left.row === right.row && left.col === right.col;
+    const remainingLinks = stateManager.pipeLinks.filter(link =>
+      ![link.source, link.destination].some(endpoint =>
+        sameEndpoint(endpoint, source) || sameEndpoint(endpoint, destination)
+      )
+    );
+    const replacedCount = stateManager.pipeLinks.length - remainingLinks.length;
+    const pipeLinks = [...remainingLinks, { source, destination }];
+    if (!commandManager.executeWithManager(
+      new SetPipeLinksCommand(pipeLinks),
+      stateManager
+    )) {
+      eventBus.emit('status', 'Those pipes are already connected.');
+      return;
+    }
+    gridCanvas.refresh();
+    uiOverlayEditor.updateHistory();
+    uiOverlayEditor.saveCurrentLevel();
+    eventBus.emit(
+      'status',
+      `Pipe connected${replacedCount ? `; replaced ${replacedCount} existing connection${replacedCount === 1 ? '' : 's'}` : ''}. Down at row ${source.row + 1}, column ${source.col + 1} travels to the selected pipe.`
+    );
+  } catch (error) {
+    console.error('Could not connect the selected pipes:', error);
+    eventBus.emit('status', `Could not connect pipes: ${error.message}`);
+  }
 });
 
 eventBus.on('undo', () => {
@@ -556,15 +608,6 @@ function createGameInstance(snapshot, levelName, levelIndex, progress, isCampaig
 }
 
 eventBus.on('gameReady', () => setGameLoading(false));
-
-eventBus.on('pipeTravel', ({ destinationIndex, campaignProgress: progress }) => {
-  if (!Number.isInteger(destinationIndex) ||
-    destinationIndex < 0 || destinationIndex >= uiOverlayEditor.getCampaignLength()) {
-    console.error('Cannot travel through pipe: destination is outside the current campaign.');
-    return;
-  }
-  launchCampaignLevel(destinationIndex, progress);
-});
 
 eventBus.on('gameMessage', result => {
   const gameMessage = activeModal?.querySelector('#game-message');

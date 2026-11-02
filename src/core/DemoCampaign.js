@@ -34,7 +34,7 @@ const LEVELS = [
   },
   {
     name: 'Golden Dune Dash',
-    hint: 'Use the spring to clear the sand gaps. Stand on the pipe and press ↓/S to visit Meadow Machineworks; use its pipe to return.',
+    hint: 'Use the spring to clear the sand gaps. The pipe is a local shortcut; press ↓ while standing on its top.',
     theme: 'desert',
     creeps: [['Creepy-Ladybug', 16, 18], ['Creepy-CloudPuff', 9, 34]],
     gaps: [[18, 21], [35, 38], [52, 55]],
@@ -207,14 +207,53 @@ export function createShowcaseCampaign(baseSnapshot) {
     hint: recipe.hint,
     snapshot: createLevelSnapshot(baseSnapshot, recipe, index)
   }));
-  const duneIndex = 2;
-  const meadowIndex = 4;
-  campaign[duneIndex].snapshot.pipeDestination = meadowIndex;
-  campaign[duneIndex].snapshot.pipeArrival = { row: 16, col: 56 };
-  campaign[meadowIndex].snapshot.pipeDestination = duneIndex;
-  campaign[meadowIndex].snapshot.pipeArrival = { row: 16, col: 57 };
-  campaign[meadowIndex].hint =
-    'Press both switches to open the doors. The pipe leads back to Golden Dune Dash; jump on it and press ↓/S.';
+  const cols = 80;
+  const rows = 30;
+  const tiles = Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, () => row === rows - 1 ? 'Ground' : null));
+  const floors = [29, 22, 15, 8];
+  for (const floor of floors.slice(1)) {
+    for (let col = 0; col < cols; col += 1) {
+      if ((floor === 22 && col >= 32 && col <= 34) ||
+        (floor === 15 && col >= 47 && col <= 49)) continue;
+      tiles[floor][col] = 'Ground';
+    }
+  }
+  const pipeLinks = [
+    { source: { row: 6, col: 10 }, destination: { row: 13, col: 62 } },
+    { source: { row: 13, col: 55 }, destination: { row: 20, col: 40 } },
+    { source: { row: 20, col: 20 }, destination: { row: 27, col: 10 } }
+  ];
+  for (const { source, destination } of pipeLinks) {
+    for (const endpoint of [source, destination]) {
+      tiles[endpoint.row][endpoint.col] = 'Pipe';
+      tiles[endpoint.row + 1][endpoint.col] = 'Pipe';
+    }
+  }
+  for (const [row, col, tile] of [
+    [28, 16, 'Goomba'], [21, 28, 'Creepy-Hedgehog'], [14, 43, 'Koopa'],
+    [7, 67, 'Creepy-Firefly'], [28, 6, 'Coin'], [21, 25, 'Coin'],
+    [14, 58, 'Coin'], [7, 70, 'Star'], [28, 78, 'Flag'], [28, 18, 'Checkpoint'],
+    [21, 37, 'MysteryBox'], [14, 65, 'FireFlower']
+  ]) {
+    tiles[row][col] = tile;
+  }
+  tiles[7][2] = 'Player';
+  const tileVariants = tiles.map(row => row.map(tile => tile ? 'classic' : null));
+  campaign.splice(campaign.length - 1, 0, {
+    name: 'Pipeworks: Four Floors',
+    hint: 'Explore four floors! Stand on each marked pipe and press ↓ to travel down. Jump beside the exit pipe and press ↑ to return. Find the Star on the top floor and reach the flag on the bottom floor.',
+    snapshot: {
+      ...baseSnapshot,
+      cols,
+      rows,
+      tiles,
+      tileVariants,
+      pipeLinks,
+      worldTheme: 'forest',
+      activeTileType: 'Ground'
+    }
+  });
   return campaign;
 }
 

@@ -1,4 +1,8 @@
-import { ClearGridCommand, ResizeWorldCommand } from '../core/CommandManager.js';
+import {
+  ClearGridCommand,
+  ResizeWorldCommand,
+  SetPipeLinksCommand
+} from '../core/CommandManager.js';
 import { WORLD_THEMES } from '../core/StateManager.js';
 
 export class UIOverlayEditor {
@@ -66,28 +70,31 @@ export class UIOverlayEditor {
       <dialog id="pipe-link-dialog" class="level-dialog" aria-labelledby="pipe-link-title">
         <form id="pipe-link-form" class="level-dialog-form">
           <header class="level-dialog-header">
-            <span class="eyebrow">AREA TRAVEL</span>
-            <h2 id="pipe-link-title">Connect this area’s pipes</h2>
-            <p>Every pipe in this area leads to the chosen area. Pipes need to be placed on the board.</p>
+            <span class="eyebrow">SAME-LEVEL TRAVEL</span>
+            <h2 id="pipe-link-title">Connect two pipes</h2>
+            <p>Travel between these pipes without leaving this level. Place both pipes first.</p>
           </header>
-          <label class="level-dialog-field" for="pipe-destination">
-            Destination area
-            <select id="pipe-destination" name="destination"></select>
-          </label>
-          <p class="pipe-arrival-note">Choose the landing tile in the destination area. Set a return link there to travel back.</p>
           <div class="pipe-arrival-fields">
-            <label class="level-dialog-field" for="pipe-arrival-row">
-              Arrival row
-              <input id="pipe-arrival-row" name="arrivalRow" type="number" min="1" step="1">
-            </label>
-            <label class="level-dialog-field" for="pipe-arrival-col">
-              Arrival column
-              <input id="pipe-arrival-col" name="arrivalCol" type="number" min="1" step="1">
-            </label>
+            <fieldset class="pipe-endpoint-fields">
+              <legend>Entry pipe (press ↓)</legend>
+              <label class="level-dialog-field" for="pipe-source">
+                Choose placed pipe
+                <select id="pipe-source" name="source" required></select>
+              </label>
+            </fieldset>
+            <fieldset class="pipe-endpoint-fields">
+              <legend>Exit pipe (jump + press ↑ to return)</legend>
+              <label class="level-dialog-field" for="pipe-target">
+                Choose placed pipe
+                <select id="pipe-target" name="target" required></select>
+              </label>
+            </fieldset>
           </div>
+          <p class="pipe-arrival-note" id="pipe-links-summary"></p>
           <footer class="level-dialog-actions">
+            <button id="clear-pipe-links" class="secondary-button" type="button">Clear connections</button>
             <button id="cancel-pipe-link" class="secondary-button" type="button">Cancel</button>
-            <button class="primary-button" type="submit">Save pipe link</button>
+            <button class="primary-button" type="submit">Connect pipes</button>
           </footer>
         </form>
       </dialog>
@@ -174,7 +181,7 @@ export class UIOverlayEditor {
             </article>
             <article class="help-step">
               <span class="help-step-number">3</span>
-              <div><h3>Make it yours</h3><p>Choose a hero, change the scenery, add sounds, or build more levels in your campaign.</p></div>
+              <div><h3>Move and customize</h3><p>Choose a hero or scenery, then use Select beside Undo to move objects. Drag a pipe’s bottom handle to another pipe to connect them.</p></div>
             </article>
             <article class="help-step">
               <span class="help-step-number">4</span>
@@ -266,6 +273,7 @@ export class UIOverlayEditor {
       this.toolbar.querySelector('#new-level-dialog').close());
     this.toolbar.querySelector('#toggle-board-pan').addEventListener('click', event => {
       const enabled = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      if (enabled) this.eventBus.emit('selectionModeChanged', false);
       event.currentTarget.setAttribute('aria-pressed', String(enabled));
       event.currentTarget.setAttribute(
         'aria-label',
@@ -277,6 +285,18 @@ export class UIOverlayEditor {
         ? 'Move board is on. Drag the canvas to pan; tap Move board again to paint.'
         : 'Move board is off. Choose a tool and drag to paint.');
     });
+    this.eventBus.on('selectionModeChanged', enabled => {
+      const panButton = this.toolbar.querySelector('#toggle-board-pan');
+      if (enabled) {
+        panButton.setAttribute('aria-pressed', 'false');
+        panButton.setAttribute('aria-label', 'Move the board by dragging');
+        panButton.dataset.tooltip = 'Move board';
+        this.eventBus.emit('boardPanModeChanged', false);
+      }
+      this.setStatus(enabled
+        ? 'Select mode: drag an object to move it. Select a pipe, then drag its ↗ handle to another pipe to connect them.'
+        : 'Select mode off. Choose a tool and drag to paint.');
+    });
     this.toolbar.querySelector('#remove-campaign-level').addEventListener('click', () => this.removeCampaignLevel());
     this.toolbar.querySelector('#save-campaign').addEventListener('click', () => this.saveCampaign());
     this.toolbar.querySelector('#open-campaign-button').addEventListener('click', () =>
@@ -285,10 +305,20 @@ export class UIOverlayEditor {
       this.loadCampaign(event.target.files?.[0]));
     this.toolbar.querySelector('#pipe-link-button').addEventListener('click', () =>
       this.showPipeLinkDialog());
-    this.toolbar.querySelector('#pipe-destination').addEventListener('change', event =>
-      this.syncPipeArrivalFields(event.target.value === '' ? null : Number(event.target.value)));
     this.toolbar.querySelector('#cancel-pipe-link').addEventListener('click', () =>
       this.toolbar.querySelector('#pipe-link-dialog').close());
+    this.toolbar.querySelector('#clear-pipe-links').addEventListener('click', () => {
+      if (this.commandManager.executeWithManager(
+        new SetPipeLinksCommand([]),
+        this.stateManager
+      )) {
+        this.gridCanvas.refresh();
+        this.saveCurrentLevel();
+        this.updateHistory();
+      }
+      this.toolbar.querySelector('#pipe-link-dialog').close();
+      this.setStatus('All same-level pipe connections were removed.');
+    });
     this.toolbar.querySelector('#pipe-link-form').addEventListener('submit', event => {
       event.preventDefault();
       try {
@@ -344,97 +374,76 @@ export class UIOverlayEditor {
     select.value = String(this.currentLevelIndex);
     this.toolbar.querySelector('#remove-campaign-level').disabled = this.levels.length <= 1;
     this.toolbar.querySelector('#add-campaign-level').disabled = this.levels.length >= 50;
-    const destinationSelect = this.toolbar.querySelector('#pipe-destination');
-    if (destinationSelect) {
-      destinationSelect.replaceChildren(new Option('Not connected', ''));
-      this.levels.forEach((level, index) => {
-        if (index === this.currentLevelIndex) return;
-        destinationSelect.add(new Option(`Level ${index + 1}: ${level.name}`, String(index)));
-      });
-      destinationSelect.value = this.stateManager.pipeDestination !== null &&
-        this.stateManager.pipeDestination < this.levels.length &&
-        this.stateManager.pipeDestination !== this.currentLevelIndex
-        ? String(this.stateManager.pipeDestination)
-        : '';
-    }
   }
 
   showPipeLinkDialog() {
     const dialog = this.toolbar.querySelector('#pipe-link-dialog');
-    const destination = this.toolbar.querySelector('#pipe-destination');
-    const currentDestination = this.stateManager.pipeDestination;
-    if (currentDestination !== null &&
-      currentDestination < this.levels.length &&
-      currentDestination !== this.currentLevelIndex) {
-      destination.value = String(currentDestination);
-    } else {
-      destination.value = '';
+    const options = [new Option('Choose a pipe', '')];
+    this.stateManager.tiles.forEach((row, rowIndex) => {
+      row.forEach((tile, colIndex) => {
+        if (tile === 'Pipe' && this.stateManager.tiles[rowIndex - 1]?.[colIndex] !== 'Pipe') {
+          options.push(new Option(
+            `Row ${rowIndex + 1}, column ${colIndex + 1}`,
+            `${rowIndex}:${colIndex}`
+          ));
+        }
+      });
+    });
+    for (const id of ['pipe-source', 'pipe-target']) {
+      const select = this.toolbar.querySelector(`#${id}`);
+      select.replaceChildren(...options.map(option => option.cloneNode(true)));
     }
-    this.syncPipeArrivalFields(destination.value === '' ? null : Number(destination.value));
+    this.updatePipeLinksSummary();
     dialog.showModal();
   }
 
-  syncPipeArrivalFields(destinationIndex) {
-    const rowInput = this.toolbar.querySelector('#pipe-arrival-row');
-    const colInput = this.toolbar.querySelector('#pipe-arrival-col');
-    if (destinationIndex === null) {
-      rowInput.value = '';
-      colInput.value = '';
-      rowInput.disabled = true;
-      colInput.disabled = true;
-      return;
-    }
-    const destination = this.levels[destinationIndex];
-    if (!destination) return;
-    const spawn = destination.snapshot.tiles.flatMap((row, rowIndex) =>
-      row.map((tile, colIndex) => tile === 'Player' ? { row: rowIndex, col: colIndex } : null)
-    ).find(Boolean);
-    const spawnRow = spawn?.row ?? destination.snapshot.rows - 2;
-    const emptyCol = destination.snapshot.tiles[spawnRow]
-      .findIndex((tile, col) => tile === null && col > (spawn?.col ?? 1));
-    const arrival = destination.snapshot.pipeArrival || {
-      row: spawnRow,
-      col: emptyCol >= 0 ? emptyCol : Math.min(destination.snapshot.cols - 1, 2)
-    };
-    rowInput.max = String(destination.snapshot.rows);
-    colInput.max = String(destination.snapshot.cols);
-    rowInput.value = String(arrival.row + 1);
-    colInput.value = String(arrival.col + 1);
-    rowInput.disabled = false;
-    colInput.disabled = false;
+  updatePipeLinksSummary() {
+    const count = this.stateManager.pipeLinks.length;
+    this.toolbar.querySelector('#pipe-links-summary').textContent = count
+      ? `${count} connection${count === 1 ? '' : 's'} saved. Hold ↓ on top of the entry pipe to travel down; jump and press ↑ beside the exit pipe to return.`
+      : 'Choose two different placed pipes. Row and column labels start at 1.';
   }
 
   savePipeLink() {
-    const destinationValue = this.toolbar.querySelector('#pipe-destination').value;
-    const destinationIndex = destinationValue === '' ? null : Number(destinationValue);
-    if (destinationIndex === null) {
-      this.stateManager.pipeDestination = null;
-      this.saveCurrentLevel();
+    const readEndpoint = name => {
+      const value = this.toolbar.querySelector(`#pipe-${name}`).value;
+      if (!value.includes(':')) {
+        throw new TypeError('Choose a placed pipe for both ends.');
+      }
+      const [row, col] = value.split(':').map(Number);
+      return { row, col };
+    };
+    const source = readEndpoint('source');
+    const destination = readEndpoint('target');
+    for (const endpoint of [source, destination]) {
+      if (!Number.isInteger(endpoint.row) || !Number.isInteger(endpoint.col) ||
+        this.stateManager.getTile(endpoint.row, endpoint.col) !== 'Pipe') {
+        throw new TypeError('Choose a placed pipe for both ends.');
+      }
+    }
+    const sameEndpoint = (left, right) => left.row === right.row && left.col === right.col;
+    const remainingLinks = this.stateManager.pipeLinks.filter(link =>
+      ![link.source, link.destination].some(endpoint =>
+        sameEndpoint(endpoint, source) || sameEndpoint(endpoint, destination)
+      )
+    );
+    const pipeLinks = [...remainingLinks, { source, destination }];
+    if (!this.commandManager.executeWithManager(
+      new SetPipeLinksCommand(pipeLinks),
+      this.stateManager
+    )) {
       this.toolbar.querySelector('#pipe-link-dialog').close();
-      this.setStatus('Pipes in this area are not connected.');
+      this.setStatus('Those pipes are already connected.');
       return;
     }
-    if (!Number.isInteger(destinationIndex) || destinationIndex === this.currentLevelIndex ||
-      !this.levels[destinationIndex]) {
-      throw new RangeError('Choose a different, existing area for this pipe link.');
-    }
-    const row = Number(this.toolbar.querySelector('#pipe-arrival-row').value) - 1;
-    const col = Number(this.toolbar.querySelector('#pipe-arrival-col').value) - 1;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) {
-      throw new TypeError('Enter a valid arrival row and column.');
-    }
-    const target = this.levels[destinationIndex];
-    const updatedTarget = {
-      ...target.snapshot,
-      pipeArrival: { row, col }
-    };
-    this.stateManager.validateWorld(updatedTarget);
+    this.gridCanvas.refresh();
+    this.updateHistory();
     this.saveCurrentLevel();
-    this.stateManager.pipeDestination = destinationIndex;
-    target.snapshot = updatedTarget;
-    this.saveCurrentLevel();
+    this.updatePipeLinksSummary();
     this.toolbar.querySelector('#pipe-link-dialog').close();
-    this.setStatus(`Pipes in this area now lead to Level ${destinationIndex + 1}: ${target.name}.`);
+    this.setStatus(
+      `Pipe at row ${source.row + 1}, column ${source.col + 1} now connects to row ${destination.row + 1}, column ${destination.col + 1}.`
+    );
   }
 
   applyLevelSnapshot(snapshot) {
@@ -519,13 +528,8 @@ export class UIOverlayEditor {
       throw new RangeError('Choose a valid position in the campaign.');
     }
     this.saveCurrentLevel();
-    this.levels.forEach(level => {
-      if (level.snapshot.pipeDestination !== null &&
-        level.snapshot.pipeDestination >= position) level.snapshot.pipeDestination += 1;
-    });
     const snapshot = this.stateManager.getWorldSnapshot();
-    snapshot.pipeDestination = null;
-    snapshot.pipeArrival = null;
+    snapshot.pipeLinks = [];
     snapshot.tiles = Array.from({ length: snapshot.rows }, (_, row) =>
       Array(snapshot.cols).fill(null));
     snapshot.tileVariants = Array.from({ length: snapshot.rows }, () =>
@@ -541,15 +545,7 @@ export class UIOverlayEditor {
     if (this.levels.length <= 1) return;
     const levelName = this.levels[this.currentLevelIndex].name;
     if (!window.confirm(`Remove "${levelName}" from this campaign?`)) return;
-    const removedIndex = this.currentLevelIndex;
     this.levels.splice(this.currentLevelIndex, 1);
-    this.levels.forEach(level => {
-      if (level.snapshot.pipeDestination === removedIndex) {
-        level.snapshot.pipeDestination = null;
-      } else if (level.snapshot.pipeDestination > removedIndex) {
-        level.snapshot.pipeDestination -= 1;
-      }
-    });
     this.currentLevelIndex = Math.min(this.currentLevelIndex, this.levels.length - 1);
     this.applyLevelSnapshot(this.levels[this.currentLevelIndex].snapshot);
     this.setStatus(`${levelName} removed from the campaign.`);
@@ -609,13 +605,6 @@ export class UIOverlayEditor {
           snapshot: JSON.parse(JSON.stringify(level.snapshot))
         };
       });
-      levels.forEach((level, index) => {
-        const destination = level.snapshot.pipeDestination;
-        if (destination !== null && destination !== undefined &&
-          (destination >= levels.length || destination === index)) {
-          throw new TypeError(`Campaign level ${index + 1} has an invalid pipe destination.`);
-        }
-      });
       this.levels = levels;
       this.currentLevelIndex = 0;
       this.applyLevelSnapshot(levels[0].snapshot);
@@ -645,11 +634,6 @@ export class UIOverlayEditor {
     try {
       const serialized = await file.text();
       const snapshot = JSON.parse(serialized);
-      if (snapshot.pipeDestination !== null && snapshot.pipeDestination !== undefined &&
-        (snapshot.pipeDestination >= this.levels.length ||
-          snapshot.pipeDestination === this.currentLevelIndex)) {
-        throw new TypeError('This level links to an area that is not available in the current campaign.');
-      }
       this.stateManager.restoreWorld(snapshot);
       this.levels[this.currentLevelIndex].snapshot = this.stateManager.getWorldSnapshot();
       this.applyLevelSnapshot(this.stateManager.getWorldSnapshot());

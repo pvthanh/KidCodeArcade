@@ -145,20 +145,30 @@ physics or gameplay behavior.
 
 ### Showcase campaign
 
-- Startup loads **Pebble Path** and makes the complete ten-level campaign
-  available in the campaign selector. **Load demos** restores all ten
-  built-in showcase levels.
+- Startup loads **Pebble Path** and makes the complete 11-level campaign
+  available in the campaign selector. **Load demos** restores all built-in
+  showcase levels.
 - The original, bundled-art levels progress through increasingly tricky gaps,
   ledges, moving platforms, spring jumps, switch-and-door puzzles, checkpoints,
   enemy encounters, and a boss fight in every stage. Hints describe the main
   challenge; power-ups, coins, and extra lives reward exploration.
 - Across the campaign, every built-in terrain and collectible appears, all 15
-  original Creepy types are demonstrated, and each level features a different
-  one of the ten built-in boss designs and a mix of their movement and attack
-  settings.
-- Golden Dune Dash and Meadow Machineworks have reciprocal pipe links with
-  configurable arrival tiles. Pipe travel preserves the run's score, lives, and
-  power-ups without counting as a level win.
+  original Creepy types are demonstrated, and the ten boss stages feature a
+  different built-in boss design and a mix of their movement and attack
+  settings. The boss-free **Pipeworks: Four Floors** stage sits before the
+  Rainbow Crown Finale.
+- Pipe connections pair two placed pipe tiles in one level. Pressing Down on
+  the entry pipe travels to the paired exit with a camera pan; jumping beside
+  that exit and pressing Up returns to the entry. Travel stays in the same live
+  scene and preserves score, lives, and power-ups. The sink/emerge and camera
+  transition are deliberately paced so players can follow the journey.
+  **Pipeworks: Four Floors**
+  demonstrates three connections across four vertically separated floors.
+- The **Select** toolbox control enables object selection and movement. Drag an
+  object to an empty tile; contiguous vertical pipe segments move together.
+  Selecting a pipe reveals a bottom connector handle that can be dragged onto
+  another pipe to make a connection. Existing links remain visible in select
+  mode, and move/link operations support Undo and Redo.
 - Winning the final level of a run that began at level one triggers an extended
   fireworks sequence, falling confetti, a trophy, and a campaign-complete
   message. Starting partway through the campaign does not falsely mark earlier
@@ -201,8 +211,8 @@ physics or gameplay behavior.
 
 - Move: **A/D** or **Left/Right arrows**.
 - Jump: **W**, **Up arrow**, or **Space**.
-- Pipe travel: **Down arrow/S** from the top of a linked pipe, or **Up arrow**
-  beside one.
+- Pipe travel: **Down arrow/S** while standing on a linked entry pipe. Jump
+  beside the paired exit pipe and press **Up arrow** to return.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
 - Optional touch controls provide large, translucent targets arranged for
@@ -241,7 +251,7 @@ physics or gameplay behavior.
 |---|---|
 | Ground, Sand, Stone, Snow | Solid terrain tiles with distinct appearances. |
 | Brick | Solid terrain that breaks when hit from below. |
-| Pipe | Solid terrain. On a linked campaign level, press ↓/S while standing on a pipe or ↑ beside one to travel to its destination. All pipes in a level share that destination; the destination can choose an arrival tile, and a return trip requires configuring a link in the other area. |
+| Pipe | Solid terrain. The Pipe link dialog pairs two placed pipe tiles in the same level. Press ↓/S on the entry pipe to travel to the paired exit with an animated camera pan; jump beside the exit and press ↑ to return. Unlinked pipes are solid scenery. |
 | Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, or Fire Flower independently for each box hit. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
@@ -260,7 +270,7 @@ physics or gameplay behavior.
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also
 ends the run. Game-over provides a replay action; winning advances to the next
-campaign level when one exists. Pipe travel does not count as a win; the campaign
+campaign level when one exists. Same-level pipe travel does not count as a win; the campaign
 finale requires that every earlier level has been won during the current run.
 Completing the last level after starting at the
 beginning triggers an extended firework finale, animated confetti, a trophy,

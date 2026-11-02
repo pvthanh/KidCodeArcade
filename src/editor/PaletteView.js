@@ -203,6 +203,13 @@ export class PaletteView {
         this.eventBus.emit('redo');
         return;
       }
+      if (event.target.closest('#btn-select')) {
+        const button = event.target.closest('#btn-select');
+        const enabled = button.getAttribute('aria-pressed') !== 'true';
+        button.setAttribute('aria-pressed', String(enabled));
+        this.eventBus.emit('selectionModeChanged', enabled);
+        return;
+      }
 
       const animationButton = event.target.closest('.animation-configure');
       if (animationButton) {
@@ -296,6 +303,16 @@ export class PaletteView {
     this.eventBus.on('historyChanged', ({ canUndo, canRedo }) => {
       this.container.querySelector('#btn-undo').disabled = !canUndo;
       this.container.querySelector('#btn-redo').disabled = !canRedo;
+    });
+    this.eventBus.on('selectionModeChanged', enabled => {
+      const button = this.container.querySelector('#btn-select');
+      button?.setAttribute('aria-pressed', String(enabled));
+      const description = this.container.querySelector('.palette-header p');
+      if (description) {
+        description.textContent = enabled
+          ? 'Select an object to move it, or drag a pipe handle to connect pipes.'
+          : 'Choose an object, then paint it on the board.';
+      }
     });
     this.eventBus.on('levelLoaded', ({
       mysteryBoxReward = 'Mushroom',
@@ -561,6 +578,8 @@ export class PaletteView {
       <div class="history-controls">
         <button id="btn-undo" class="secondary-button" type="button" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
         <button id="btn-redo" class="secondary-button" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+        <button id="btn-select" class="secondary-button select-mode-button" type="button"
+          aria-pressed="false" title="Select and move objects">↖ Select</button>
       </div>
       <div class="editor-tools">
         <span class="editor-tools-label">Editor tool</span>

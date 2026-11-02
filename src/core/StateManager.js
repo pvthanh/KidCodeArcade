@@ -311,8 +311,7 @@ export class StateManager {
     this.rows = 15;
     this.tileSize = 32;
     this.worldTheme = 'storybook';
-    this.pipeDestination = null;
-    this.pipeArrival = null;
+    this.pipeLinks = [];
     this.playerCharacterId = 'storybookHero';
     this.tiles = [];
     this.tileVariants = [];
@@ -519,11 +518,12 @@ export class StateManager {
     );
     this.cols = cols;
     this.rows = rows;
-    if (this.pipeArrival &&
-      (this.pipeArrival.row >= rows || this.pipeArrival.col >= cols ||
-        this.isSolid(this.tiles[this.pipeArrival.row]?.[this.pipeArrival.col]))) {
-      this.pipeArrival = null;
-    }
+    this.pipeLinks = this.pipeLinks.filter(({ source, destination }) =>
+      source.row < rows && source.col < cols &&
+      destination.row < rows && destination.col < cols &&
+      this.tiles[source.row]?.[source.col] === 'Pipe' &&
+      this.tiles[destination.row]?.[destination.col] === 'Pipe'
+    );
   }
 
   getTile(row, col) {
@@ -542,8 +542,12 @@ export class StateManager {
     if (this.tiles[row][col] === type && this.tileVariants[row][col] === nextVariant) return false;
     this.tiles[row][col] = type;
     this.tileVariants[row][col] = nextVariant;
-    if (type && this.pipeArrival?.row === row && this.pipeArrival.col === col &&
-      this.isSolid(type)) this.pipeArrival = null;
+    if (this.tiles[row][col] !== 'Pipe') {
+      this.pipeLinks = this.pipeLinks.filter(({ source, destination }) =>
+        !(source.row === row && source.col === col) &&
+        !(destination.row === row && destination.col === col)
+      );
+    }
     return true;
   }
 
@@ -854,8 +858,7 @@ export class StateManager {
       cols: this.cols,
       rows: this.rows,
       worldTheme: this.worldTheme,
-      pipeDestination: this.pipeDestination,
-      pipeArrival: this.pipeArrival ? { ...this.pipeArrival } : null,
+      pipeLinks: clone(this.pipeLinks),
       tiles: this.tiles.map(row => [...row]),
       tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
@@ -878,8 +881,7 @@ export class StateManager {
     this.cols = snapshot.cols;
     this.rows = snapshot.rows;
     this.worldTheme = snapshot.worldTheme || 'storybook';
-    this.pipeDestination = snapshot.pipeDestination ?? null;
-    this.pipeArrival = snapshot.pipeArrival ? { ...snapshot.pipeArrival } : null;
+    this.pipeLinks = clone(snapshot.pipeLinks || []);
     this.tiles = snapshot.tiles.map(row => [...row]);
     this.tileVariantCatalog = mergeVariantCatalog(snapshot.tileVariantCatalog);
     this.tileVariants = this.tiles.map((row, rowIndex) => row.map((tile, colIndex) =>
@@ -944,23 +946,27 @@ export class StateManager {
     if (data.worldTheme !== undefined && !WORLD_THEMES.some(theme => theme.id === data.worldTheme)) {
       throw new TypeError('The level file contains an unsupported world theme.');
     }
-    if (data.pipeDestination !== undefined && data.pipeDestination !== null &&
-      (!Number.isInteger(data.pipeDestination) || data.pipeDestination < 0 || data.pipeDestination >= 50)) {
-      throw new TypeError('The level file contains an invalid pipe destination.');
+    const pipeLinks = data.pipeLinks === undefined ? [] : data.pipeLinks;
+    if (!Array.isArray(pipeLinks) || pipeLinks.length > 128) {
+      throw new TypeError('The level file contains too many or invalid pipe connections.');
     }
-    if (data.pipeArrival !== undefined && data.pipeArrival !== null) {
-      const { row, col } = data.pipeArrival;
-      if (!Number.isInteger(row) || row < 0 || row >= data.rows ||
-        !Number.isInteger(col) || col < 0 || col >= data.cols) {
-        throw new TypeError('The level file contains an invalid pipe arrival position.');
+    const linkedPipes = new Set();
+    for (const link of pipeLinks) {
+      const { source, destination } = link || {};
+      for (const endpoint of [source, destination]) {
+        if (!endpoint || !Number.isInteger(endpoint.row) || endpoint.row < 0 ||
+          endpoint.row >= data.rows || !Number.isInteger(endpoint.col) || endpoint.col < 0 ||
+          endpoint.col >= data.cols || data.tiles[endpoint.row][endpoint.col] !== 'Pipe') {
+          throw new TypeError('Pipe connections must point to placed pipes in this level.');
+        }
       }
-      const arrivalTile = data.tiles[row][col];
-      if (arrivalTile && [
-        'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe',
-        'Spring', 'MovingPlatform', 'OneWayPlatform', 'Door'
-      ].includes(arrivalTile)) {
-        throw new TypeError('The pipe arrival position must be an empty cell.');
+      const sourceKey = `${source.row}:${source.col}`;
+      const destinationKey = `${destination.row}:${destination.col}`;
+      if (sourceKey === destinationKey || linkedPipes.has(sourceKey) || linkedPipes.has(destinationKey)) {
+        throw new TypeError('Each pipe can belong to only one distinct connection.');
       }
+      linkedPipes.add(sourceKey);
+      linkedPipes.add(destinationKey);
     }
     const customCreeps = data.customCreeps === undefined ? [] : data.customCreeps;
     if (!Array.isArray(customCreeps) || customCreeps.length > MAX_CUSTOM_CREEPS) {

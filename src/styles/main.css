@@ -80,8 +80,26 @@ button {
 
 .history-controls {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   padding: 0 2px 14px;
+}
+
+.select-mode-button[aria-pressed="true"] {
+  border-color: #1684c7;
+  background: #e8f5fc;
+  color: #145b7e;
+  box-shadow: inset 0 0 0 1px #1684c7;
+}
+
+.select-mode-button[aria-pressed="true"]::before {
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #1684c7;
+  content: "";
 }
 
 .secondary-button,
@@ -787,11 +805,37 @@ button {
   gap: 12px;
 }
 
+.pipe-endpoint-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.pipe-endpoint-fields legend {
+  padding: 0 5px;
+  color: #435b69;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pipe-endpoint-fields .level-dialog-field {
+  grid-column: 1 / -1;
+}
+
 .level-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 9px;
   padding-top: 2px;
+}
+
+#clear-pipe-links {
+  margin-right: auto;
 }
 
 .help-icon-button {
@@ -1150,6 +1194,14 @@ button {
 }
 
 .editor-board.is-panning #grid-canvas:active {
+  cursor: grabbing;
+}
+
+.editor-board.is-selecting #grid-canvas {
+  cursor: grab;
+}
+
+.editor-board.is-selecting #grid-canvas:active {
   cursor: grabbing;
 }
 

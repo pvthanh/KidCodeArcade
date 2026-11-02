@@ -70,6 +70,114 @@ export class RemoveTileCommand extends Command {
   }
 }
 
+export class MoveTilesCommand extends Command {
+  constructor(cells, deltaRow, deltaCol) {
+    super('MoveTiles');
+    this.cells = cells.map(cell => ({ ...cell }));
+    this.deltaRow = deltaRow;
+    this.deltaCol = deltaCol;
+    this.previousState = null;
+    this.nextState = null;
+  }
+
+  execute(stateManager) {
+    this.previousState ||= stateManager.getWorldSnapshot();
+    const destinations = this.cells.map(cell => ({
+      row: cell.row + this.deltaRow,
+      col: cell.col + this.deltaCol
+    }));
+    const moving = new Set(this.cells.map(cell => `${cell.row}:${cell.col}`));
+    if (destinations.some(cell =>
+      cell.row < 0 || cell.row >= stateManager.rows ||
+      cell.col < 0 || cell.col >= stateManager.cols ||
+      (stateManager.getTile(cell.row, cell.col) &&
+        !moving.has(`${cell.row}:${cell.col}`))
+    )) return false;
+    if (this.deltaRow === 0 && this.deltaCol === 0) return false;
+
+    const movedCells = this.cells.map(cell => ({
+      ...cell,
+      tileType: stateManager.getTile(cell.row, cell.col),
+      variantId: stateManager.getTileVariant(cell.row, cell.col)
+    }));
+    if (movedCells.some(cell => !cell.tileType)) return false;
+    const endpointMoves = new Map(movedCells.map((cell, index) => [
+      `${cell.row}:${cell.col}`,
+      destinations[index]
+    ]));
+    const pipeLinks = stateManager.pipeLinks.map(link => ({
+      source: endpointMoves.get(`${link.source.row}:${link.source.col}`) || link.source,
+      destination: endpointMoves.get(`${link.destination.row}:${link.destination.col}`) || link.destination
+    }));
+    for (const cell of movedCells) stateManager.setTile(cell.row, cell.col, null);
+    movedCells.forEach((cell, index) => {
+      const destination = destinations[index];
+      stateManager.setTile(destination.row, destination.col, cell.tileType, cell.variantId);
+    });
+    stateManager.pipeLinks = pipeLinks;
+    this.nextState = stateManager.getWorldSnapshot();
+    return true;
+  }
+
+  undo(stateManager) {
+    stateManager.restoreWorld(this.previousState);
+  }
+
+  redo(stateManager) {
+    stateManager.restoreWorld(this.nextState);
+  }
+
+  getSummary() {
+    return `Move ${this.cells.length === 1 ? 'object' : 'pipe'} on the board`;
+  }
+}
+
+export class SetPipeLinksCommand extends Command {
+  constructor(pipeLinks) {
+    super('SetPipeLinks');
+    this.pipeLinks = pipeLinks.map(link => ({
+      source: { ...link.source },
+      destination: { ...link.destination }
+    }));
+    this.previousLinks = null;
+  }
+
+  execute(stateManager) {
+    this.previousLinks ||= stateManager.pipeLinks.map(link => ({
+      source: { ...link.source },
+      destination: { ...link.destination }
+    }));
+    if (JSON.stringify(this.previousLinks) === JSON.stringify(this.pipeLinks)) return false;
+    stateManager.validateWorld({
+      ...stateManager.getWorldSnapshot(),
+      pipeLinks: this.pipeLinks
+    });
+    stateManager.pipeLinks = this.pipeLinks.map(link => ({
+      source: { ...link.source },
+      destination: { ...link.destination }
+    }));
+    return true;
+  }
+
+  undo(stateManager) {
+    stateManager.pipeLinks = this.previousLinks.map(link => ({
+      source: { ...link.source },
+      destination: { ...link.destination }
+    }));
+  }
+
+  redo(stateManager) {
+    stateManager.pipeLinks = this.pipeLinks.map(link => ({
+      source: { ...link.source },
+      destination: { ...link.destination }
+    }));
+  }
+
+  getSummary() {
+    return this.pipeLinks.length ? 'Connect pipes' : 'Remove pipe connections';
+  }
+}
+
 export class SetTileVariantCommand extends Command {
   constructor(tileType, variantId, variantName = variantId) {
     super('SetTileVariant');

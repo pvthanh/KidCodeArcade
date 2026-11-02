@@ -1,5 +1,6 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
+import pipeBodySprite from '../assets/demo/PipeBody.svg?inline';
 import {
   CREEPY_TYPES,
   MIN_BOSS_SIZE,
@@ -71,6 +72,7 @@ export class GameScene extends Scene {
   }
 
   preload() {
+    this.load.image('Pipe-body', pipeBodySprite);
     for (const [bossId, dataUrl] of Object.entries(characterArt.bosses)) {
       this.load.image(`Boss-${bossId}`, dataUrl);
     }
@@ -167,9 +169,14 @@ export class GameScene extends Scene {
           ?.find(item => item.id === variantId);
         const legacyCustomSprite = variantId === 'classic' &&
           this.worldSnapshot.spriteMetadata?.[tileType]?.fileName;
+        const isDefaultPipeBody = tileType === 'Pipe' && rowIndex > 0 &&
+          this.worldSnapshot.tiles[rowIndex - 1][colIndex] === 'Pipe' &&
+          variantId === 'classic' && !legacyCustomSprite;
         const createOptions = {
           bossConfig: this.worldSnapshot.bossConfig,
-          textureKey: legacyCustomSprite
+          textureKey: isDefaultPipeBody
+            ? 'Pipe-body'
+            : legacyCustomSprite
             ? tileType
             : variant?.dataUrl
             ? `${tileType}--variant--${variant.id}`
@@ -201,6 +208,8 @@ export class GameScene extends Scene {
           entity.setData('tileType', tileType);
           doors.add(entity);
         } else if (tileType === 'Pipe') {
+          entity.setData('pipeRow', rowIndex);
+          entity.setData('pipeCol', colIndex);
           pipes.add(entity);
         } else if ([
           'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Spring', 'OneWayPlatform'
@@ -311,13 +320,6 @@ export class GameScene extends Scene {
         : `Defeat all ${activeBossCount} bosses to open the goal!`;
     }
 
-    if (this.worldSnapshot.pipeArrival) {
-      const { row, col } = this.worldSnapshot.pipeArrival;
-      spawnPoint = {
-        x: col * tileSize + tileSize / 2,
-        y: row * tileSize + tileSize / 2 - PLAYER_TILE_ALIGNMENT_OFFSET
-      };
-    }
     this.player = this.entityFactory.create(
       this,
       'Player',
@@ -658,8 +660,7 @@ export class GameScene extends Scene {
   }
 
   tryUsePipe(direction) {
-    const destinationIndex = this.worldSnapshot.pipeDestination;
-    if (!Number.isInteger(destinationIndex) || !this.pipes?.getChildren().length) return false;
+    if (!this.worldSnapshot.pipeLinks?.length || !this.pipes?.getChildren().length) return false;
     const playerBody = this.player.body;
     const playerBounds = {
       left: playerBody.left,
@@ -667,32 +668,109 @@ export class GameScene extends Scene {
       top: playerBody.top,
       bottom: playerBody.bottom
     };
-    const candidate = this.pipes.getChildren().find(pipe => {
-      if (!pipe.active || !pipe.body) return false;
+    const link = this.worldSnapshot.pipeLinks.find(({ source, destination }) => {
+      const endpoint = direction === 'down' ? source : destination;
+      const pipe = this.pipes.getChildren().find(item =>
+        item.active && item.getData('pipeRow') === endpoint.row &&
+        item.getData('pipeCol') === endpoint.col
+      );
+      if (!pipe?.body) return false;
       const pipeBody = pipe.body;
       if (direction === 'down') {
-        return Math.abs(playerBounds.bottom - pipeBody.top) <= 10 &&
+        return Math.abs(playerBounds.bottom - pipeBody.top) <= 12 &&
           playerBounds.right > pipeBody.left + 3 &&
           playerBounds.left < pipeBody.right - 3;
       }
-      const verticalOverlap = playerBounds.bottom > pipeBody.top + 6 &&
-        playerBounds.top < pipeBody.bottom - 6;
+      let tubeBottom = pipeBody.bottom;
+      for (let row = endpoint.row + 1; ; row += 1) {
+        const segment = this.pipes.getChildren().find(item =>
+          item.active && item.getData('pipeRow') === row &&
+          item.getData('pipeCol') === endpoint.col
+        );
+        if (!segment?.body) break;
+        tubeBottom = segment.body.bottom;
+      }
+      const verticalOverlap = playerBounds.bottom > pipeBody.top + 4 &&
+        playerBounds.top < tubeBottom - 4;
       const horizontalGap = Math.max(
         pipeBody.left - playerBounds.right,
         playerBounds.left - pipeBody.right,
         0
       );
-      return verticalOverlap && horizontalGap <= 10;
+      return verticalOverlap && horizontalGap <= 14;
     });
-    if (!candidate) return false;
+    if (!link) return false;
+
+    const from = direction === 'down' ? link.source : link.destination;
+    const to = direction === 'down' ? link.destination : link.source;
+    const sourcePipe = this.pipes.getChildren().find(pipe =>
+      pipe.getData('pipeRow') === from.row && pipe.getData('pipeCol') === from.col
+    );
+    const targetPipe = this.pipes.getChildren().find(pipe =>
+      pipe.getData('pipeRow') === to.row && pipe.getData('pipeCol') === to.col
+    );
+    if (!sourcePipe?.body || !targetPipe?.body) return false;
+
     this.gameEnded = true;
-    this.player.setVelocity(0, 0).setAlpha(0.45);
-    this.cameras.main.flash(220, 184, 255, 213);
-    this.time.delayedCall(240, () => {
-      this.eventBus.emit('pipeTravel', {
-        destinationIndex,
-        campaignProgress: this.getCampaignProgress()
-      });
+    const player = this.player;
+    const camera = this.cameras.main;
+    const playerBottomOffset = player.body.bottom - player.y;
+    let targetY = targetPipe.body.top - playerBottomOffset;
+    let targetX = targetPipe.x;
+    if (direction === 'up') {
+      let tubeBottomRow = to.row;
+      while (this.worldSnapshot.tiles[tubeBottomRow + 1]?.[to.col] === 'Pipe') {
+        tubeBottomRow += 1;
+      }
+      const adjacentCol = to.col + 1 < this.worldSnapshot.cols ? to.col + 1 : to.col - 1;
+      targetX = adjacentCol * 32 + 16;
+      targetY = (tubeBottomRow + 1) * 32 - playerBottomOffset;
+    }
+    camera.stopFollow();
+    player.setVelocity(0, 0);
+    player.body.enable = false;
+    this.tweens.add({
+      targets: player,
+      y: player.y + (direction === 'down' ? 38 : -34),
+      alpha: 0,
+      duration: 760,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        player.setPosition(targetX, targetY + 36);
+        player.body.reset(player.x, player.y);
+        const viewWidth = camera.width / camera.zoom;
+        const viewHeight = camera.height / camera.zoom;
+        const scrollX = Math.max(0, Math.min(
+          targetX - viewWidth / 2,
+          this.worldSnapshot.cols * 32 - viewWidth
+        ));
+        const scrollY = Math.max(0, Math.min(
+          targetY - viewHeight / 2,
+          this.worldSnapshot.rows * 32 - viewHeight
+        ));
+        this.tweens.add({
+          targets: camera,
+          scrollX,
+          scrollY,
+          duration: 1900,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: player,
+              y: targetY,
+              alpha: 1,
+              duration: 780,
+              ease: 'Cubic.easeOut',
+              onComplete: () => {
+                player.body.enable = true;
+                player.body.reset(player.x, player.y);
+                camera.startFollow(player, true, 0.08, 0.08);
+                this.gameEnded = false;
+              }
+            });
+          }
+        });
+      }
     });
     return true;
   }
@@ -1291,17 +1369,19 @@ export class GameScene extends Scene {
       ? [
         { x: 0.16, y: 0.22 }, { x: 0.36, y: 0.15 }, { x: 0.56, y: 0.22 },
         { x: 0.78, y: 0.16 }, { x: 0.27, y: 0.4 }, { x: 0.49, y: 0.34 },
-        { x: 0.72, y: 0.39 }, { x: 0.88, y: 0.29 }
+        { x: 0.72, y: 0.39 }, { x: 0.88, y: 0.29 }, { x: 0.12, y: 0.52 },
+        { x: 0.31, y: 0.57 }, { x: 0.51, y: 0.5 }, { x: 0.7, y: 0.56 },
+        { x: 0.9, y: 0.48 }, { x: 0.22, y: 0.72 }, { x: 0.45, y: 0.68 },
+        { x: 0.68, y: 0.72 }, { x: 0.84, y: 0.66 }, { x: 0.52, y: 0.83 }
       ]
       : [
-        { x: 0.24, y: 0.22 },
-        { x: 0.5, y: 0.16 },
-        { x: 0.76, y: 0.24 },
-        { x: 0.36, y: 0.42 },
-        { x: 0.66, y: 0.4 }
+        { x: 0.2, y: 0.22 }, { x: 0.42, y: 0.16 }, { x: 0.66, y: 0.2 },
+        { x: 0.84, y: 0.27 }, { x: 0.28, y: 0.42 }, { x: 0.52, y: 0.35 },
+        { x: 0.74, y: 0.43 }, { x: 0.15, y: 0.6 }, { x: 0.48, y: 0.58 },
+        { x: 0.82, y: 0.62 }
       ];
     burstPoints.forEach((point, index) => {
-      this.time.delayedCall(index * (this.isCampaignFinal ? 180 : 210), () => {
+      this.time.delayedCall(index * (this.isCampaignFinal ? 220 : 190), () => {
         const x = view.left + view.width * point.x;
         const y = view.top + view.height * point.y;
         this.emitFirework(x, y, burstColors[index]);
@@ -1317,7 +1397,7 @@ export class GameScene extends Scene {
       onComplete: () => player.setAngle(0)
     });
     this.cameras.main.flash(220, 255, 249, 218, false);
-    this.time.delayedCall(this.isCampaignFinal ? 2600 : 1450, () => this.finishGame(true));
+    this.time.delayedCall(this.isCampaignFinal ? 5200 : 3000, () => this.finishGame(true));
   }
 
   emitFirework(x, y, color) {
