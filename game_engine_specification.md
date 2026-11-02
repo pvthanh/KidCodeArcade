@@ -125,8 +125,9 @@ physics or gameplay behavior.
   types and 20 MB total custom boss image data. Configure movement (patrol,
   chase, or leap), special ability (fireballs, ground-pound shockwaves, or
   both), health (3–10 hits), and speed (40–120 px/s). The selected character,
-  its image, size (32–128 px; default 48 px), and boss settings are saved with
-  the level and included in campaign exports. Boss settings apply to every
+  its image, size (144–256 px; default 144 px, at least three times the player),
+  and boss settings are saved with the level and included in campaign exports.
+  Boss settings apply to every
   Boss placed in the level.
 
 - Ground includes Classic and Ice appearances; Brick includes Classic and
@@ -183,11 +184,13 @@ physics or gameplay behavior.
 - Uploaded images and their metadata are included in exported level JSON.
 - The default built-in art uses an original sunny storybook theme. Player,
   Creepy, and Boss characters use detailed vector artwork drawn in a 128 × 128
-  viewBox. Built-in Player and Creepy animations are rasterized from that art
-  into 256 × 256 frames to retain detail as characters grow. In play mode, the
+  viewBox. Built-in Player and Creepy animations and Boss portraits are
+  rasterized from that art into 256 × 256 frames to retain detail as characters
+  grow. In play mode, the
   Player and Creepy sprites are displayed at 48 × 48 pixels (150% of a tile),
   while their collision bodies retain their previous dimensions. Bosses retain
-  their configurable display size. Custom character uploads use the same
+  their configurable display size, and their ground-contact collision bodies
+  align with the artwork's feet. Custom character uploads use the same
   display sizing and remain limited by their uploaded image resolution. Coin,
   power-up, and Mystery Box artwork is drawn from 128 × 128 vector sources and
   displayed at the standard 32 × 32 tile size.
@@ -244,7 +247,7 @@ physics or gameplay behavior.
 | Door | Solid until a Switch is activated. |
 | Checkpoint | The last touched checkpoint is the respawn point. Falling there costs one life; if lives remain, the player respawns after a short animation with temporary powers cleared. |
 | Creepy | Fifteen built-in creatures (Goomba, Koopa, Bat, Firefly, Cloud Puff, Jellyfish, Ladybug, Hedgehog, Duckling, Fox Kit, Bumblebee, Froglet, Starfish, Ghost, and Mini Dino) plus optional custom creatures. Each creature can patrol or fly, has configurable speed and 1–5 health, and can use uploaded idle/movement sheets. Stomps and Fire Flower projectiles damage it; Star power defeats it on contact. |
-| Boss | Choose one of ten built-in characters (Slime King, Robo Crab, Sky Dragon, Candy Golem, Moon Bunny, Coral Kraken, Cloud Yeti, Clockwork Owl, Volcano Turtle, or Rainbow Unicorn) or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, 40–120 px/s speed, and 32–128 px size (default 48 px). Boss fireballs travel at 320 px/s for up to 4.5 seconds; attacks can target the player up to 850 px away. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. The Goal is locked until all placed bosses are defeated. |
+| Boss | Choose one of ten built-in characters (Slime King, Robo Crab, Sky Dragon, Candy Golem, Moon Bunny, Coral Kraken, Cloud Yeti, Clockwork Owl, Volcano Turtle, or Rainbow Unicorn) or a custom uploaded character; configure patrol/chase/leap movement, fireballs/ground-pound/both, 3–10 health, 40–120 px/s speed, and 144–256 px size (default 144 px, at least three times the 48 px player). Levels without bosses have an unguarded Goal. When bosses are placed, a visible, solid, labeled gate blocks each Goal until every boss is defeated; the gate opens with a fade when the final boss falls. Boss fireballs travel at 320 px/s for up to 4.5 seconds; attacks can target the player up to 850 px away. Stomps and Fire Flower projectiles damage the boss; Star power deals extra damage. Boss attacks damage the player. |
 | Coin | Collects for one point. |
 | Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
@@ -297,6 +300,8 @@ game stage.
   mystery-box reward IDs, boss configuration and custom boss image validation,
   creature settings/custom images, and sound metadata. Older level files without
   boss size or custom creature data continue to load with default settings.
+  Legacy boss sizes below 144 px are raised to the new three-times-player minimum
+  when loaded; imported sizes above 256 px are rejected.
 - Older world files may omit audio settings or reward selection and use defaults.
 - Best scores are saved per campaign index and level name in browser
   `localStorage`; they are not included in exported files and do not sync across

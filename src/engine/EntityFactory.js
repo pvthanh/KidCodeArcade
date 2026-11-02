@@ -105,12 +105,15 @@ export class EntityFactory {
   createBoss(scene, x, y, options = {}) {
     const type = options.bossConfig?.type || 'slimeKing';
     const texture = `Boss-${type}`;
+    const size = Math.max(CHARACTER_DISPLAY_SIZE * 3, options.bossConfig?.size || 0);
     const boss = scene.physics.add.sprite(
       x,
       y,
       scene.textures.exists(texture) ? texture : 'Boss-slimeKing'
-    ).setDisplaySize(options.bossConfig?.size || 48, options.bossConfig?.size || 48);
-    boss.body.setSize(38, 34).setOffset(5, 12);
+    ).setDisplaySize(size, size);
+    const collisionScale = size / CHARACTER_DISPLAY_SIZE;
+    boss.body.setSize(38 * collisionScale / boss.scaleX, 34.5 * collisionScale / boss.scaleY)
+      .setOffset(5 * collisionScale / boss.scaleX, 10.5 * collisionScale / boss.scaleY);
     return boss.setCollideWorldBounds(true);
   }
 

@@ -5,6 +5,8 @@ import {
   CREEPY_TYPES,
   DEFAULT_BOSS_CONFIG,
   DEFAULT_CREEPY_CONFIGS,
+  MAX_BOSS_SIZE,
+  MIN_BOSS_SIZE,
   MYSTERY_BOX_REWARDS,
   PLAYER_CHARACTERS
 } from '../core/StateManager.js';
@@ -280,7 +282,7 @@ export class PaletteView {
         const key = event.target.dataset.bossSetting;
         const output = this.container.querySelector(`[data-boss-${key}-value]`);
         output.value = key === 'health' ? `${event.target.value} hits`
-          : key === 'size' ? `${event.target.value} px`
+          : key === 'size' ? `${event.target.value} px (${(Number(event.target.value) / 48).toFixed(1)}× hero)`
             : `${event.target.value} px/s`;
         this.emitBossConfig();
       } else if (event.target.matches('[data-creepy-setting="speed"], [data-creepy-setting="health"]')) {
@@ -659,8 +661,8 @@ export class PaletteView {
                     <input type="range" min="40" max="120" step="10" value="${DEFAULT_BOSS_CONFIG.speed}" data-boss-setting="speed" aria-label="Boss speed">
                   </label>
                   <label class="boss-range-label">
-                    Size <output data-boss-size-value>48 px</output>
-                    <input type="range" min="32" max="128" step="8" value="${DEFAULT_BOSS_CONFIG.size}" data-boss-setting="size" aria-label="Boss size">
+                    Size <output data-boss-size-value>${DEFAULT_BOSS_CONFIG.size} px (3× hero)</output>
+                    <input type="range" min="${MIN_BOSS_SIZE}" max="${MAX_BOSS_SIZE}" step="16" value="${DEFAULT_BOSS_CONFIG.size}" data-boss-setting="size" aria-label="Boss size">
                   </label>
                   <span class="variant-help">These settings apply to every Boss tile in this level.</span>
                 </div>
@@ -766,7 +768,10 @@ export class PaletteView {
     const sizeValue = this.container.querySelector('[data-boss-size-value]');
     if (healthValue) healthValue.value = `${config.health ?? DEFAULT_BOSS_CONFIG.health} hits`;
     if (speedValue) speedValue.value = `${config.speed ?? DEFAULT_BOSS_CONFIG.speed} px/s`;
-    if (sizeValue) sizeValue.value = `${config.size ?? DEFAULT_BOSS_CONFIG.size} px`;
+    if (sizeValue) {
+      const size = config.size ?? DEFAULT_BOSS_CONFIG.size;
+      sizeValue.value = `${size} px (${(size / 48).toFixed(1)}× hero)`;
+    }
     this.updateBossPreview(config.type);
     const activeLabel = this.container.querySelector('[data-group-active="boss"]');
     if (activeLabel) {

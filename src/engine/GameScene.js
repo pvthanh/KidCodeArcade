@@ -1,10 +1,17 @@
 import { Input, Scene, Scenes } from 'phaser';
 import { characterArt } from '../assets/demo/CharacterArt.js';
-import { CREEPY_TYPES, POWER_UP_TYPES, THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+import {
+  CREEPY_TYPES,
+  MIN_BOSS_SIZE,
+  POWER_UP_TYPES,
+  THEMED_TILE_TYPES,
+  WORLD_THEMES
+} from '../core/StateManager.js';
 import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
 import { SoundManager } from './SoundManager.js';
 
 const PLAYER_TILE_ALIGNMENT_OFFSET = (CHARACTER_DISPLAY_SIZE - 32) / 2;
+const PLAYER_ART_FOOT_INSET = 4;
 
 export class GameScene extends Scene {
   constructor(
@@ -168,10 +175,16 @@ export class GameScene extends Scene {
             ? `${tileType}--variant--${variant.id}`
             : animationType ? `${tileType}-${animationType}` : undefined
         };
-        const enemyY = isCreepy && !flying ? y - PLAYER_TILE_ALIGNMENT_OFFSET : y;
+        const bossSize = Math.max(
+          MIN_BOSS_SIZE,
+          this.worldSnapshot.bossConfig?.size || MIN_BOSS_SIZE
+        );
+        const enemyY = tileType === 'Boss'
+          ? y - PLAYER_TILE_ALIGNMENT_OFFSET - (bossSize - CHARACTER_DISPLAY_SIZE) / 2
+          : isCreepy && !flying ? y - PLAYER_TILE_ALIGNMENT_OFFSET : y;
         const entity = isCreepy
           ? this.entityFactory.createEnemy(this, tileType, x, enemyY, createOptions)
-          : this.entityFactory.create(this, tileType, x, y, createOptions);
+          : this.entityFactory.create(this, tileType, x, enemyY, createOptions);
         if (THEMED_TILE_TYPES.has(tileType)) {
           entity.setTint(this.worldTheme.tileTint);
         }
@@ -230,22 +243,26 @@ export class GameScene extends Scene {
           entity.setData('maxHealth', config.health);
           entity.setData('health', config.health);
           entity.setData('speed', config.speed);
-          entity.setData('size', config.size || 48);
+          const size = Math.max(MIN_BOSS_SIZE, config.size || MIN_BOSS_SIZE);
+          const collisionScale = size / CHARACTER_DISPLAY_SIZE;
+          entity.setData('size', size);
           entity.setData('originX', x);
-          entity.setData('minX', Math.max(24, x - 160));
-          entity.setData('maxX', Math.min(worldWidth - 24, x + 160));
+          entity.setData('minX', Math.max(size / 2, x - 160));
+          entity.setData('maxX', Math.min(worldWidth - size / 2, x + 160));
           entity.setData('nextLeapAt', this.time.now + 1800);
           entity.setData('nextAttackAt', this.time.now + 1200);
           entity.setData('nextGroundPoundAt', this.time.now + 2200);
           entity.setData('wasAirborne', false);
           entity.setData('hurtUntil', 0);
           entity.body.setAllowGravity(true);
-          entity.body.setSize(38 / entity.scaleX, 34 / entity.scaleY)
-            .setOffset(5 / entity.scaleX, 12 / entity.scaleY);
+          entity.body.setSize(38 * collisionScale / entity.scaleX, 34.5 * collisionScale / entity.scaleY)
+            .setOffset(5 * collisionScale / entity.scaleX, 10.5 * collisionScale / entity.scaleY);
           entity.setVelocityX(-config.speed);
-          entity.setData('healthBar', this.add.rectangle(x, y - 34, 52, 6, 0x7d344d)
+          const barWidth = 52 * size / CHARACTER_DISPLAY_SIZE;
+          const barY = entity.y - size / 2 - 10;
+          entity.setData('healthBar', this.add.rectangle(x - barWidth / 2, barY, barWidth, 6, 0x7d344d)
             .setOrigin(0, 0.5).setDepth(8));
-          entity.setData('healthFill', this.add.rectangle(x, y - 34, 52, 6, 0x78d66b)
+          entity.setData('healthFill', this.add.rectangle(x - barWidth / 2, barY, barWidth, 6, 0x78d66b)
             .setOrigin(0, 0.5).setDepth(9));
         } else if (tileType === 'Coin') {
           coins.add(entity);
@@ -258,6 +275,41 @@ export class GameScene extends Scene {
         }
       });
     });
+
+    this.goalGates = [];
+    this.goalGateLabels = [];
+    const activeBossCount = this.bosses.getChildren().filter(boss => boss.active).length;
+    const activeFlags = flags.getChildren().filter(flag => flag.active);
+    if (activeBossCount > 0 && activeFlags.length > 0) {
+      const spawnX = spawnPoint?.x ?? 0;
+      activeFlags.forEach(flag => {
+        const direction = Math.sign(flag.x - spawnX) || 1;
+        const gateX = flag.x - direction * 48;
+        const gate = this.add.rectangle(
+          gateX,
+          worldHeight / 2,
+          24,
+          worldHeight,
+          0xd94b62,
+          0.88
+        ).setStrokeStyle(3, 0xffd36b, 1).setDepth(6);
+        this.physics.add.existing(gate, true);
+        const label = this.add.text(gateX, worldHeight - 88, 'BOSS GATE\nDEFEAT ALL BOSSES', {
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: '12px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+          align: 'center',
+          backgroundColor: '#893a63',
+          padding: { x: 7, y: 5 }
+        }).setOrigin(0.5, 0).setDepth(9);
+        this.goalGates.push(gate);
+        this.goalGateLabels.push(label);
+      });
+      this.bossHudHint = activeBossCount === 1
+        ? 'Defeat the boss to open the goal!'
+        : `Defeat all ${activeBossCount} bosses to open the goal!`;
+    }
 
     if (this.worldSnapshot.pipeArrival) {
       const { row, col } = this.worldSnapshot.pipeArrival;
@@ -285,6 +337,7 @@ export class GameScene extends Scene {
       this.player.setTint(0xffe477);
     }
     this.physics.add.collider(this.player, platforms, this.handleBlockCollision, undefined, this);
+    this.goalGates.forEach(gate => this.physics.add.collider(this.player, gate));
     this.physics.add.collider(this.player, pipes);
     this.physics.add.collider(this.player, doors);
     this.physics.add.collider(
@@ -645,7 +698,7 @@ export class GameScene extends Scene {
   }
 
   updateBoss(boss) {
-    if (!boss?.active) return;
+    if (!boss?.active || !boss.body?.enable || boss.getData('health') <= 0) return;
     const movement = boss.getData('movement');
     const ability = boss.getData('ability');
     const speed = boss.getData('speed');
@@ -688,11 +741,13 @@ export class GameScene extends Scene {
 
     const health = boss.getData('health');
     const maxHealth = boss.getData('maxHealth');
-    const barWidth = 52 * (boss.getData('size') || 48) / 48;
-    boss.getData('healthBar')?.setPosition(boss.x - barWidth / 2, boss.y - (boss.getData('size') || 48) / 2 - 10)
+    const size = boss.getData('size') || MIN_BOSS_SIZE;
+    const barWidth = 52 * size / CHARACTER_DISPLAY_SIZE;
+    const barY = boss.y - size / 2 - 10;
+    boss.getData('healthBar')?.setPosition(boss.x - barWidth / 2, barY)
       .setSize(barWidth, 6);
     boss.getData('healthFill')
-      ?.setPosition(boss.x - barWidth / 2, boss.y - (boss.getData('size') || 48) / 2 - 10)
+      ?.setPosition(boss.x - barWidth / 2, barY)
       .setSize(barWidth, 6)
       .setScale(health / maxHealth, 1);
     boss.setFlipX(boss.body.velocity.x > 0);
@@ -706,14 +761,26 @@ export class GameScene extends Scene {
 
   spawnBossFireball(boss) {
     const direction = Math.sign(this.player.x - boss.x) || 1;
-    this.spawnBossProjectile(boss.x + direction * 24, boss.y - 4, direction * 320, 0, 4500);
+    const size = boss.getData('size') || MIN_BOSS_SIZE;
+    this.spawnBossProjectile(
+      boss.x + direction * size * 0.42,
+      boss.y - size * 0.1,
+      direction * 320,
+      0,
+      4500
+    );
   }
 
   spawnGroundShockwaves(boss) {
     this.cameras.main.shake(100, 0.004);
     this.emitBurst(boss.x, boss.body.bottom, 0xf6c776, 8, 24);
     for (const direction of [-1, 1]) {
-      this.spawnBossProjectile(boss.x + direction * 18, boss.body.bottom - 5, direction * 150, 0);
+      this.spawnBossProjectile(
+        boss.x + direction * (boss.getData('size') || MIN_BOSS_SIZE) * 0.42,
+        boss.body.bottom - 5,
+        direction * 150,
+        0
+      );
     }
   }
 
@@ -1013,8 +1080,10 @@ export class GameScene extends Scene {
   }
 
   handleBossCollision(player, boss) {
-    if (!boss.active || this.gameEnded) return;
-    const stomping = player.body.velocity.y > 0 && player.body.bottom < boss.body.center.y + 10;
+    if (!boss.active || boss.getData('health') <= 0 || this.gameEnded) return;
+    const stompTolerance = Math.min(18, boss.body.height * 0.2);
+    const stomping = player.body.velocity.y > 0 &&
+      player.body.bottom < boss.body.top + stompTolerance;
     if (this.starPowerUntil > this.time.now) {
       this.damageBoss(boss, 2);
       player.setVelocityY(-330);
@@ -1027,7 +1096,7 @@ export class GameScene extends Scene {
   }
 
   hitBossWithFireball(projectile, boss) {
-    if (!projectile.active || !boss.active || this.gameEnded) return;
+    if (!projectile.active || !boss.active || boss.getData('health') <= 0 || this.gameEnded) return;
     projectile.destroy();
     this.damageBoss(boss);
   }
@@ -1039,7 +1108,8 @@ export class GameScene extends Scene {
   }
 
   damageBoss(boss, damage = 1) {
-    if (!boss.active || this.time.now < boss.getData('hurtUntil')) return;
+    if (!boss.active || boss.getData('health') <= 0 ||
+      this.time.now < boss.getData('hurtUntil')) return;
     boss.setData('hurtUntil', this.time.now + 550);
     const health = Math.max(0, boss.getData('health') - damage);
     boss.setData('health', health);
@@ -1067,9 +1137,35 @@ export class GameScene extends Scene {
       duration: 360,
       onComplete: () => boss.destroy()
     });
-    const bossesRemain = this.bosses.getChildren().some(other => other.active && other !== boss);
-    this.bossHudHint = bossesRemain ? 'One boss down! Defeat the remaining boss.' : 'Boss defeated! The goal is open.';
+    const bossesRemain = this.bosses.getChildren().some(other =>
+      other.active && other !== boss && other.getData('health') > 0
+    );
+    this.bossHudHint = bossesRemain
+      ? 'Boss defeated! Defeat the remaining bosses to open the goal.'
+      : 'Boss defeated! The goal is open.';
+    if (!bossesRemain) this.openGoalGate();
     this.updateHud();
+  }
+
+  openGoalGate() {
+    if (!this.goalGates?.length) return;
+    this.goalGates.forEach((gate, index) => {
+      gate.body.enable = false;
+      const label = this.goalGateLabels[index];
+      label?.setText('GOAL OPEN!');
+      this.tweens.add({
+        targets: [gate, label].filter(Boolean),
+        alpha: 0,
+        duration: 700,
+        delay: 150,
+        onComplete: () => {
+          gate.destroy();
+          label?.destroy();
+        }
+      });
+    });
+    this.goalGates = [];
+    this.goalGateLabels = [];
   }
 
   damagePlayer(player) {
@@ -1099,9 +1195,13 @@ export class GameScene extends Scene {
   }
 
   reachGoal() {
-    const activeBosses = this.bosses.getChildren().filter(boss => boss.active);
+    const activeBosses = this.bosses.getChildren().filter(boss =>
+      boss.active && boss.getData('health') > 0
+    );
     if (activeBosses.length) {
-      this.bossHudHint = `Defeat the boss first! (${activeBosses.length} remaining)`;
+      this.bossHudHint = activeBosses.length === 1
+        ? 'Defeat the boss to open the goal!'
+        : `Defeat all ${activeBosses.length} bosses to open the goal!`;
       this.updateHud();
       return;
     }
@@ -1286,7 +1386,7 @@ export class GameScene extends Scene {
     player.setSize(22 / player.scaleX, 28 / player.scaleY)
       .setOffset(
         (CHARACTER_DISPLAY_SIZE - 22) / 2 / player.scaleX,
-        (CHARACTER_DISPLAY_SIZE - 28) / player.scaleY
+        (CHARACTER_DISPLAY_SIZE - 28 - PLAYER_ART_FOOT_INSET) / player.scaleY
       );
   }
 

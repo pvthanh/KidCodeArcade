@@ -543,8 +543,8 @@ const additionalBossTypes = [
 ];
 
 for (const [type, lookId] of additionalBossTypes) {
-  characterArt.bosses[type] = shell(additionalBoss(type, additionalBossLooks[lookId]), 1, 48);
+  characterArt.bosses[type] = shell(additionalBoss(type, additionalBossLooks[lookId]), 1, 256);
 }
-characterArt.bosses.slimeKing = shell(boss('slimeKing'), 1, 48);
-characterArt.bosses.roboCrab = shell(boss('roboCrab'), 1, 48);
-characterArt.bosses.skyDragon = shell(boss('skyDragon'), 1, 48);
+characterArt.bosses.slimeKing = shell(boss('slimeKing'), 1, 256);
+characterArt.bosses.roboCrab = shell(boss('roboCrab'), 1, 256);
+characterArt.bosses.skyDragon = shell(boss('skyDragon'), 1, 256);

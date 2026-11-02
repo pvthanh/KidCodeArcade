@@ -16,7 +16,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 28, 'Mushroom'], [16, 36, 'Star'], [16, 49, 'ExtraLife'], [16, 61, 'FireFlower']],
     props: [[15, 18, 'Pipe'], [16, 18, 'Pipe'], [16, 24, 'Spring'], [16, 53, 'Checkpoint']],
     coins: [[11, 9], [11, 11], [10, 32], [10, 33], [14, 43], [14, 45], [12, 59]],
-    boss: { movement: 'patrol', ability: 'fireballs', health: 3, speed: 45, size: 48 },
+    boss: { movement: 'patrol', ability: 'fireballs', health: 3, speed: 45, size: 144 },
     reward: 'Mushroom'
   },
   {
@@ -29,7 +29,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 34, 'FireFlower'], [16, 54, 'ExtraLife']],
     props: [[16, 29, 'Switch'], [14, 32, 'Door'], [15, 32, 'Door'], [16, 32, 'Door'], [16, 50, 'Checkpoint'], [16, 58, 'Spring']],
     coins: [[11, 9], [11, 11], [12, 27], [10, 35], [10, 40], [10, 50]],
-    boss: { movement: 'chase', ability: 'groundPound', health: 3, speed: 48, size: 48 },
+    boss: { movement: 'chase', ability: 'groundPound', health: 3, speed: 48, size: 144 },
     reward: 'FireFlower'
   },
   {
@@ -42,7 +42,7 @@ const LEVELS = [
     items: [[12, 11, 'MysteryBox'], [16, 31, 'Mushroom'], [16, 47, 'Star'], [16, 61, 'FireFlower']],
     props: [[16, 16, 'Spring'], [16, 27, 'Checkpoint'], [16, 45, 'Spring'], [15, 58, 'Pipe'], [16, 58, 'Pipe']],
     coins: [[11, 10], [11, 12], [9, 30], [9, 31], [10, 43], [10, 48], [12, 56]],
-    boss: { movement: 'leap', ability: 'fireballs', health: 3, speed: 50, size: 52 },
+    boss: { movement: 'leap', ability: 'fireballs', health: 3, speed: 50, size: 144 },
     reward: 'Random'
   },
   {
@@ -56,7 +56,7 @@ const LEVELS = [
     items: [[13, 10, 'MysteryBox'], [16, 33, 'FireFlower'], [16, 50, 'ExtraLife']],
     props: [[16, 16, 'Spring'], [16, 49, 'Checkpoint'], [16, 59, 'Spring']],
     coins: [[12, 10], [12, 12], [10, 29], [10, 30], [11, 41], [11, 47], [12, 57]],
-    boss: { movement: 'patrol', ability: 'both', health: 3, speed: 52, size: 52 },
+    boss: { movement: 'patrol', ability: 'both', health: 3, speed: 52, size: 144 },
     reward: 'Star'
   },
   {
@@ -69,7 +69,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 34, 'FireFlower'], [16, 56, 'Mushroom']],
     props: [[16, 18, 'Switch'], [14, 21, 'Door'], [15, 21, 'Door'], [16, 21, 'Door'], [16, 27, 'Checkpoint'], [16, 45, 'Switch'], [14, 52, 'Door'], [15, 52, 'Door'], [16, 52, 'Door'], [15, 59, 'Pipe'], [16, 59, 'Pipe']],
     coins: [[11, 9], [11, 11], [11, 31], [9, 37], [11, 42], [12, 57]],
-    boss: { movement: 'chase', ability: 'both', health: 3, speed: 54, size: 52 },
+    boss: { movement: 'chase', ability: 'both', health: 3, speed: 54, size: 144 },
     reward: 'ExtraLife'
   },
   {
@@ -82,7 +82,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 25, 'Star'], [16, 40, 'FireFlower'], [16, 56, 'ExtraLife']],
     props: [[16, 14, 'Spring'], [16, 55, 'Checkpoint'], [16, 64, 'Spring']],
     coins: [[11, 10], [11, 12], [11, 22], [9, 28], [11, 37], [9, 43], [11, 53], [12, 62]],
-    boss: { movement: 'leap', ability: 'groundPound', health: 3, speed: 56, size: 56 },
+    boss: { movement: 'leap', ability: 'groundPound', health: 3, speed: 56, size: 144 },
     reward: 'Star'
   },
   {
@@ -95,7 +95,7 @@ const LEVELS = [
     items: [[12, 11, 'MysteryBox'], [16, 32, 'Mushroom'], [16, 48, 'FireFlower']],
     props: [[16, 17, 'Checkpoint'], [16, 26, 'Switch'], [14, 38, 'Door'], [15, 38, 'Door'], [16, 38, 'Door'], [16, 46, 'Spring'], [16, 61, 'ExtraLife']],
     coins: [[11, 10], [11, 12], [10, 29], [11, 35], [10, 45], [11, 50], [12, 60]],
-    boss: { movement: 'patrol', ability: 'both', health: 4, speed: 58, size: 56 },
+    boss: { movement: 'patrol', ability: 'both', health: 4, speed: 58, size: 144 },
     reward: 'FireFlower'
   },
   {
@@ -108,7 +108,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 42, 'Star'], [16, 57, 'FireFlower'], [16, 66, 'ExtraLife']],
     props: [[16, 17, 'Spring'], [16, 56, 'Checkpoint'], [16, 68, 'Spring']],
     coins: [[11, 10], [11, 12], [12, 25], [10, 30], [12, 40], [10, 45], [12, 54], [12, 65]],
-    boss: { movement: 'chase', ability: 'fireballs', health: 4, speed: 60, size: 56 },
+    boss: { movement: 'chase', ability: 'fireballs', health: 4, speed: 60, size: 144 },
     reward: 'Random'
   },
   {
@@ -121,7 +121,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 31, 'FireFlower'], [16, 57, 'Star'], [16, 66, 'ExtraLife']],
     props: [[16, 17, 'Spring'], [16, 41, 'Checkpoint'], [16, 60, 'Spring']],
     coins: [[11, 10], [11, 12], [11, 24], [9, 29], [11, 38], [10, 47], [11, 55], [12, 65]],
-    boss: { movement: 'leap', ability: 'both', health: 4, speed: 62, size: 60 },
+    boss: { movement: 'leap', ability: 'both', health: 4, speed: 62, size: 144 },
     reward: 'FireFlower'
   },
   {
@@ -134,7 +134,7 @@ const LEVELS = [
     items: [[12, 10, 'MysteryBox'], [16, 30, 'ExtraLife'], [16, 45, 'FireFlower'], [16, 57, 'Star'], [16, 66, 'Mushroom']],
     props: [[16, 16, 'Spring'], [16, 40, 'Checkpoint'], [16, 55, 'Spring'], [15, 60, 'Pipe'], [16, 60, 'Pipe']],
     coins: [[11, 10], [11, 12], [12, 23], [10, 28], [12, 37], [10, 43], [12, 53], [12, 64]],
-    boss: { movement: 'leap', ability: 'both', health: 4, speed: 65, size: 64 },
+    boss: { movement: 'leap', ability: 'both', health: 4, speed: 65, size: 144 },
     reward: 'Random'
   }
 ];

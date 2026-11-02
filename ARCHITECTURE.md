@@ -254,7 +254,9 @@ the level. Users can add up to
 4096 × 4096 pixels; their combined image data is limited to 20 MB. The selected
 boss uses the level's patrol/chase/leap movement, fireball/ground-pound/both
 ability, 3–10 health hits, 40–120 px/s movement speed, and configurable
-32–128 px display size (default 48 px). Fireball attacks are initiated within
+144–256 px display size (default 144 px, three times the player). Bossless
+levels have an open Goal; placed bosses create a visible physical gate at each
+Goal until every boss is defeated. Fireball attacks are initiated within
 850 px and travel at 320 px/s for up to 4.5 seconds. The roster, artwork, and
 settings are serialized with the level and included in campaign exports.
 
@@ -277,7 +279,7 @@ campaign is exported or imported.
 | Switch and door | Touching one switch disables/removes all closed doors in that level. |
 | Checkpoint | The latest touched checkpoint becomes the respawn position. Falling costs a life; if lives remain, the player respawns there after a short animation, in normal form and without Fire/Star powers. |
 | Enemies | Goomba and Koopa patrol horizontally; Bat and configured flying Creepy types fly. Creepy movement, speed, and health are configured per type. Stomps, Star power, and fireballs defeat enemies. |
-| Boss | Selected boss movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. The goal stays locked until every Boss in the level is defeated. |
+| Boss | Bosses display at least 144 px (three times the 48 px player) and use proportionally sized collision bodies and health bars. Selected movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. Bossless levels have no gate; placing one or more bosses creates a visible, solid gate at each Goal until all bosses are defeated, then the gate fades away. |
 | Fire Flower | Grants a Fire ability. X/J or the touch fireball button emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
@@ -297,11 +299,12 @@ fit its container.
   Box art is
   generated as scalable, detailed vector artwork in
   `src/assets/demo/CharacterArt.js`. Character art uses a 128 × 128 vector
-  viewBox. Built-in Player and Creepy animation sheets are rasterized from the
-  vector art into 256 × 256 frames, while Coin, power-up, and Mystery Box
+  viewBox. Built-in Player and Creepy animation sheets and Boss portraits are
+  rasterized from the vector art into 256 × 256 frames, while Coin, power-up, and Mystery Box
   artwork is rendered from 128 × 128 sources at the normal 32 × 32 tile size. Player and
   Creepy sprites are displayed at 48 × 48 in play mode with their previous
-  collision sizes; Boss sprites retain their configured display size.
+  collision sizes; Boss sprites retain their configured display size with
+  ground-contact collision bodies aligned to the artwork's feet.
   `StateManager` records per-action frame dimensions and frame rate, and the
   editor can replace these with uploaded images/sprite sheets.
 - The Player toolbox includes the original Storybook Hero plus ten built-in

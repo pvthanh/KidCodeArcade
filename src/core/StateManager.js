@@ -36,13 +36,15 @@ export const BOSS_ABILITIES = [
   { id: 'groundPound', name: 'Ground-pound shockwaves' },
   { id: 'both', name: 'Fireballs and ground pounds' }
 ];
+export const MIN_BOSS_SIZE = 144;
+export const MAX_BOSS_SIZE = 256;
 export const DEFAULT_BOSS_CONFIG = {
   type: 'slimeKing',
   movement: 'patrol',
   ability: 'fireballs',
   health: 5,
   speed: 70,
-  size: 48
+  size: MIN_BOSS_SIZE
 };
 
 export const CREEPY_TYPES = [
@@ -562,13 +564,13 @@ export class StateManager {
   }
 
   setBossConfig(config) {
-    const size = config?.size ?? 48;
+    const size = config?.size ?? DEFAULT_BOSS_CONFIG.size;
     if (!this.getBossTypes().some(boss => boss.id === config?.type) ||
       !BOSS_MOVEMENTS.some(movement => movement.id === config?.movement) ||
       !BOSS_ABILITIES.some(ability => ability.id === config?.ability) ||
       !Number.isInteger(config?.health) || config.health < 3 || config.health > 10 ||
       !Number.isInteger(config?.speed) || config.speed < 40 || config.speed > 120 ||
-      !Number.isInteger(size) || size < 32 || size > 128) {
+      !Number.isInteger(size) || size < 32 || size > MAX_BOSS_SIZE) {
       throw new TypeError('Boss settings contain an unsupported type, ability, movement, health, or speed.');
     }
     this.bossConfig = {
@@ -577,7 +579,7 @@ export class StateManager {
       ability: config.ability,
       health: config.health,
       speed: config.speed,
-      size
+      size: Math.max(MIN_BOSS_SIZE, size)
     };
   }
 
@@ -1092,13 +1094,13 @@ export class StateManager {
       }
     }
     if (data.bossConfig !== undefined) {
-      const { type, movement, ability, health, speed, size = 48 } = data.bossConfig || {};
+      const { type, movement, ability, health, speed, size = MIN_BOSS_SIZE } = data.bossConfig || {};
       if (![...BOSS_TYPES, ...customBosses].some(boss => boss.id === type) ||
         !BOSS_MOVEMENTS.some(option => option.id === movement) ||
         !BOSS_ABILITIES.some(option => option.id === ability) ||
         !Number.isInteger(health) || health < 3 || health > 10 ||
         !Number.isInteger(speed) || speed < 40 || speed > 120 ||
-        !Number.isInteger(size) || size < 32 || size > 128) {
+        !Number.isInteger(size) || size < 32 || size > MAX_BOSS_SIZE) {
         throw new TypeError('The level file contains invalid boss settings.');
       }
     }
