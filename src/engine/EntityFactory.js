@@ -4,6 +4,7 @@ const COLORS = {
   Stone: 0x788994,
   Snow: 0xb8ddeb,
   Brick: 0xb9683f,
+  Lava: 0xc83e31,
   MysteryBox: 0xe0aa28,
   Pipe: 0x308c62,
   Spring: 0xd86783,
@@ -37,6 +38,7 @@ export class EntityFactory {
       ['Stone', (scene, x, y, options = {}) => this.createPlatform(scene, 'Stone', x, y, options)],
       ['Snow', (scene, x, y, options = {}) => this.createPlatform(scene, 'Snow', x, y, options)],
       ['Brick', (scene, x, y, options = {}) => this.createPlatform(scene, 'Brick', x, y, options)],
+      ['Lava', (scene, x, y, options = {}) => this.createPlatform(scene, 'Lava', x, y, options)],
       ['MysteryBox', (scene, x, y, options = {}) => this.createPlatform(scene, 'MysteryBox', x, y, options)],
       ['Pipe', (scene, x, y, options = {}) => this.createPlatform(scene, 'Pipe', x, y, options)],
       ['Spring', (scene, x, y, options = {}) => this.createPlatform(scene, 'Spring', x, y, options)],
@@ -125,6 +127,7 @@ export class EntityFactory {
       Stone: { color: COLORS.Stone, shape: 'stone' },
       Snow: { color: COLORS.Snow, shape: 'snow' },
       Brick: { color: COLORS.Brick, shape: 'block' },
+      Lava: { color: COLORS.Lava, shape: 'lava' },
       MysteryBox: { color: COLORS.MysteryBox, shape: 'question' },
       Pipe: { color: COLORS.Pipe, shape: 'pipe' },
       Spring: { color: COLORS.Spring, shape: 'spring' },
@@ -249,6 +252,17 @@ export class EntityFactory {
         graphics.fillCircle(16, 16, 7);
         graphics.fillStyle(0xffffff, 1);
         graphics.fillCircle(12, 12, 3);
+      } else if (style.shape === 'lava') {
+        graphics.fillStyle(0x542d35, 1);
+        graphics.fillRect(1, 1, 30, 30);
+        graphics.fillStyle(0xd5472f, 1);
+        graphics.fillRect(1, 6, 30, 25);
+        graphics.fillStyle(0xffb13b, 1);
+        graphics.fillTriangle(1, 9, 9, 4, 17, 9);
+        graphics.fillTriangle(13, 11, 23, 5, 31, 10);
+        graphics.fillStyle(0xffe070, 1);
+        graphics.fillRect(4, 11, 5, 2);
+        graphics.fillRect(23, 12, 5, 2);
       } else if (style.shape === 'sand') {
         graphics.fillRect(1, 1, 30, 30);
         graphics.fillStyle(0xf0d79c, 1);

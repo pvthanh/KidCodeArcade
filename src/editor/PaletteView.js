@@ -24,6 +24,9 @@ const TILES = [
   { id: 'Spring', name: 'Spring', icon: '🌀', description: 'Bounce high when you land on it', color: '#d86783' },
   { id: 'MovingPlatform', name: 'Moving platform', icon: '↔️', description: 'Ride a platform that moves side to side', color: '#4c86b8' },
   { id: 'OneWayPlatform', name: 'One-way platform', icon: '🪵', description: 'Jump up through it and land on top', color: '#b98b52' },
+  { id: 'RotatingFirebar', name: 'Rotating firebar', icon: '🔥⟲', description: 'A rotating chain of fireballs; touching it hurts the player', color: '#ed553b' },
+  { id: 'FireGeyser', name: 'Fire geyser', icon: '🌋', description: 'Erupts upward on a repeating timer; wait for it to cool before crossing', color: '#e65a36' },
+  { id: 'Lava', name: 'Lava', icon: '🟠', description: 'A solid, dangerous floor tile that hurts the player on contact', color: '#c83e31' },
   { id: 'Switch', name: 'Switch', icon: '🔘', description: 'Touch it to open every door in the level', color: '#e08b48' },
   { id: 'Door', name: 'Door', icon: '🚪', description: 'A solid barrier opened by a switch', color: '#765b90' },
   { id: 'Checkpoint', name: 'Checkpoint', icon: '🚩', description: 'Touch it to respawn here after falling', color: '#43a5a1' },
@@ -33,7 +36,7 @@ const TILES = [
   { id: 'Mushroom', name: 'Super mushroom', icon: '🍄', description: 'Grow big and jump higher', color: '#e47759' },
   { id: 'Star', name: 'Star power', icon: '⭐', description: 'Invincible for 8 seconds', color: '#f1ad3e' },
   { id: 'ExtraLife', name: 'Extra life', icon: '❤️', description: 'Add one player life', color: '#e76568' },
-  { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Unlock fireballs with X, J, or the touch button', color: '#ed7645' },
+  { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Adds five fireballs; shoot with X, J, or the touch button', color: '#ed7645' },
   { id: 'Flag', name: 'Goal', icon: '🏁', description: 'Reach to win', color: '#378bd0' },
   { id: 'Eraser', name: 'Eraser', icon: '🧽', description: 'Remove a tile', color: '#85939c' }
 ];
@@ -54,6 +57,7 @@ const TOOL_GROUPS = [
     name: 'Platforms & Mechanics',
     tileIds: ['Spring', 'MovingPlatform', 'OneWayPlatform', 'MysteryBox', 'Switch', 'Door']
   },
+  { id: 'hazards', name: 'Hazards & Obstacles', tileIds: ['RotatingFirebar', 'FireGeyser', 'Lava'] },
   { id: 'creepy', name: 'Creepy', tileIds: ['Creepy'] },
   { id: 'boss', name: 'Boss', tileIds: ['Boss'] },
   {
@@ -67,6 +71,7 @@ const GROUP_TILE_DEFAULTS = {
   'start-goal': 'Player',
   terrain: 'Ground',
   mechanics: 'Spring',
+  hazards: 'RotatingFirebar',
   creepy: 'Creepy',
   boss: 'Boss',
   collectibles: 'Coin'
@@ -625,7 +630,8 @@ export class PaletteView {
                 ` : ''}
         ${tiles.map(tile => {
           const animated = Boolean(ANIMATIONS[tile.id]);
-          const configurable = !animated && tile.id !== 'Player' && tile.id !== 'Boss' && tile.id !== 'Creepy';
+          const configurable = !animated &&
+            !['Player', 'Boss', 'Creepy', 'RotatingFirebar', 'FireGeyser', 'Lava'].includes(tile.id);
           return `
             <article class="tile-item" data-tile-id="${tile.id}"
               ${hasGroupSelector && tile.id !== selectedTileId ? 'hidden' : ''}>

@@ -58,7 +58,8 @@ support.
 ### Toolbox content
 
 The toolbox reduces scrolling by organizing tools into collapsible groups.
-Start & Goal, Terrain, Platforms & Mechanics, and Collectibles & Power-ups
+Start & Goal, Terrain, Platforms & Mechanics, Hazards & Obstacles, and
+Collectibles & Power-ups
 each provide a selector to choose one item and reveal its image/property
 controls. Creepy and Boss remain in their own separate groups with their
 existing character selectors and configuration controls. Only one group is
@@ -70,6 +71,7 @@ is a separate, always-visible editor tool near Undo and Redo.
   are new solid terrain choices with distinct editor and in-game artwork.
 - **Platforms & Mechanics**: Spring, Moving platform, One-way platform,
   Mystery Box, Switch, Door.
+- **Hazards & Obstacles**: Rotating firebar, Fire geyser, Lava.
 - **Creepy**: Goomba, Koopa, Bat, Firefly, Cloud Puff, Jellyfish, Ladybug,
   Hedgehog, Duckling, Fox Kit, Bumblebee, Froglet, Starfish, Ghost, Mini Dino,
   or custom creatures.
@@ -218,7 +220,7 @@ physics or gameplay behavior.
 - Optional touch controls provide large, translucent targets arranged for
   two-handed play: left/right movement on the left, and up/jump, down/pipe, and
   fireball on the right. Fireballs can only be shot after collecting Fire
-  Flower power. Controls are hidden by default; use **Show touch controls** in
+  Flower power, which provides five shots per flower. Controls are hidden by default; use **Show touch controls** in
   the game header to enable them. The up button jumps or enters a pipe when
   beside one; the down button enters a pipe from above. Drag the center handle
   to reposition the controls.
@@ -228,10 +230,10 @@ physics or gameplay behavior.
 ### Player movement
 
 - The player starts with three lives.
-- Score, lives, mushroom growth, Fire Flower power, and any remaining Star
-  duration carry forward when advancing to the next campaign level. Replaying a
-  failed level restores the progress the player had when that level began;
-  replaying the campaign starts a fresh run.
+- Score, lives, mushroom growth, remaining Fire Flower shots, and any remaining
+  Star duration carry forward when advancing to the next campaign level.
+  Replaying a failed level restores level-entry progress; replaying the
+  campaign starts a fresh run.
 - Play mode uses a 1.35× camera zoom and crisp pixel-art rendering to make
   characters and objects easier to see. This changes only the view: tile
   dimensions and gameplay collision sizes are unchanged. Score, best score,
@@ -256,6 +258,9 @@ physics or gameplay behavior.
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
 | One-way platform | Player can jump through from below and land on top. |
+| Rotating firebar | A placed anchor spins a chain of six fireballs around itself. Touching any fireball damages the player. |
+| Fire geyser | A floor-mounted nozzle warns with a glow, erupts upward for a short burst, then cools down before repeating. The plume damages the player while active. |
+| Lava | A solid floor tile that damages the player on contact. Several adjacent tiles can create a lava pit to jump across. |
 | Switch | Touching it activates it and opens every closed Door in that level. |
 | Door | Solid until a Switch is activated. |
 | Checkpoint | The last touched checkpoint is the respawn point. Falling there costs one life; if lives remain, the player respawns after a short animation with temporary powers cleared. |
@@ -265,7 +270,7 @@ physics or gameplay behavior.
 | Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
 | Extra Life | Adds one life. |
-| Fire Flower | Grants Fire power. X/J or the touch fireball button shoots a directional projectile with a cooldown; it defeats ground/flying enemies and is removed by obstacles or timeout. |
+| Fire Flower | Adds five Fire shots; additional flowers add five more. X/J or the touch fireball button shoots one directional projectile per shot with a cooldown. The HUD and player flame badge show remaining shots. Taking damage or respawning clears them. Fireballs defeat ground/flying enemies and disappear on obstacles or timeout. |
 | Flag | Ends the level as a win when touched. |
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also

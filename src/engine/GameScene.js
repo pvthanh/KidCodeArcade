@@ -45,7 +45,11 @@ export class GameScene extends Scene {
       campaignProgress.mushroomGrowth >= 0
       ? campaignProgress.mushroomGrowth
       : 0;
-    this.hasFire = campaignProgress.hasFire === true;
+    this.fireCharges = Number.isSafeInteger(campaignProgress.fireCharges) &&
+      campaignProgress.fireCharges >= 0
+      ? campaignProgress.fireCharges
+      : campaignProgress.hasFire === true ? 5 : 0;
+    this.hasFire = this.fireCharges > 0;
     this.starPowerRemainingMs = Number.isFinite(campaignProgress.starPowerRemainingMs)
       ? Math.max(0, campaignProgress.starPowerRemainingMs)
       : 0;
@@ -128,6 +132,7 @@ export class GameScene extends Scene {
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
     this.cameras.main.setZoom(1.35);
     this.createBackdrop();
+    this.createHazardTextures();
 
     const platforms = this.physics.add.staticGroup();
     const coins = this.physics.add.staticGroup();
@@ -142,8 +147,14 @@ export class GameScene extends Scene {
     this.powerUps = this.physics.add.group();
     const projectiles = this.physics.add.group();
     this.bossProjectiles = this.physics.add.group();
+    this.environmentHazards = this.physics.add.group({
+      allowGravity: false,
+      immovable: true
+    });
     const movingPlatforms = this.physics.add.group();
     const animatedEntities = [];
+    this.rotatingFirebars = [];
+    this.fireGeysers = [];
     let spawnPoint = null;
 
     this.worldSnapshot.tiles.forEach((row, rowIndex) => {
@@ -153,6 +164,14 @@ export class GameScene extends Scene {
         const y = rowIndex * tileSize + tileSize / 2;
         if (tileType === 'Player') {
           spawnPoint = { x, y: y - PLAYER_TILE_ALIGNMENT_OFFSET };
+          return;
+        }
+        if (tileType === 'RotatingFirebar') {
+          this.createRotatingFirebar(x, y, rowIndex, colIndex);
+          return;
+        }
+        if (tileType === 'FireGeyser') {
+          this.createFireGeyser(x, y, rowIndex, colIndex);
           return;
         }
         const animations = this.worldSnapshot.spriteMetadata?.[tileType]?.animations || {};
@@ -215,6 +234,18 @@ export class GameScene extends Scene {
           'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Spring', 'OneWayPlatform'
         ].includes(tileType)) {
           platforms.add(entity);
+        } else if (tileType === 'Lava') {
+          platforms.add(entity);
+          const bubble = this.add.circle(x - 7, y - 11, 2, 0xffdd68).setDepth(4);
+          this.tweens.add({
+            targets: bubble,
+            y: y - 25,
+            alpha: 0,
+            yoyo: true,
+            duration: 720 + (colIndex % 4) * 90,
+            repeat: -1,
+            delay: (colIndex % 3) * 160
+          });
         } else if (tileType === 'MovingPlatform') {
           movingPlatforms.add(entity);
           entity.body.setAllowGravity(false);
@@ -333,7 +364,7 @@ export class GameScene extends Scene {
     this.playerBaseScale = this.player.scaleX;
     this.applyMushroomGrowth();
     this.player.body.reset(this.player.x, this.player.y);
-    if (this.hasFire) this.player.setTint(0xff7848);
+    this.createFireIndicator();
     if (this.starPowerRemainingMs > 0) {
       this.starPowerUntil = this.time.now + this.starPowerRemainingMs;
       this.player.setTint(0xffe477);
@@ -380,6 +411,13 @@ export class GameScene extends Scene {
     this.physics.add.overlap(this.player, this.flyingEnemies, this.handleEnemyCollision, undefined, this);
     this.physics.add.overlap(this.player, this.bosses, this.handleBossCollision, undefined, this);
     this.physics.add.overlap(this.player, this.bossProjectiles, this.hitByBossProjectile, undefined, this);
+    this.physics.add.overlap(
+      this.player,
+      this.environmentHazards,
+      this.handleEnvironmentalHazard,
+      undefined,
+      this
+    );
     this.physics.add.overlap(this.player, flags, this.reachGoal, undefined, this);
     this.platforms = platforms;
     this.pipes = pipes;
@@ -508,8 +546,7 @@ export class GameScene extends Scene {
     if (!this.player?.active || this.gameEnded || this.isRespawning) return;
     if (this.starPowerUntil && this.time.now >= this.starPowerUntil) {
       this.starPowerUntil = 0;
-      if (this.hasFire) this.player.setTint(0xff7848);
-      else this.player.clearTint();
+      this.player.clearTint();
       this.refreshPowerLabel();
     }
     if (this.player.body.bottom > this.worldSnapshot.rows * 32) {
@@ -657,6 +694,8 @@ export class GameScene extends Scene {
       if (!projectile?.active) return;
       projectile.setRotation(projectile.rotation + 0.08);
     });
+    this.updateEnvironmentalHazards();
+    this.updateFireIndicator();
   }
 
   tryUsePipe(direction) {
@@ -884,6 +923,10 @@ export class GameScene extends Scene {
 
   handleBlockCollision(player, block) {
     const tileType = block.getData('tileType');
+    if (tileType === 'Lava') {
+      this.damagePlayer(player);
+      return;
+    }
     if (tileType === 'Spring' && (player.body.touching.down || player.body.blocked.down)) {
       if ((block.getData('bounceCooldown') || 0) <= this.time.now) {
         block.setData('bounceCooldown', this.time.now + 250);
@@ -997,6 +1040,7 @@ export class GameScene extends Scene {
       player.body.reset(player.x, player.y);
       player.clearTint();
       this.hasFire = false;
+      this.fireCharges = 0;
       this.starPowerUntil = 0;
       this.starPowerRemainingMs = 0;
       this.jumpBufferUntil = 0;
@@ -1105,8 +1149,8 @@ export class GameScene extends Scene {
       this.mushroomGrowth += 1;
       this.applyMushroomGrowth();
     } else if (powerUpType === 'FireFlower') {
+      this.fireCharges += 5;
       this.hasFire = true;
-      player.setTint(0xff7848);
     } else if (powerUpType === 'Star') {
       this.starPowerUntil = this.time.now + 8000;
       player.setTint(0xffe477);
@@ -1251,6 +1295,7 @@ export class GameScene extends Scene {
     this.invulnerableUntil = this.time.now + 1000;
     if (this.hasFire) {
       this.hasFire = false;
+      this.fireCharges = 0;
       if (this.starPowerUntil > this.time.now) player.setTint(0xffe477);
       else player.clearTint();
       this.refreshPowerLabel();
@@ -1458,6 +1503,7 @@ export class GameScene extends Scene {
       lives: this.lives,
       mushroomGrowth: this.mushroomGrowth,
       hasFire: this.hasFire,
+      fireCharges: this.fireCharges,
       starPowerRemainingMs: Math.max(0, this.starPowerUntil - this.time.now)
     };
   }
@@ -1528,13 +1574,13 @@ export class GameScene extends Scene {
     const hasStar = this.starPowerUntil > this.time.now;
     const powers = [];
     if (this.mushroomGrowth > 0) powers.push(`Big ×${this.mushroomGrowth}`);
-    if (this.hasFire) powers.push('Fire');
+    if (this.hasFire) powers.push(`Fire ×${this.fireCharges}`);
     if (hasStar) powers.push('Star');
     this.powerLabel = powers.length ? powers.join(' + ') : 'Normal';
   }
 
   shootFireball() {
-    if (!this.hasFire || this.time.now < this.fireCooldownUntil || this.gameEnded) return;
+    if (this.fireCharges <= 0 || this.time.now < this.fireCooldownUntil || this.gameEnded) return;
     this.fireCooldownUntil = this.time.now + 300;
     const direction = this.player.flipX ? -1 : 1;
     const projectile = this.physics.add.sprite(
@@ -1546,8 +1592,11 @@ export class GameScene extends Scene {
     projectile.body.setAllowGravity(false);
     projectile.setSize(14, 14).setOffset(9, 9);
     projectile.setVelocity(direction * 360, 0);
+    this.fireCharges -= 1;
+    this.hasFire = this.fireCharges > 0;
     this.emitBurst(projectile.x, projectile.y, 0xffb94d, 5, 16, 220);
     this.soundManager.play('fireball');
+    this.updateHud();
     this.time.delayedCall(1500, () => {
       if (projectile.active) projectile.destroy();
     });
@@ -1567,8 +1616,189 @@ export class GameScene extends Scene {
   updateHud() {
     if (!this.scoreLabel) return;
     this.refreshPowerLabel();
+    this.updateFireIndicator();
     this.scoreLabel.setText(
       `Coins: ${this.score}  Best: ${this.bestScore}  Lives: ${this.lives}\nPower: ${this.powerLabel}${this.bossHudHint ? `\n${this.bossHudHint}` : ''}`
     );
+  }
+
+  createFireIndicator() {
+    this.fireIndicator = this.add.container(0, 0).setDepth(9);
+    const icon = this.add.graphics();
+    icon.fillStyle(0x173b4a, 0.96);
+    icon.fillCircle(0, 0, 11);
+    icon.lineStyle(2, 0xffd06a, 1);
+    icon.strokeCircle(0, 0, 11);
+    icon.fillStyle(0xff7848, 1);
+    icon.beginPath();
+    icon.moveTo(0, -8);
+    icon.lineTo(6, 0);
+    icon.lineTo(5, 5);
+    icon.lineTo(0, 8);
+    icon.lineTo(-5, 5);
+    icon.lineTo(-6, 0);
+    icon.closePath();
+    icon.fillPath();
+    icon.fillStyle(0xffd06a, 1);
+    icon.fillCircle(0, 3, 3);
+    this.fireIndicator.add(icon);
+    this.fireIndicator.add(
+      this.add.circle(9, 9, 7, 0x173b4a).setStrokeStyle(1.5, 0xffffff, 1)
+    );
+    this.fireIndicatorCount = this.add.text(9, 9, '', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '9px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5);
+    this.fireIndicator.add(this.fireIndicatorCount);
+    this.updateFireIndicator();
+  }
+
+  updateFireIndicator() {
+    if (!this.fireIndicator || !this.player?.body) return;
+    this.fireIndicator.setVisible(this.fireCharges > 0);
+    if (this.fireCharges <= 0) return;
+    this.fireIndicator.setPosition(
+      this.player.body.right - 2,
+      this.player.body.top - 5
+    );
+    this.fireIndicatorCount.setText(this.fireCharges > 99 ? '99+' : String(this.fireCharges));
+  }
+
+  createHazardTextures() {
+    if (this.textures.exists('HazardFireOrb')) return;
+    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xd83b25, 1);
+    graphics.fillCircle(16, 16, 15);
+    graphics.fillStyle(0xff7b2c, 1);
+    graphics.fillCircle(16, 17, 11);
+    graphics.fillStyle(0xffd64f, 1);
+    graphics.fillCircle(16, 18, 7);
+    graphics.fillStyle(0xffffc2, 0.95);
+    graphics.fillCircle(12, 12, 3);
+    graphics.generateTexture('HazardFireOrb', 32, 32);
+    graphics.destroy();
+  }
+
+  createHazardOrb(x, y, size = 22) {
+    const orb = this.physics.add.image(x, y, 'HazardFireOrb')
+      .setDisplaySize(size, size)
+      .setDepth(5);
+    orb.body.setAllowGravity(false);
+    orb.body.setImmovable(true);
+    orb.body.setCircle(size / 2);
+    this.environmentHazards.add(orb);
+    return orb;
+  }
+
+  createRotatingFirebar(x, y, row, col) {
+    const arm = this.add.graphics().setDepth(4);
+    const anchor = this.add.graphics().setDepth(6);
+    anchor.fillStyle(0x46525e, 1);
+    anchor.fillRoundedRect(x - 12, y - 12, 24, 24, 3);
+    anchor.lineStyle(2, 0xd5dce2, 1);
+    anchor.strokeRoundedRect(x - 10, y - 10, 20, 20, 2);
+    anchor.fillStyle(0xc73527, 1);
+    anchor.fillCircle(x, y, 5);
+    anchor.fillStyle(0xffd36b, 1);
+    anchor.fillCircle(x - 1, y - 1, 2);
+    const flames = Array.from({ length: 6 }, (_, index) =>
+      this.createHazardOrb(x + (index + 1) * 22, y, 20)
+    );
+    this.rotatingFirebars.push({
+      x,
+      y,
+      row,
+      col,
+      arm,
+      flames,
+      startAngle: ((row + col) % 2) * Math.PI,
+      rotationSpeed: (col % 2 ? -1 : 1) * 0.9
+    });
+  }
+
+  createFireGeyser(x, y, row, col) {
+    const baseY = y + 16;
+    const nozzle = this.add.graphics().setDepth(4);
+    const flames = Array.from({ length: 6 }, (_, index) =>
+      this.createHazardOrb(x, baseY - 12 - index * 21, 24)
+    );
+    flames.forEach(flame => {
+      flame.setVisible(false);
+      flame.body.enable = false;
+    });
+    this.fireGeysers.push({
+      x,
+      row,
+      col,
+      baseY,
+      nozzle,
+      flames,
+      phaseOffset: (col * 613 + row * 271) % 4300,
+      period: 4300,
+      warningDuration: 1050,
+      eruptionDuration: 1350
+    });
+  }
+
+  updateEnvironmentalHazards() {
+    const now = this.time.now;
+    this.rotatingFirebars.forEach(bar => {
+      const angle = bar.startAngle + now / 1000 * bar.rotationSpeed;
+      const endX = bar.x + Math.cos(angle) * (bar.flames.length * 22);
+      const endY = bar.y + Math.sin(angle) * (bar.flames.length * 22);
+      bar.arm.clear();
+      bar.arm.lineStyle(4, 0x5a4a48, 1);
+      bar.arm.lineBetween(bar.x, bar.y, endX, endY);
+      bar.arm.lineStyle(1.5, 0xffc15b, 0.8);
+      bar.arm.lineBetween(bar.x, bar.y, endX, endY);
+      bar.flames.forEach((flame, index) => {
+        const distance = (index + 1) * 22;
+        const flicker = 1 + Math.sin(now / 90 + index * 2) * 0.08;
+        flame.setPosition(
+          bar.x + Math.cos(angle) * distance,
+          bar.y + Math.sin(angle) * distance
+        ).setScale(flicker * 0.62);
+        flame.body.updateFromGameObject();
+      });
+    });
+
+    this.fireGeysers.forEach(geyser => {
+      const phase = (now + geyser.phaseOffset) % geyser.period;
+      const warning = phase < geyser.warningDuration;
+      const erupting = phase >= geyser.warningDuration &&
+        phase < geyser.warningDuration + geyser.eruptionDuration;
+      const pulse = 0.5 + Math.sin(now / 75) * 0.5;
+      geyser.nozzle.clear();
+      geyser.nozzle.fillStyle(0x46525e, 1);
+      geyser.nozzle.fillRoundedRect(geyser.x - 15, geyser.baseY - 13, 30, 13, 3);
+      geyser.nozzle.lineStyle(2, 0xc2cbd2, 1);
+      geyser.nozzle.strokeRoundedRect(geyser.x - 15, geyser.baseY - 13, 30, 13, 3);
+      geyser.nozzle.fillStyle(warning ? 0xffa33b : 0x242b31, warning ? 0.6 + pulse * 0.4 : 1);
+      geyser.nozzle.fillRoundedRect(geyser.x - 8, geyser.baseY - 12, 16, 5, 2);
+      if (warning) {
+        geyser.nozzle.fillStyle(0xff9a32, 0.25 + pulse * 0.35);
+        geyser.nozzle.fillCircle(geyser.x, geyser.baseY - 15, 11 + pulse * 5);
+      }
+
+      geyser.flames.forEach((flame, index) => {
+        flame.setVisible(erupting);
+        flame.body.enable = erupting;
+        if (!erupting) return;
+        const flicker = Math.sin(now / 80 + index * 1.8);
+        flame.setPosition(
+          geyser.x + flicker * 3,
+          geyser.baseY - 12 - index * 21 - Math.max(0, flicker) * 5
+        );
+        flame.body.updateFromGameObject();
+      });
+    });
+  }
+
+  handleEnvironmentalHazard(player, hazard) {
+    if (hazard.active && hazard.body?.enable && !this.gameEnded) {
+      this.damagePlayer(player);
+    }
   }
 }

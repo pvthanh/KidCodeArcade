@@ -34,12 +34,18 @@ const LEVELS = [
   },
   {
     name: 'Golden Dune Dash',
-    hint: 'Use the spring to clear the sand gaps. The pipe is a local shortcut; press ↓ while standing on its top.',
+    hint: 'Watch the rotating firebars and wait for each geyser to settle before crossing. The lava gaps are dangerous even when the flames are down.',
     theme: 'desert',
     creeps: [['Creepy-Ladybug', 16, 18], ['Creepy-CloudPuff', 9, 34]],
     gaps: [[18, 21], [35, 38], [52, 55]],
     platforms: [[12, 23, 25, 'Sand'], [10, 30, 32, 'OneWayPlatform'], [12, 42, 44, 'Sand'], [11, 47, 49, 'MovingPlatform']],
-    items: [[12, 11, 'MysteryBox'], [16, 31, 'Mushroom'], [16, 47, 'Star'], [16, 61, 'FireFlower']],
+    items: [[12, 11, 'MysteryBox'], [16, 29, 'FireFlower'], [16, 31, 'Mushroom'], [16, 47, 'Star']],
+    hazards: [
+      [12, 34, 'RotatingFirebar'], [10, 49, 'RotatingFirebar'],
+      [16, 43, 'FireGeyser'], [16, 61, 'FireGeyser'],
+      [17, 35, 'Lava'], [17, 36, 'Lava'], [17, 37, 'Lava'], [17, 38, 'Lava'],
+      [17, 52, 'Lava'], [17, 53, 'Lava'], [17, 54, 'Lava'], [17, 55, 'Lava']
+    ],
     props: [[16, 16, 'Spring'], [16, 27, 'Checkpoint'], [16, 45, 'Spring'], [15, 58, 'Pipe'], [16, 58, 'Pipe']],
     coins: [[11, 10], [11, 12], [9, 30], [9, 31], [10, 43], [10, 48], [12, 56]],
     boss: { movement: 'leap', ability: 'fireballs', health: 3, speed: 50, size: 144 },
@@ -164,6 +170,7 @@ function createLevelSnapshot(baseSnapshot, recipe, levelIndex) {
   for (const [row, col, type, variant] of recipe.appearances || []) {
     put(row, col, type, variant);
   }
+  for (const [row, col, type] of recipe.hazards || []) put(row, col, type);
   for (const [row, col, type] of recipe.props) put(row, col, type);
   for (const [row, col, type] of recipe.items) put(row, col, type);
   for (const [row, col] of recipe.coins) put(row, col, 'Coin');

@@ -11,6 +11,9 @@ const TILE_COLORS = {
   Spring: '#d86783',
   MovingPlatform: '#4c86b8',
   OneWayPlatform: '#b98b52',
+  RotatingFirebar: '#ed553b',
+  FireGeyser: '#e65a36',
+  Lava: '#c83e31',
   Switch: '#e08b48',
   Door: '#765b90',
   Checkpoint: '#43a5a1',
@@ -38,6 +41,9 @@ const TILE_LABELS = {
   Spring: '↟',
   MovingPlatform: '↔',
   OneWayPlatform: '━',
+  RotatingFirebar: '⟲',
+  FireGeyser: '♨',
+  Lava: '≈',
   Switch: '●',
   Door: '▥',
   Checkpoint: '⚑',
@@ -585,7 +591,53 @@ export class GridCanvas {
     }
 
     ctx.fillStyle = TILE_COLORS[type] || '#85939c';
-    if (type === 'OneWayPlatform') {
+    if (type === 'RotatingFirebar') {
+      ctx.fillStyle = '#606975';
+      ctx.fillRect(x + 5, y + 5, tileSize - 10, tileSize - 10);
+      ctx.fillStyle = '#252f39';
+      ctx.fillRect(x + 8, y + 8, tileSize - 16, tileSize - 16);
+      ctx.fillStyle = '#ffcb57';
+      ctx.fillRect(x + 12, y + 12, tileSize - 24, tileSize - 24);
+      ctx.strokeStyle = '#ff7540';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x + 18, y + 16);
+      ctx.lineTo(x + 29, y + 8);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd36b';
+      ctx.beginPath();
+      ctx.arc(x + 29, y + 8, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (type === 'FireGeyser') {
+      ctx.fillStyle = '#52616d';
+      ctx.fillRect(x + 3, y + 19, tileSize - 6, 11);
+      ctx.fillStyle = '#ff9a37';
+      ctx.fillRect(x + 7, y + 16, tileSize - 14, 5);
+      ctx.fillStyle = '#ffdc69';
+      ctx.beginPath();
+      ctx.moveTo(x + 11, y + 17);
+      ctx.lineTo(x + 14, y + 8);
+      ctx.lineTo(x + 17, y + 17);
+      ctx.lineTo(x + 21, y + 4);
+      ctx.lineTo(x + 24, y + 17);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'Lava') {
+      ctx.fillStyle = '#542d35';
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillStyle = '#d5472f';
+      ctx.fillRect(x, y + 5, tileSize, tileSize - 5);
+      ctx.fillStyle = '#ffb13b';
+      ctx.beginPath();
+      ctx.moveTo(x, y + 8);
+      ctx.quadraticCurveTo(x + 8, y + 3, x + 16, y + 8);
+      ctx.quadraticCurveTo(x + 24, y + 13, x + tileSize, y + 6);
+      ctx.lineTo(x + tileSize, y + 13);
+      ctx.quadraticCurveTo(x + 24, y + 18, x + 16, y + 13);
+      ctx.quadraticCurveTo(x + 8, y + 8, x, y + 14);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'OneWayPlatform') {
       ctx.fillStyle = '#795631';
       ctx.fillRect(x + 1, y + 6, tileSize - 2, 5);
       ctx.fillStyle = '#d1a96a';

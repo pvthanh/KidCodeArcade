@@ -355,6 +355,7 @@ const initialCampaignProgress = () => ({
   lives: 3,
   mushroomGrowth: 0,
   hasFire: false,
+  fireCharges: 0,
   starPowerRemainingMs: 0
 });
 let campaignProgress = initialCampaignProgress();

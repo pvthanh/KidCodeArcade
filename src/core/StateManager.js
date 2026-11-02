@@ -70,10 +70,12 @@ export const DEFAULT_CREEPY_CONFIGS = Object.fromEntries(CREEPY_TYPES.map(creepy
 ]));
 const CREEPY_MOVEMENTS = ['ground', 'flying'];
 const MAX_CUSTOM_CREEPS = 12;
+const LEGACY_TILE_TYPES = ['Updraft', 'Downdraft'];
 
 const TILE_TYPES = [
   'Player', 'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
-  'OneWayPlatform', 'Switch', 'Door', 'Checkpoint', ...CREEPY_TYPES.map(({ id }) => id), 'Coin', 'Flag',
+  'OneWayPlatform', 'RotatingFirebar', 'FireGeyser', 'Lava', 'Switch', 'Door', 'Checkpoint',
+  ...CREEPY_TYPES.map(({ id }) => id), 'Coin', 'Flag',
   'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower'
 ];
 const TILE_VARIANT_TYPES = [
@@ -145,6 +147,11 @@ export const THEMED_TILE_TYPES = new Set([
   'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
   'OneWayPlatform', 'Switch', 'Door'
 ]);
+
+const migrateLegacyHazards = tiles => tiles.map((row, rowIndex) => row.map((tile, colIndex) => {
+  if (tile !== 'Updraft' && tile !== 'Downdraft') return tile;
+  return tiles[rowIndex + 1]?.[colIndex] === tile ? null : 'FireGeyser';
+}));
 
 const builtinAnimation = (
   dataUrl,
@@ -882,7 +889,7 @@ export class StateManager {
     this.rows = snapshot.rows;
     this.worldTheme = snapshot.worldTheme || 'storybook';
     this.pipeLinks = clone(snapshot.pipeLinks || []);
-    this.tiles = snapshot.tiles.map(row => [...row]);
+    this.tiles = migrateLegacyHazards(snapshot.tiles);
     this.tileVariantCatalog = mergeVariantCatalog(snapshot.tileVariantCatalog);
     this.tileVariants = this.tiles.map((row, rowIndex) => row.map((tile, colIndex) =>
       tile ? snapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic' : null));
@@ -1003,6 +1010,7 @@ export class StateManager {
     }
     const allowedTileTypes = new Set([
       ...TILE_TYPES,
+      ...LEGACY_TILE_TYPES,
       ...customCreeps.map(creepy => creepy.tileId)
     ]);
     if (data.tiles.some(row => row.some(tile => tile !== null && !allowedTileTypes.has(tile)))) {
@@ -1160,7 +1168,7 @@ export class StateManager {
   isSolid(tileType) {
     return [
       'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'Pipe', 'MysteryBox', 'Spring',
-      'MovingPlatform', 'OneWayPlatform', 'Door'
+      'MovingPlatform', 'OneWayPlatform', 'Door', 'Lava'
     ].includes(tileType);
   }
 

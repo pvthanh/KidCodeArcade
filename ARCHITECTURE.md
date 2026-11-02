@@ -214,7 +214,7 @@ The supported tile IDs are:
 - Start and terrain: `Player`, `Ground`, `Sand`, `Stone`, `Snow`, `Brick`,
   `MysteryBox`, `Pipe`.
 - Movement surfaces and obstacles: `Spring`, `MovingPlatform`,
-  `OneWayPlatform`, `Door`.
+  `OneWayPlatform`, `Door`, `RotatingFirebar`, `FireGeyser`, `Lava`.
 - Puzzle and respawn objects: `Switch`, `Checkpoint`.
 - Enemies: `Goomba`, `Koopa`, `Bat`, custom `Creepy-*` types, and `Boss`.
 - Collectibles and rewards: `Coin`, `Mushroom`, `Star`, `ExtraLife`,
@@ -287,14 +287,15 @@ or imported.
 | Checkpoint | The latest touched checkpoint becomes the respawn position. Falling costs a life; if lives remain, the player respawns there after a short animation, in normal form and without Fire/Star powers. |
 | Enemies | Goomba and Koopa patrol horizontally; Bat and configured flying Creepy types fly. Creepy movement, speed, and health are configured per type. Stomps, Star power, and fireballs defeat enemies. |
 | Boss | Bosses display at least 144 px (three times the 48 px player) and use proportionally sized collision bodies and health bars. Selected movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. Bossless levels have no gate; placing one or more bosses creates a visible, solid gate at each Goal until all bosses are defeated, then the gate fades away. |
-| Fire Flower | Grants a Fire ability. X/J or the touch fireball button emits a directional fireball with a cooldown; it disappears on a solid obstacle, enemy, or timeout. |
+| Fire Flower | Adds five shots to the player's Fire ammunition. X/J or the touch fireball button consumes one shot per projectile; remaining charges carry across campaign levels, and damage/respawn clears them. A player badge and HUD count show the remaining ammunition. |
+| Environmental hazards | `RotatingFirebar` spins six damaging fire orbs around its anchor; `FireGeyser` warns, erupts, and cools down on a repeating cycle; `Lava` is a solid floor tile that damages the player on contact. Hazards damage the player and do not alter the player's fireball projectiles. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
 
-Campaign transitions preserve score, lives, cumulative mushroom growth, Fire
-power, and any remaining Star duration. Each Mushroom adds 25% player scale
-without a growth cap; taking damage removes one growth step before costing a
-life.
+Campaign transitions preserve score, lives, cumulative mushroom growth,
+remaining Fire Flower shots, and any remaining Star duration. Each Mushroom
+adds 25% player scale without a growth cap; taking damage removes one growth
+step before costing a life.
 
 The Phaser Arcade Physics world uses vertical gravity of 800 px/s². Camera
 tracking follows the player; the rendered game view is 960×540 and scales to
