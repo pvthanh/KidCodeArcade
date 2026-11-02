@@ -27,7 +27,8 @@ const TILE_COLORS = {
   Mushroom: '#e47759',
   Star: '#f1ad3e',
   ExtraLife: '#e76568',
-  FireFlower: '#ed7645'
+  FireFlower: '#ed7645',
+  BoomFlower: '#f3a43b'
 };
 
 const TILE_LABELS = {
@@ -58,7 +59,8 @@ const TILE_LABELS = {
   Mushroom: 'M',
   Star: '★',
   ExtraLife: '+',
-  FireFlower: 'F'
+  FireFlower: 'F',
+  BoomFlower: 'B'
 };
 
 export class GridCanvas {
@@ -468,7 +470,8 @@ export class GridCanvas {
       Mushroom: '#e47759',
       Star: '#f1ad3e',
       ExtraLife: '#e76568',
-      FireFlower: '#ed7645'
+      FireFlower: '#ed7645',
+      BoomFlower: '#f3a43b'
     };
     ctx.beginPath();
     ctx.arc(x + tileSize - 5, y + tileSize - 5, 8, 0, Math.PI * 2);
@@ -708,6 +711,58 @@ export class GridCanvas {
       ctx.beginPath();
       ctx.arc(x + 16, y + 14, 4, 0, Math.PI * 2);
       ctx.fill();
+    } else if (type === 'BoomFlower') {
+      ctx.fillStyle = '#438a52';
+      ctx.fillRect(x + 14, y + 17, 4, 12);
+      ctx.fillStyle = '#56a65f';
+      ctx.beginPath();
+      ctx.moveTo(x + 14, y + 22);
+      ctx.lineTo(x + 4, y + 16);
+      ctx.lineTo(x + 12, y + 27);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 18, y + 23);
+      ctx.lineTo(x + 28, y + 17);
+      ctx.lineTo(x + 20, y + 29);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#f3a43b';
+      ctx.strokeStyle = '#984b32';
+      ctx.lineWidth = 1.5;
+      [[16, 4, 5], [7, 9, 5], [25, 9, 5], [9, 20, 5], [23, 20, 5]]
+        .forEach(([petalX, petalY, radius]) => {
+          ctx.beginPath();
+          ctx.arc(x + petalX, y + petalY, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+      ctx.fillStyle = '#ffe28a';
+      ctx.beginPath();
+      ctx.arc(x + 16, y + 13, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#984b32';
+      ctx.beginPath();
+      ctx.arc(x + 16, y + 13, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#263849';
+      ctx.beginPath();
+      ctx.arc(x + 15, y + 14, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#263849';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 18, y + 11);
+      ctx.lineTo(x + 21, y + 7);
+      ctx.stroke();
+      ctx.strokeStyle = '#fff1a7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 20, y + 7);
+      ctx.lineTo(x + 24, y + 7);
+      ctx.moveTo(x + 22, y + 5);
+      ctx.lineTo(x + 22, y + 9);
+      ctx.stroke();
     } else if (type === 'Ground' || type === 'Brick') {
       ctx.fillRect(x, y, tileSize, tileSize);
       if (type === 'Brick') {

@@ -173,7 +173,8 @@ eventBus.on('mysteryBoxRewardSelected', rewardType => {
     Mushroom: 'a super mushroom',
     Star: 'star power',
     ExtraLife: 'an extra life',
-    FireFlower: 'a fire flower'
+    FireFlower: 'a fire flower',
+    BoomFlower: 'a boom flower'
   };
   eventBus.emit('status', `Mystery boxes now contain ${rewardLabels[rewardType] || 'a super mushroom'}.`);
 });
@@ -356,10 +357,19 @@ const initialCampaignProgress = () => ({
   mushroomGrowth: 0,
   hasFire: false,
   fireCharges: 0,
+  bombCharges: 0,
   starPowerRemainingMs: 0
 });
 let campaignProgress = initialCampaignProgress();
 let currentLevelEntryProgress = initialCampaignProgress();
+
+window.addEventListener('keydown', event => {
+  if (event.key?.toLowerCase() !== 'b' || event.repeat || !activeGame || !touchState) return;
+  const target = event.target;
+  if (target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+  touchState.placeBombRequested = true;
+});
 
 function closeGame() {
   clearTimeout(gameRestartTimer);
@@ -406,7 +416,7 @@ function startGame() {
       <header class="game-header">
         <div>
           <strong>Play your level</strong>
-          <span>Move with arrows or A/D · Jump with W, ↑ or Space · Pipes: ↓/S or ↑ beside a pipe</span>
+          <span>Move: arrows/A-D · Jump: W/↑/Space · Pipe: ↓/S · Fire: X/J · Bomb: B (after Boom Flower)</span>
           <span class="game-level-hint" hidden></span>
         </div>
         <div class="game-header-actions">
@@ -437,10 +447,11 @@ function startGame() {
           <button type="button" data-control="left" aria-label="Move left">◀</button>
           <button type="button" data-control="right" aria-label="Move right">▶</button>
         </div>
-        <div class="touch-buttons touch-buttons-right" role="group" aria-label="Jump, pipe, and fire controls">
+        <div class="touch-buttons touch-buttons-right" role="group" aria-label="Jump, pipe, fire, and bomb controls">
           <button type="button" data-control="up" aria-label="Jump or enter pipe">▲</button>
           <button type="button" data-control="down" aria-label="Use pipe">▼</button>
           <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
+          <button type="button" data-control="placeBomb" aria-label="Drop a bomb at the player" title="Drop a bomb at the player">💣</button>
         </div>
       </div>
     </div>
@@ -449,15 +460,16 @@ function startGame() {
   runStartLevelIndex = uiOverlayEditor.currentLevelIndex;
   const closeButton = activeModal.querySelector('.game-close');
   closeButton.addEventListener('click', closeGame);
-  activeModal.addEventListener('pointerdown', event => {
-    if (event.target === activeModal) closeGame();
-  });
-  const handleEscape = event => {
-    if (event.key === 'Escape') closeGame();
-  };
-  activeModal.addEventListener('keydown', handleEscape);
 
-  touchState = { left: false, right: false, up: false, down: false, shoot: false };
+  touchState = {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    shoot: false,
+    placeBomb: false,
+    placeBombRequested: false
+  };
   const touchPanel = activeModal.querySelector('#touch-controls');
   const touchToggle = activeModal.querySelector('.touch-toggle');
   touchToggle.addEventListener('click', () => {
@@ -466,7 +478,8 @@ function startGame() {
     touchToggle.textContent = touchPanel.hidden ? 'Show touch controls' : 'Hide touch controls';
     if (touchPanel.hidden) {
       Object.assign(touchState, {
-        left: false, right: false, up: false, down: false, shoot: false
+        left: false, right: false, up: false, down: false, shoot: false,
+        placeBomb: false, placeBombRequested: false
       });
     }
   });
@@ -476,7 +489,11 @@ function startGame() {
     button.addEventListener('pointerdown', event => {
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
-      touchState[control] = true;
+      if (control === 'placeBomb') {
+        touchState.placeBombRequested = true;
+      } else {
+        touchState[control] = true;
+      }
     });
     const release = () => { touchState[control] = false; };
     button.addEventListener('pointerup', release);
@@ -540,7 +557,8 @@ function launchCampaignLevel(index, progress = campaignProgress) {
     activeGame = null;
     if (window.game) delete window.game;
     Object.assign(touchState, {
-      left: false, right: false, up: false, down: false, shoot: false
+      left: false, right: false, up: false, down: false, shoot: false,
+      placeBomb: false, placeBombRequested: false
     });
     clearTimeout(gameRestartTimer);
     gameRestartTimer = setTimeout(() => {

@@ -184,8 +184,9 @@ physics or gameplay behavior.
 ### Rewards and custom assets
 
 - The Mystery Box reward is selected per level and applies to all its boxes.
-  Supported rewards are Mushroom, Star, Extra Life, Fire Flower, or Random.
-  Random chooses a new reward from the four power-ups each time a box is hit.
+  Supported rewards are Mushroom, Star, Extra Life, Fire Flower, Boom Flower,
+  or Random. Random chooses a new reward from the power-ups each time a box is
+  hit.
 - The chosen reward is previewed on the board and saved with the level.
 - Supported character actions are Player: idle/walk/run/jump; built-in and
   custom Creepy types: idle/walk. Each action can have its own sprite sheet and
@@ -217,21 +218,25 @@ physics or gameplay behavior.
   beside the paired exit pipe and press **Up arrow** to return.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
+- Bomb: press **B** to drop one at the player's feet while the player has
+  Boom Flower charges. This key works while the game is open, including when
+  focus is on the game dialog.
 - Optional touch controls provide large, translucent targets arranged for
   two-handed play: left/right movement on the left, and up/jump, down/pipe, and
-  fireball on the right. Fireballs can only be shot after collecting Fire
-  Flower power, which provides five shots per flower. Controls are hidden by default; use **Show touch controls** in
-  the game header to enable them. The up button jumps or enters a pipe when
-  beside one; the down button enters a pipe from above. Drag the center handle
-  to reposition the controls.
-- Escape, the close button, or clicking outside the game window closes play
-  mode.
+  fireball and bomb-placement on the right. Fireballs and bombs require their
+  matching flower power; each flower gives five charges. Controls are hidden by
+  default; use **Show touch controls** in the game header to enable them. The
+  up button jumps or enters a pipe when beside one; the down button enters a
+  pipe from above. The bomb button drops a bomb at the player's feet. Drag the
+  center handle to reposition the controls. Only
+  the ✕ button closes play mode.
 
 ### Player movement
 
 - The player starts with three lives.
-- Score, lives, mushroom growth, remaining Fire Flower shots, and any remaining
-  Star duration carry forward when advancing to the next campaign level.
+- Score, lives, mushroom growth, remaining Fire Flower shots, Boom Flower
+  bombs, and any remaining Star duration carry forward when advancing to the
+  next campaign level.
   Replaying a failed level restores level-entry progress; replaying the
   campaign starts a fresh run.
 - Play mode uses a 1.35× camera zoom and crisp pixel-art rendering to make
@@ -254,7 +259,7 @@ physics or gameplay behavior.
 | Ground, Sand, Stone, Snow | Solid terrain tiles with distinct appearances. |
 | Brick | Solid terrain that breaks when hit from below. |
 | Pipe | Solid terrain. The Pipe link dialog pairs two placed pipe tiles in the same level. Press ↓/S on the entry pipe to travel to the paired exit with an animated camera pan; jump beside the exit and press ↑ to return. Unlinked pipes are solid scenery. |
-| Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, or Fire Flower independently for each box hit. |
+| Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, Fire Flower, or Boom Flower independently for each box hit. Bomb blasts also open it. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |
 | One-way platform | Player can jump through from below and land on top. |
@@ -270,7 +275,8 @@ physics or gameplay behavior.
 | Mushroom | Every mushroom adds another 25% to the player's size, with no growth cap. A hit removes one growth step before costing a life. |
 | Star | Grants eight seconds of invincibility and defeats enemies on contact. |
 | Extra Life | Adds one life. |
-| Fire Flower | Adds five Fire shots; additional flowers add five more. X/J or the touch fireball button shoots one directional projectile per shot with a cooldown. The HUD and player flame badge show remaining shots. Taking damage or respawning clears them. Fireballs defeat ground/flying enemies and disappear on obstacles or timeout. |
+| Fire Flower | Adds five Fire shots; additional flowers add five more. X/J or the touch fireball button shoots one directional projectile per shot with a cooldown. The HUD and player hand badge show remaining shots. Taking damage or respawning clears them. Fireballs defeat ground/flying enemies and disappear on obstacles or timeout. |
+| Boom Flower | Adds five bombs; additional flowers add five more. Press B or the touch bomb button to drop a bomb at the player's feet. It visibly counts down for five seconds and explodes within a 96 px radius. Each explosion damages nearby Creepy enemies and bosses for one health, destroys Ground/Sand/Stone/Snow/Brick terrain, opens nearby Mystery Boxes, and costs the player one life if caught in range. Bomb ammunition carries between campaign levels. |
 | Flag | Ends the level as a win when touched. |
 
 Without a checkpoint, falling below the level ends the run. Losing all lives also

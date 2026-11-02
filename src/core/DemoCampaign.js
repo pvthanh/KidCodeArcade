@@ -7,13 +7,13 @@ const GOAL_COL = 77;
 const LEVELS = [
   {
     name: 'Pebble Path',
-    hint: 'Try a small jump over the gaps, collect coins, then use the Fire Flower to challenge the Slime King.',
+    hint: 'Try a small jump over the gaps, collect the Boom Flower, then press B to drop a bomb at your feet. Use the Fire Flower against the Slime King.',
     theme: 'storybook',
     creeps: [['Goomba', 16, 16], ['Creepy-Firefly', 10, 25]],
     gaps: [[20, 22], [40, 42]],
     platforms: [[13, 9, 12, 'Brick'], [12, 31, 33, 'Ground'], [11, 45, 47, 'OneWayPlatform']],
     appearances: [[13, 10, 'Brick', 'moss']],
-    items: [[12, 10, 'MysteryBox'], [16, 28, 'Mushroom'], [16, 36, 'Star'], [16, 49, 'ExtraLife'], [16, 61, 'FireFlower']],
+    items: [[12, 10, 'MysteryBox'], [16, 28, 'Mushroom'], [16, 36, 'Star'], [16, 49, 'ExtraLife'], [16, 57, 'BoomFlower'], [16, 61, 'FireFlower']],
     props: [[15, 18, 'Pipe'], [16, 18, 'Pipe'], [16, 24, 'Spring'], [16, 53, 'Checkpoint']],
     coins: [[11, 9], [11, 11], [10, 32], [10, 33], [14, 43], [14, 45], [12, 59]],
     boss: { movement: 'patrol', ability: 'fireballs', health: 3, speed: 45, size: 144 },

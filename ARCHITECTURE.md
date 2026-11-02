@@ -218,7 +218,7 @@ The supported tile IDs are:
 - Puzzle and respawn objects: `Switch`, `Checkpoint`.
 - Enemies: `Goomba`, `Koopa`, `Bat`, custom `Creepy-*` types, and `Boss`.
 - Collectibles and rewards: `Coin`, `Mushroom`, `Star`, `ExtraLife`,
-  `FireFlower`.
+  `FireFlower`, `BoomFlower`.
 - Goal: `Flag`.
 
 The eraser is an editor tool, not a stored tile type. The Player and Creepy
@@ -277,7 +277,7 @@ or imported.
 
 | Mechanic | Current behavior |
 |---|---|
-| Player movement | Keyboard arrows/A-D move; W, Up, or Space jumps; Shift runs; X or J shoots while Fire-powered. Touch controls provide left, right, jump, and fireball buttons. |
+| Player movement | Keyboard arrows/A-D move; W, Up, or Space jumps; Shift runs; X or J shoots while Fire-powered. B or the touch bomb button drops a bomb at the player's feet. Touch controls provide movement, jump, fireball, and bomb buttons. |
 | Jump feel | 120 ms jump buffering and coyote time; holding jump changes jump height; wall slide caps fall speed at 120 px/s; wall jump launches away from the contacted wall and briefly prioritizes that direction. |
 | Movement speed | Normal horizontal movement is 180 px/s; run is 290 px/s; the big-player speed is 220 px/s unless running. |
 | Spring | Landing launches the player upward at 640 px/s. |
@@ -288,12 +288,13 @@ or imported.
 | Enemies | Goomba and Koopa patrol horizontally; Bat and configured flying Creepy types fly. Creepy movement, speed, and health are configured per type. Stomps, Star power, and fireballs defeat enemies. |
 | Boss | Bosses display at least 144 px (three times the 48 px player) and use proportionally sized collision bodies and health bars. Selected movement and abilities attack the player. Stomps and Fire Flower shots reduce boss health; Star hits deal extra damage. Boss projectiles and ground-pound shockwaves can hurt the player. Bossless levels have no gate; placing one or more bosses creates a visible, solid gate at each Goal until all bosses are defeated, then the gate fades away. |
 | Fire Flower | Adds five shots to the player's Fire ammunition. X/J or the touch fireball button consumes one shot per projectile; remaining charges carry across campaign levels, and damage/respawn clears them. A player badge and HUD count show the remaining ammunition. |
+| Boom Flower | Adds five bomb charges. Placed bombs show a five-second countdown and blast in a 96 px radius, damaging nearby enemies/bosses, opening Mystery Boxes, destroying terrain, and taking one life from the player if caught in range. Charges carry across campaign levels. |
 | Environmental hazards | `RotatingFirebar` spins six damaging fire orbs around its anchor; `FireGeyser` warns, erupts, and cools down on a repeating cycle; `Lava` is a solid floor tile that damages the player on contact. Hazards damage the player and do not alter the player's fireball projectiles. |
 | Other power-ups | Mushroom grows the player; Star grants eight seconds of invincibility; Extra Life adds one life. |
 | Completion | Touching `Flag` wins. Falling without an activated checkpoint or losing all lives ends the run. |
 
 Campaign transitions preserve score, lives, cumulative mushroom growth,
-remaining Fire Flower shots, and any remaining Star duration. Each Mushroom
+remaining Fire Flower shots, Boom Flower charges, and any remaining Star duration. Each Mushroom
 adds 25% player scale without a growth cap; taking damage removes one growth
 step before costing a life.
 

@@ -21,7 +21,8 @@ const COLORS = {
   Mushroom: 0xe47759,
   Star: 0xf1ad3e,
   ExtraLife: 0xe76568,
-  FireFlower: 0xed7645
+  FireFlower: 0xed7645,
+  BoomFlower: 0xf3a43b
 };
 
 export const CHARACTER_DISPLAY_SIZE = 48;
@@ -56,7 +57,8 @@ export class EntityFactory {
       ['Mushroom', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Mushroom').setDisplaySize(32, 32)],
       ['Star', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Star').setDisplaySize(32, 32)],
       ['ExtraLife', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'ExtraLife').setDisplaySize(32, 32)],
-      ['FireFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'FireFlower').setDisplaySize(32, 32)]
+      ['FireFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'FireFlower').setDisplaySize(32, 32)],
+      ['BoomFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'BoomFlower').setDisplaySize(40, 40)]
     ]);
   }
 
@@ -144,6 +146,7 @@ export class EntityFactory {
       Star: { color: COLORS.Star, shape: 'coin' },
       ExtraLife: { color: COLORS.ExtraLife, shape: 'heart' },
       FireFlower: { color: COLORS.FireFlower, shape: 'flower' },
+      BoomFlower: { color: COLORS.BoomFlower, shape: 'boomFlower' },
       Fireball: { color: 0xf45d2f, shape: 'fireball' }
     };
 
@@ -245,6 +248,35 @@ export class EntityFactory {
         graphics.fillCircle(23, 15, 5);
         graphics.fillStyle(0xffe27a, 1);
         graphics.fillCircle(16, 14, 4);
+      } else if (style.shape === 'boomFlower') {
+        graphics.fillStyle(0x438a52, 1);
+        graphics.fillRect(14, 17, 4, 12);
+        graphics.fillStyle(0x56a65f, 1);
+        graphics.fillTriangle(14, 22, 3, 16, 12, 27);
+        graphics.fillTriangle(18, 24, 29, 18, 20, 29);
+        graphics.fillStyle(style.color, 1);
+        graphics.fillCircle(16, 4, 6);
+        graphics.fillCircle(7, 9, 6);
+        graphics.fillCircle(25, 9, 6);
+        graphics.fillCircle(9, 20, 6);
+        graphics.fillCircle(23, 20, 6);
+        graphics.lineStyle(1.5, 0x7b442e, 1);
+        graphics.strokeCircle(16, 4, 6);
+        graphics.strokeCircle(7, 9, 6);
+        graphics.strokeCircle(25, 9, 6);
+        graphics.strokeCircle(9, 20, 6);
+        graphics.strokeCircle(23, 20, 6);
+        graphics.fillStyle(0xffe27a, 1);
+        graphics.fillCircle(16, 13, 8);
+        graphics.lineStyle(1.5, 0x7b442e, 1);
+        graphics.strokeCircle(16, 13, 8);
+        graphics.fillStyle(0x263849, 1);
+        graphics.fillCircle(15, 14, 4.5);
+        graphics.lineStyle(2, 0x263849, 1);
+        graphics.lineBetween(18, 11, 21, 7);
+        graphics.lineStyle(1.5, 0xfff1a7, 1);
+        graphics.lineBetween(20, 7, 24, 7);
+        graphics.lineBetween(22, 5, 22, 9);
       } else if (style.shape === 'fireball') {
         graphics.fillStyle(0xf45d2f, 1);
         graphics.fillCircle(16, 16, 12);

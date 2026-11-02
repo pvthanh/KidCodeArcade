@@ -13,6 +13,8 @@ import { SoundManager } from './SoundManager.js';
 
 const PLAYER_TILE_ALIGNMENT_OFFSET = (CHARACTER_DISPLAY_SIZE - 32) / 2;
 const PLAYER_ART_FOOT_INSET = 4;
+const BOOM_COUNTDOWN_MS = 5000;
+const BOOM_BLAST_RADIUS = 96;
 
 export class GameScene extends Scene {
   constructor(
@@ -50,6 +52,10 @@ export class GameScene extends Scene {
       ? campaignProgress.fireCharges
       : campaignProgress.hasFire === true ? 5 : 0;
     this.hasFire = this.fireCharges > 0;
+    this.bombCharges = Number.isSafeInteger(campaignProgress.bombCharges) &&
+      campaignProgress.bombCharges >= 0
+      ? campaignProgress.bombCharges
+      : 0;
     this.starPowerRemainingMs = Number.isFinite(campaignProgress.starPowerRemainingMs)
       ? Math.max(0, campaignProgress.starPowerRemainingMs)
       : 0;
@@ -64,6 +70,7 @@ export class GameScene extends Scene {
     this.coyoteUntil = 0;
     this.touchJumpWasDown = false;
     this.touchShootWasDown = false;
+    this.bombs = [];
     this.touchPipeWasDown = false;
     this.jumpWasHeld = false;
     this.wallJumpDirection = 0;
@@ -308,7 +315,7 @@ export class GameScene extends Scene {
           coins.add(entity);
         } else if (tileType === 'Flag') {
           flags.add(entity);
-        } else if (['Mushroom', 'Star', 'ExtraLife', 'FireFlower'].includes(tileType)) {
+        } else if (['Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower'].includes(tileType)) {
           entity.setData('powerUpType', tileType);
           entity.body.setSize(22 / entity.scaleX, 24 / entity.scaleY);
           this.powerUps.add(entity);
@@ -543,7 +550,9 @@ export class GameScene extends Scene {
   }
 
   update() {
-    if (!this.player?.active || this.gameEnded || this.isRespawning) return;
+    if (!this.player?.active || this.gameEnded) return;
+    this.updateBombs();
+    if (this.gameEnded || this.isRespawning) return;
     if (this.starPowerUntil && this.time.now >= this.starPowerUntil) {
       this.starPowerUntil = 0;
       this.player.clearTint();
@@ -603,6 +612,9 @@ export class GameScene extends Scene {
       this.keys.space.isDown || this.touchState.up;
     const touchShootPressed = this.touchState.shoot && !this.touchShootWasDown;
     this.touchShootWasDown = this.touchState.shoot;
+    const touchBombPressed = this.touchState.placeBombRequested;
+    this.touchState.placeBombRequested = false;
+    if (touchBombPressed) this.dropBombAtPlayer();
     if (Input.Keyboard.JustDown(this.keys.shootX) ||
       Input.Keyboard.JustDown(this.keys.shootJ) || touchShootPressed) this.shootFireball();
     if (jumpPressed) this.jumpBufferUntil = this.time.now + 120;
@@ -1104,7 +1116,11 @@ export class GameScene extends Scene {
     const rewardType = configuredReward === 'Random'
       ? POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)]
       : configuredReward;
-    const item = this.entityFactory.create(this, rewardType, block.x, block.y - 20);
+    const variantId = this.worldSnapshot.selectedTileVariants?.[rewardType] || 'classic';
+    const textureKey = `${rewardType}--variant--${variantId}`;
+    const item = this.entityFactory.create(this, rewardType, block.x, block.y - 20, {
+      textureKey: this.textures.exists(textureKey) ? textureKey : undefined
+    });
     item.setData('powerUpType', rewardType);
     item.body.setSize(22 / item.scaleX, 24 / item.scaleY);
     item.setCollideWorldBounds(true).setBounceX(1);
@@ -1139,7 +1155,8 @@ export class GameScene extends Scene {
       Mushroom: 0xff9673,
       Star: 0xffe477,
       ExtraLife: 0xff7183,
-      FireFlower: 0xff8a4c
+      FireFlower: 0xff8a4c,
+      BoomFlower: 0xf3a43b
     };
     this.emitBurst(item.x, item.y, powerUpColors[powerUpType] || 0xffffff, 12, 34);
     item.destroy();
@@ -1151,6 +1168,8 @@ export class GameScene extends Scene {
     } else if (powerUpType === 'FireFlower') {
       this.fireCharges += 5;
       this.hasFire = true;
+    } else if (powerUpType === 'BoomFlower') {
+      this.bombCharges += 5;
     } else if (powerUpType === 'Star') {
       this.starPowerUntil = this.time.now + 8000;
       player.setTint(0xffe477);
@@ -1182,8 +1201,9 @@ export class GameScene extends Scene {
     }
   }
 
-  damageEnemy(enemy) {
-    if (!enemy?.active || this.time.now < enemy.getData('hurtUntil')) return;
+  damageEnemy(enemy, ignoreHurtCooldown = false) {
+    if (!enemy?.active ||
+      (!ignoreHurtCooldown && this.time.now < enemy.getData('hurtUntil'))) return;
     const health = Math.max(0, enemy.getData('health') - 1);
     enemy.setData('health', health);
     enemy.setData('hurtUntil', this.time.now + 250);
@@ -1229,9 +1249,9 @@ export class GameScene extends Scene {
     this.damagePlayer(player);
   }
 
-  damageBoss(boss, damage = 1) {
+  damageBoss(boss, damage = 1, ignoreHurtCooldown = false) {
     if (!boss.active || boss.getData('health') <= 0 ||
-      this.time.now < boss.getData('hurtUntil')) return;
+      (!ignoreHurtCooldown && this.time.now < boss.getData('hurtUntil'))) return;
     boss.setData('hurtUntil', this.time.now + 550);
     const health = Math.max(0, boss.getData('health') - damage);
     boss.setData('health', health);
@@ -1290,10 +1310,12 @@ export class GameScene extends Scene {
     this.goalGateLabels = [];
   }
 
-  damagePlayer(player) {
-    if (this.time.now < this.invulnerableUntil || this.gameEnded) return;
+  damagePlayer(player, forceLifeLoss = false) {
+    if ((!forceLifeLoss && this.time.now < this.invulnerableUntil) || this.gameEnded) return;
     this.invulnerableUntil = this.time.now + 1000;
-    if (this.hasFire) {
+    if (forceLifeLoss) {
+      this.lives -= 1;
+    } else if (this.hasFire) {
       this.hasFire = false;
       this.fireCharges = 0;
       if (this.starPowerUntil > this.time.now) player.setTint(0xffe477);
@@ -1504,6 +1526,7 @@ export class GameScene extends Scene {
       mushroomGrowth: this.mushroomGrowth,
       hasFire: this.hasFire,
       fireCharges: this.fireCharges,
+      bombCharges: this.bombCharges,
       starPowerRemainingMs: Math.max(0, this.starPowerUntil - this.time.now)
     };
   }
@@ -1575,6 +1598,7 @@ export class GameScene extends Scene {
     const powers = [];
     if (this.mushroomGrowth > 0) powers.push(`Big ×${this.mushroomGrowth}`);
     if (this.hasFire) powers.push(`Fire ×${this.fireCharges}`);
+    if (this.bombCharges > 0) powers.push(`Bomb ×${this.bombCharges}`);
     if (hasStar) powers.push('Star');
     this.powerLabel = powers.length ? powers.join(' + ') : 'Normal';
   }
@@ -1623,47 +1647,181 @@ export class GameScene extends Scene {
   }
 
   createFireIndicator() {
-    this.fireIndicator = this.add.container(0, 0).setDepth(9);
-    const icon = this.add.graphics();
-    icon.fillStyle(0x173b4a, 0.96);
-    icon.fillCircle(0, 0, 11);
-    icon.lineStyle(2, 0xffd06a, 1);
-    icon.strokeCircle(0, 0, 11);
-    icon.fillStyle(0xff7848, 1);
-    icon.beginPath();
-    icon.moveTo(0, -8);
-    icon.lineTo(6, 0);
-    icon.lineTo(5, 5);
-    icon.lineTo(0, 8);
-    icon.lineTo(-5, 5);
-    icon.lineTo(-6, 0);
-    icon.closePath();
-    icon.fillPath();
-    icon.fillStyle(0xffd06a, 1);
-    icon.fillCircle(0, 3, 3);
-    this.fireIndicator.add(icon);
-    this.fireIndicator.add(
-      this.add.circle(9, 9, 7, 0x173b4a).setStrokeStyle(1.5, 0xffffff, 1)
-    );
-    this.fireIndicatorCount = this.add.text(9, 9, '', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '9px',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.fireIndicator.add(this.fireIndicatorCount);
+    const createIndicator = (type, color) => {
+      const container = this.add.container(0, 0).setDepth(20);
+      const icon = this.add.graphics();
+      icon.fillStyle(0x173b4a, 0.98);
+      icon.fillCircle(0, 0, 13);
+      icon.lineStyle(2.5, 0xffffff, 1);
+      icon.strokeCircle(0, 0, 13);
+      if (type === 'fire') {
+        icon.fillStyle(color, 1);
+        icon.beginPath();
+        icon.moveTo(0, -9);
+        icon.lineTo(7, 0);
+        icon.lineTo(5, 6);
+        icon.lineTo(0, 9);
+        icon.lineTo(-5, 6);
+        icon.lineTo(-7, 0);
+        icon.closePath();
+        icon.fillPath();
+        icon.fillStyle(0xffe27a, 1);
+        icon.fillCircle(0, 3, 3);
+      } else {
+        icon.fillStyle(0x263849, 1);
+        icon.fillCircle(0, 1, 7);
+        icon.lineStyle(2, 0xffb24c, 1);
+        icon.lineBetween(4, -5, 8, -10);
+        icon.fillStyle(0xffe27a, 1);
+        icon.fillCircle(9, -11, 2);
+      }
+      const countBadge = this.add.circle(10, 10, 8, 0x173b4a)
+        .setStrokeStyle(2, 0xffffff, 1);
+      const count = this.add.text(10, 10, '', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '9px',
+        fontStyle: 'bold',
+        color: '#ffffff'
+      }).setOrigin(0.5);
+      container.add([icon, countBadge, count]);
+      return { container, count };
+    };
+    const fire = createIndicator('fire', 0xff7848);
+    const bomb = createIndicator('bomb', 0xf3a43b);
+    this.fireIndicator = fire.container;
+    this.fireIndicatorCount = fire.count;
+    this.bombIndicator = bomb.container;
+    this.bombIndicatorCount = bomb.count;
     this.updateFireIndicator();
   }
 
   updateFireIndicator() {
     if (!this.fireIndicator || !this.player?.body) return;
     this.fireIndicator.setVisible(this.fireCharges > 0);
-    if (this.fireCharges <= 0) return;
-    this.fireIndicator.setPosition(
-      this.player.body.right - 2,
-      this.player.body.top - 5
-    );
     this.fireIndicatorCount.setText(this.fireCharges > 99 ? '99+' : String(this.fireCharges));
+    this.bombIndicator.setVisible(this.bombCharges > 0);
+    this.bombIndicatorCount.setText(this.bombCharges > 99 ? '99+' : String(this.bombCharges));
+    const handSide = this.player.flipX ? -1 : 1;
+    const badgeY = this.player.y + 8;
+    this.fireIndicator.setPosition(this.player.x + handSide * 18, badgeY);
+    this.bombIndicator.setPosition(
+      this.player.x - handSide * (this.fireCharges > 0 ? 18 : -18),
+      badgeY
+    );
+  }
+
+  dropBombAtPlayer() {
+    if (this.bombCharges <= 0 || this.gameEnded || !this.player?.active) return;
+    this.placeBomb(this.player.x, this.player.body.bottom - 12);
+  }
+
+  placeBomb(x, y) {
+    if (this.bombCharges <= 0 || this.gameEnded) return;
+    const container = this.add.container(x, y).setDepth(10);
+    const body = this.add.circle(0, 0, 12, 0x263849)
+      .setStrokeStyle(2, 0x101b23, 1);
+    const highlight = this.add.circle(-4, -4, 3, 0xc6d7dc);
+    const fuse = this.add.graphics();
+    fuse.lineStyle(3, 0xf3a43b, 1);
+    fuse.lineBetween(5, -8, 10, -14);
+    fuse.fillStyle(0xffe27a, 1);
+    fuse.fillCircle(11, -15, 3);
+    const countdown = this.add.text(0, -22, '5', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '16px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      stroke: '#263849',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+    container.add([body, highlight, fuse, countdown]);
+    this.bombs.push({
+      x,
+      y,
+      plantedAt: this.time.now,
+      container,
+      countdown,
+      lastShownSecond: 5
+    });
+    this.bombCharges -= 1;
+    this.updateHud();
+  }
+
+  updateBombs() {
+    if (!this.bombs?.length) return;
+    for (let index = this.bombs.length - 1; index >= 0; index -= 1) {
+      const bomb = this.bombs[index];
+      const elapsed = this.time.now - bomb.plantedAt;
+      const secondsLeft = Math.max(0, Math.ceil((BOOM_COUNTDOWN_MS - elapsed) / 1000));
+      if (secondsLeft !== bomb.lastShownSecond) {
+        bomb.lastShownSecond = secondsLeft;
+        bomb.countdown.setText(String(secondsLeft));
+      }
+      const pulse = 1 + (1 - secondsLeft / 5) * 0.18;
+      bomb.container.setScale(pulse);
+      if (elapsed < BOOM_COUNTDOWN_MS) continue;
+      bomb.container.destroy();
+      this.bombs.splice(index, 1);
+      this.explodeBomb(bomb.x, bomb.y);
+    }
+  }
+
+  explodeBomb(x, y) {
+    const ring = this.add.circle(x, y, 16, 0xff7438, 0.3)
+      .setStrokeStyle(7, 0xffdc70, 1)
+      .setDepth(12);
+    this.tweens.add({
+      targets: ring,
+      scale: BOOM_BLAST_RADIUS / 16,
+      alpha: 0,
+      duration: 420,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy()
+    });
+    this.emitBurst(x, y, 0xff9a43, 26, BOOM_BLAST_RADIUS, 420);
+    this.cameras.main.shake(180, 0.009);
+    this.soundManager.play('brickBreak');
+
+    const inBlast = entity => {
+      if (!entity?.active) return false;
+      const bounds = entity.body || {
+        left: entity.x,
+        right: entity.x,
+        top: entity.y,
+        bottom: entity.y
+      };
+      const dx = Math.max(bounds.left - x, 0, x - bounds.right);
+      const dy = Math.max(bounds.top - y, 0, y - bounds.bottom);
+      return Math.hypot(dx, dy) <= BOOM_BLAST_RADIUS;
+    };
+
+    if (inBlast(this.player)) this.damagePlayer(this.player, true);
+    [...this.enemies.getChildren(), ...this.flyingEnemies.getChildren()]
+      .filter(inBlast)
+      .forEach(enemy => this.damageEnemy(enemy, true));
+    this.bosses.getChildren()
+      .filter(inBlast)
+      .forEach(boss => this.damageBoss(boss, 1, true));
+
+    const terrainTypes = new Set(['Ground', 'Sand', 'Stone', 'Snow', 'Brick']);
+    this.platforms.getChildren().slice().forEach(block => {
+      if (!inBlast(block)) return;
+      const tileType = block.getData('tileType');
+      if (tileType === 'MysteryBox' && !block.getData('used')) {
+        block.setData('used', true);
+        block.setTint(0x777777);
+        this.score += 1;
+        this.updateScore();
+        this.soundManager.play('mysteryBox');
+        this.emitBurst(block.x, block.y, 0xf6c776, 8, 24);
+        this.spawnPowerUp(block);
+      } else if (terrainTypes.has(tileType)) {
+        block.body.enable = false;
+        this.emitBurst(block.x, block.y, 0xd89562, 8, 24, 300);
+        block.destroy();
+      }
+    });
+    this.updateHud();
   }
 
   createHazardTextures() {

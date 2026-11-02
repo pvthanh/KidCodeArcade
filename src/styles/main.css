@@ -1622,7 +1622,7 @@ button {
   display: grid;
   grid-template-areas:
     "up shoot"
-    "down shoot";
+    "down bomb";
   grid-template-columns: repeat(2, clamp(64px, 9vmin, 82px));
   grid-template-rows: repeat(2, clamp(64px, 9vmin, 82px));
   margin-left: auto;
@@ -1638,9 +1638,13 @@ button {
 
 .touch-buttons [data-control="shoot"] {
   grid-area: shoot;
-  height: auto;
   background: rgb(130 68 35 / 42%);
   font-size: clamp(30px, 5vmin, 42px);
+}
+
+.touch-buttons [data-control="placeBomb"] {
+  grid-area: bomb;
+  background: rgb(38 56 73 / 48%);
 }
 
 .touch-buttons button:active {

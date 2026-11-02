@@ -37,6 +37,7 @@ const TILES = [
   { id: 'Star', name: 'Star power', icon: '⭐', description: 'Invincible for 8 seconds', color: '#f1ad3e' },
   { id: 'ExtraLife', name: 'Extra life', icon: '❤️', description: 'Add one player life', color: '#e76568' },
   { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Adds five fireballs; shoot with X, J, or the touch button', color: '#ed7645' },
+  { id: 'BoomFlower', name: 'Boom flower', icon: '🌼', description: 'Adds five bombs; press B or the bomb button to drop one at the player', color: '#f3a43b' },
   { id: 'Flag', name: 'Goal', icon: '🏁', description: 'Reach to win', color: '#378bd0' },
   { id: 'Eraser', name: 'Eraser', icon: '🧽', description: 'Remove a tile', color: '#85939c' }
 ];
@@ -46,7 +47,8 @@ const MYSTERY_REWARD_LABELS = {
   Mushroom: 'Super mushroom',
   Star: 'Star power',
   ExtraLife: 'Extra life',
-  FireFlower: 'Fire flower'
+  FireFlower: 'Fire flower',
+  BoomFlower: 'Boom flower'
 };
 
 const TOOL_GROUPS = [
@@ -63,7 +65,7 @@ const TOOL_GROUPS = [
   {
     id: 'collectibles',
     name: 'Collectibles & Power-ups',
-    tileIds: ['Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower']
+    tileIds: ['Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower']
   }
 ];
 
