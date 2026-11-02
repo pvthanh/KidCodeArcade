@@ -548,20 +548,20 @@ export class GameScene extends Scene {
     }
     const left = this.keys.left.isDown || this.keys.a.isDown || this.touchState.left;
     const right = this.keys.right.isDown || this.keys.d.isDown || this.touchState.right;
-    const touchPipePressed = this.touchState.enterPipe && !this.touchPipeWasDown;
-    this.touchPipeWasDown = Boolean(this.touchState.enterPipe);
-    const upPressed = Input.Keyboard.JustDown(this.keys.up);
+    const touchUpPressed = this.touchState.up && !this.touchJumpWasDown;
+    this.touchJumpWasDown = Boolean(this.touchState.up);
+    const touchDownPressed = this.touchState.down && !this.touchPipeWasDown;
+    this.touchPipeWasDown = Boolean(this.touchState.down);
+    const upPressed = Input.Keyboard.JustDown(this.keys.up) || touchUpPressed;
     const downPressed = Input.Keyboard.JustDown(this.keys.down) ||
-      Input.Keyboard.JustDown(this.keys.s) || touchPipePressed;
+      Input.Keyboard.JustDown(this.keys.s) || touchDownPressed;
     if ((downPressed && this.tryUsePipe('down')) ||
       (upPressed && this.tryUsePipe('up'))) return;
-    const touchJumpPressed = this.touchState.jump && !this.touchJumpWasDown;
-    this.touchJumpWasDown = this.touchState.jump;
     const jumpPressed = upPressed ||
       Input.Keyboard.JustDown(this.keys.w) ||
-      Input.Keyboard.JustDown(this.keys.space) || touchJumpPressed;
+      Input.Keyboard.JustDown(this.keys.space);
     const jumpHeld = this.keys.up.isDown || this.keys.w.isDown ||
-      this.keys.space.isDown || this.touchState.jump;
+      this.keys.space.isDown || this.touchState.up;
     const touchShootPressed = this.touchState.shoot && !this.touchShootWasDown;
     this.touchShootWasDown = this.touchState.shoot;
     if (Input.Keyboard.JustDown(this.keys.shootX) ||

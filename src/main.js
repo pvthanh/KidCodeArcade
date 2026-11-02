@@ -379,13 +379,15 @@ function startGame() {
         </div>
       </div>
       <div id="touch-controls" class="touch-controls" hidden>
-        <div class="touch-handle">MOVE CONTROLS</div>
-        <div class="touch-buttons">
+        <div class="touch-handle">DRAG CONTROLS</div>
+        <div class="touch-buttons touch-buttons-left" role="group" aria-label="Movement controls">
           <button type="button" data-control="left" aria-label="Move left">◀</button>
           <button type="button" data-control="right" aria-label="Move right">▶</button>
-          <button type="button" data-control="jump" aria-label="Jump">⤒</button>
+        </div>
+        <div class="touch-buttons touch-buttons-right" role="group" aria-label="Jump, pipe, and fire controls">
+          <button type="button" data-control="up" aria-label="Jump or enter pipe">▲</button>
+          <button type="button" data-control="down" aria-label="Use pipe">▼</button>
           <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
-          <button type="button" data-control="enterPipe" aria-label="Use pipe" title="Use pipe">⬇</button>
         </div>
       </div>
     </div>
@@ -402,7 +404,7 @@ function startGame() {
   };
   activeModal.addEventListener('keydown', handleEscape);
 
-  touchState = { left: false, right: false, jump: false, shoot: false, enterPipe: false };
+  touchState = { left: false, right: false, up: false, down: false, shoot: false };
   const touchPanel = activeModal.querySelector('#touch-controls');
   const touchToggle = activeModal.querySelector('.touch-toggle');
   touchToggle.addEventListener('click', () => {
@@ -411,7 +413,7 @@ function startGame() {
     touchToggle.textContent = touchPanel.hidden ? 'Show touch controls' : 'Hide touch controls';
     if (touchPanel.hidden) {
       Object.assign(touchState, {
-        left: false, right: false, jump: false, shoot: false, enterPipe: false
+        left: false, right: false, up: false, down: false, shoot: false
       });
     }
   });
@@ -485,7 +487,7 @@ function launchCampaignLevel(index, progress = campaignProgress) {
     activeGame = null;
     if (window.game) delete window.game;
     Object.assign(touchState, {
-      left: false, right: false, jump: false, shoot: false, enterPipe: false
+      left: false, right: false, up: false, down: false, shoot: false
     });
     clearTimeout(gameRestartTimer);
     gameRestartTimer = setTimeout(() => {

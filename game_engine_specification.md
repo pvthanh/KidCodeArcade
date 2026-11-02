@@ -205,10 +205,13 @@ physics or gameplay behavior.
   beside one.
 - Run: hold **Shift**.
 - Fire: **X** or **J** while the player has Fire power.
-- Optional touch controls provide left, right, jump, fireball, and pipe buttons.
-  Fireballs can only be shot after collecting Fire Flower power. Controls are
-  hidden by default; use **Show touch controls** in the game header to enable
-  them. When shown, drag the control panel's handle to reposition it.
+- Optional touch controls provide large, translucent targets arranged for
+  two-handed play: left/right movement on the left, and up/jump, down/pipe, and
+  fireball on the right. Fireballs can only be shot after collecting Fire
+  Flower power. Controls are hidden by default; use **Show touch controls** in
+  the game header to enable them. The up button jumps or enters a pipe when
+  beside one; the down button enters a pipe from above. Drag the center handle
+  to reposition the controls.
 - Escape, the close button, or clicking outside the game window closes play
   mode.
 

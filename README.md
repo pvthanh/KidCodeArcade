@@ -58,7 +58,7 @@ Keep the terminal running while you use the editor. To stop the server, focus th
 - Choose **♫ Sounds** to upload and configure event sounds. Built-in retro tones play automatically; an uploaded sound overrides its matching tone and has its own preview, enable switch, and volume. Sounds can be configured for jumps, coins, enemies, switches, checkpoints, and more, and settings are included when you save a level.
 - Collecting coins or power-ups, defeating enemies, activating switches/checkpoints, and other key actions now show small particle bursts; major events also use brief camera shake.
 - Choose **Play level** to try the level. Use **A/D** or the arrow keys to move; use **W**, **↑**, or **Space** to jump. Hold **Shift** to run.
-- On a connected pipe, press **↓/S** from its top or **↑** while beside it to travel between linked campaign areas. Touch players can show the touch controls and use the down-arrow pipe button.
+- On a connected pipe, press **↓/S** from its top or **↑** while beside it to travel between linked campaign areas. Touch controls place large, translucent left/right buttons on the left and jump/up, pipe/down, and fire buttons on the right. Use **Show touch controls** in the game header; the up button also enters a pipe when beside one.
 - Jumps have a short input buffer and edge grace period, so a jump pressed just before landing or just after leaving a ledge is still accepted.
 - After a loss, choose **Replay level** to retry from the start of that level. Reaching a goal shows **Next level** during the campaign; completing the full campaign triggers an extended fireworks celebration and a trophy screen.
 - During play, the player has three lives. Enemy hits cost a life; falling below the level or losing all lives ends the run.
