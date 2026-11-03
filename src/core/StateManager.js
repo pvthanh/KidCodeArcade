@@ -1207,7 +1207,7 @@ export class StateManager {
   }
 
   serialize() {
-    return JSON.stringify(this.getWorldSnapshot(), null, 2);
+    return JSON.stringify(this.getWorldSnapshot());
   }
 
   deserialize(serialized) {

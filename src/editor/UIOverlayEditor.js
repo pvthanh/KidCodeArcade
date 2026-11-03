@@ -5,6 +5,81 @@ import {
 } from '../core/CommandManager.js';
 import { WORLD_THEMES } from '../core/StateManager.js';
 
+const CAMPAIGN_FORMAT = 'little-level-lab-campaign';
+const MIN_LOADING_POPUP_MS = 3000;
+const ASSET_PREFIX = '@asset:';
+const MIN_ASSET_LENGTH = 200;
+
+const formatBytes = bytes => bytes >= 1048576
+  ? `${(bytes / 1048576).toFixed(1)} MB`
+  : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+// Moves large embedded data URLs into one shared table so repeated art is stored once.
+function packCampaign(campaign) {
+  const assets = [];
+  const indexByValue = new Map();
+  const visit = value => {
+    if (typeof value === 'string') {
+      if (value.length < MIN_ASSET_LENGTH || !value.startsWith('data:')) return value;
+      if (!indexByValue.has(value)) {
+        indexByValue.set(value, assets.length);
+        assets.push(value);
+      }
+      return `${ASSET_PREFIX}${indexByValue.get(value)}`;
+    }
+    if (Array.isArray(value)) return value.map(visit);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, visit(item)]));
+    }
+    return value;
+  };
+  const levels = visit(campaign.levels);
+  return { ...campaign, levels, assets };
+}
+
+function unpackCampaign(campaign) {
+  if (!Array.isArray(campaign?.assets)) return campaign;
+  const { assets } = campaign;
+  const visit = value => {
+    if (typeof value === 'string') {
+      if (!value.startsWith(ASSET_PREFIX)) return value;
+      const asset = assets[Number(value.slice(ASSET_PREFIX.length))];
+      if (typeof asset !== 'string') throw new TypeError('The campaign file has a missing asset.');
+      return asset;
+    }
+    if (Array.isArray(value)) return value.map(visit);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, visit(item)]));
+    }
+    return value;
+  };
+  const { assets: _assets, ...rest } = campaign;
+  return { ...rest, levels: visit(campaign.levels) };
+}
+
+async function streamToBytes(stream) {
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function gzipText(text) {
+  if (typeof CompressionStream === 'undefined') return null;
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+  return streamToBytes(stream);
+}
+
+// Reads plain JSON or gzip-compressed JSON files.
+async function readFileText(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('This browser cannot open compressed files.');
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new TextDecoder().decode(await streamToBytes(stream));
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 export class UIOverlayEditor {
   constructor(toolbarId, stateManager, commandManager, eventBus, gridCanvas, demoLevels = []) {
     this.toolbar = document.getElementById(toolbarId);
@@ -43,7 +118,7 @@ export class UIOverlayEditor {
           aria-label="Open campaign" data-tooltip="Open campaign">📂</button>
         <button id="pipe-link-button" class="secondary-button toolbar-icon-button" type="button"
           aria-label="Configure pipe link" data-tooltip="Pipe link">🔗</button>
-        <input id="open-campaign" type="file" accept="application/json,.json" hidden>
+        <input id="open-campaign" type="file" accept="application/json,application/gzip,.json,.gz" hidden>
       </div>
       <dialog id="new-level-dialog" class="level-dialog" aria-labelledby="new-level-title">
         <form id="new-level-form" class="level-dialog-form">
@@ -250,7 +325,8 @@ export class UIOverlayEditor {
       this.setStatus(`${this.levels.length} showcase levels loaded. Play through the campaign to explore the whole toolbox.`);
     });
     this.toolbar.querySelector('#campaign-level').addEventListener('change', event => {
-      this.switchCampaignLevel(Number(event.target.value));
+      const index = Number(event.target.value);
+      this.runWithLoading(`Loading level ${index + 1}…`, () => this.switchCampaignLevel(index));
     });
     this.toolbar.querySelector('#add-campaign-level').addEventListener('click', () => this.showNewLevelDialog());
     this.toolbar.querySelector('#new-level-form').addEventListener('submit', event => {
@@ -298,11 +374,12 @@ export class UIOverlayEditor {
         : 'Select mode off. Choose a tool and drag to paint.');
     });
     this.toolbar.querySelector('#remove-campaign-level').addEventListener('click', () => this.removeCampaignLevel());
-    this.toolbar.querySelector('#save-campaign').addEventListener('click', () => this.saveCampaign());
+    this.toolbar.querySelector('#save-campaign').addEventListener('click', () =>
+      this.runWithLoading('Saving campaign…', () => this.saveCampaign()));
     this.toolbar.querySelector('#open-campaign-button').addEventListener('click', () =>
       this.toolbar.querySelector('#open-campaign').click());
     this.toolbar.querySelector('#open-campaign').addEventListener('change', event =>
-      this.loadCampaign(event.target.files?.[0]));
+      this.runWithLoading('Loading campaign…', () => this.loadCampaign(event.target.files?.[0])));
     this.toolbar.querySelector('#pipe-link-button').addEventListener('click', () =>
       this.showPipeLinkDialog());
     this.toolbar.querySelector('#cancel-pipe-link').addEventListener('click', () =>
@@ -330,7 +407,8 @@ export class UIOverlayEditor {
     });
     this.toolbar.querySelector('#save-level').addEventListener('click', () => this.saveLevel());
     this.toolbar.querySelector('#load-level-button').addEventListener('click', () => this.toolbar.querySelector('#load-level').click());
-    this.toolbar.querySelector('#load-level').addEventListener('change', event => this.loadLevel(event.target.files?.[0]));
+    this.toolbar.querySelector('#load-level').addEventListener('change', event =>
+      this.runWithLoading('Loading level…', () => this.loadLevel(event.target.files?.[0])));
     this.toolbar.querySelector('#sound-settings').addEventListener('click', () => this.eventBus.emit('openSoundSettings'));
     const helpDialog = this.toolbar.querySelector('#help-dialog');
     this.toolbar.querySelector('#help-button').addEventListener('click', () => helpDialog.showModal());
@@ -565,28 +643,60 @@ export class UIOverlayEditor {
     return this.levels.length;
   }
 
-  saveCampaign() {
+  async runWithLoading(message, task) {
+    if (this.loadingOverlay) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'editor-loading-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-busy', 'true');
+    overlay.setAttribute('aria-label', message);
+    overlay.innerHTML = `
+      <div class="editor-loading-card">
+        <span class="game-loading-spinner" aria-hidden="true"></span>
+        <strong></strong>
+        <span>Please wait until the engine finishes.</span>
+      </div>`;
+    overlay.querySelector('strong').textContent = message;
+    document.body.appendChild(overlay);
+    this.loadingOverlay = overlay;
+    const minimumVisible = new Promise(resolve => setTimeout(resolve, MIN_LOADING_POPUP_MS));
+    try {
+      // Let the browser paint the popup before heavy synchronous work blocks the thread.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      await task();
+    } finally {
+      await minimumVisible;
+      overlay.remove();
+      this.loadingOverlay = null;
+    }
+  }
+
+  async saveCampaign() {
     this.saveCurrentLevel();
-    const campaign = {
-      format: 'little-level-lab-campaign',
-      version: 1,
+    const packed = packCampaign({
+      format: CAMPAIGN_FORMAT,
+      version: 2,
       levels: this.levels
-    };
-    const blob = new Blob([JSON.stringify(campaign, null, 2)], { type: 'application/json' });
+    });
+    const json = JSON.stringify(packed);
+    const compressed = await gzipText(json);
+    const blob = compressed
+      ? new Blob([compressed], { type: 'application/gzip' })
+      : new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'my-platformer-campaign.json';
+    link.download = compressed ? 'my-platformer-campaign.json.gz' : 'my-platformer-campaign.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.setStatus(`Campaign with ${this.levels.length} levels downloaded.`);
+    this.setStatus(`Campaign with ${this.levels.length} levels downloaded (${formatBytes(blob.size)}).`);
   }
 
   async loadCampaign(file) {
     if (!file) return;
     try {
-      const campaign = JSON.parse(await file.text());
-      if (campaign?.format !== 'little-level-lab-campaign' || campaign.version !== 1 ||
+      const campaign = unpackCampaign(JSON.parse(await readFileText(file)));
+      if (campaign?.format !== CAMPAIGN_FORMAT || ![1, 2].includes(campaign.version) ||
         !Array.isArray(campaign.levels) || campaign.levels.length < 1 || campaign.levels.length > 50) {
         throw new TypeError('This is not a supported campaign file.');
       }
@@ -632,7 +742,7 @@ export class UIOverlayEditor {
   async loadLevel(file) {
     if (!file) return;
     try {
-      const serialized = await file.text();
+      const serialized = await readFileText(file);
       const snapshot = JSON.parse(serialized);
       this.stateManager.restoreWorld(snapshot);
       this.levels[this.currentLevelIndex].snapshot = this.stateManager.getWorldSnapshot();
