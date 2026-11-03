@@ -870,6 +870,11 @@ export class GameScene extends Scene {
 
   updateBoss(boss) {
     if (!boss?.active || !boss.body?.enable || boss.getData('health') <= 0) return;
+    // Bosses are clamped to the world bounds, so resting on the bottom edge means no ground is left.
+    if (boss.body.bottom >= this.worldSnapshot.rows * 32 - 1 || boss.y > this.worldSnapshot.rows * 32) {
+      this.damageBoss(boss, boss.getData('health'), true);
+      return;
+    }
     const movement = boss.getData('movement');
     const ability = boss.getData('ability');
     const speed = boss.getData('speed');
