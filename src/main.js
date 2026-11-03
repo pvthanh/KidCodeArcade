@@ -1,5 +1,6 @@
 import { AUTO, Game, Scale } from 'phaser';
 import './styles/main.css';
+import { perf } from './core/Perf.js';
 import { StateManager } from './core/StateManager.js';
 import { createShowcaseCampaign } from './core/DemoCampaign.js';
 import {
@@ -374,10 +375,12 @@ window.addEventListener('keydown', event => {
 function closeGame() {
   clearTimeout(gameRestartTimer);
   gameRestartTimer = null;
+  perf.stopWatching();
   if (activeGame) {
     activeGame.destroy(true);
     if (window.game === activeGame) delete window.game;
     activeGame = null;
+    perf.record('game.closed');
   }
   activeModal?.remove();
   activeModal = null;
@@ -553,6 +556,7 @@ function launchCampaignLevel(index, progress = campaignProgress) {
   levelHint.hidden = !level.hint;
 
   if (activeGame) {
+    perf.stopWatching();
     activeGame.destroy(true);
     activeGame = null;
     if (window.game) delete window.game;
@@ -621,9 +625,15 @@ function createGameInstance(snapshot, levelName, levelIndex, progress, isCampaig
       mode: Scale.FIT,
       autoCenter: Scale.CENTER_BOTH
     },
+    // The engine plays sound through its own SoundManager, so Phaser's audio context is not needed.
+    audio: { noAudio: true },
+    render: { powerPreference: 'high-performance' },
+    disableContextMenu: true,
     scene: [scene]
   });
   window.game = activeGame;
+  perf.record('game.started', { level: levelName });
+  perf.watchGame(activeGame);
 }
 
 eventBus.on('gameReady', () => setGameLoading(false));

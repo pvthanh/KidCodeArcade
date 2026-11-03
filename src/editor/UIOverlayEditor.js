@@ -4,6 +4,8 @@ import {
   SetPipeLinksCommand
 } from '../core/CommandManager.js';
 import { WORLD_THEMES } from '../core/StateManager.js';
+import { cloneData } from '../core/CloneData.js';
+import { perf } from '../core/Perf.js';
 
 const CAMPAIGN_FORMAT = 'little-level-lab-campaign';
 const MIN_LOADING_POPUP_MS = 3000;
@@ -91,14 +93,15 @@ export class UIOverlayEditor {
     this.demoLevels = demoLevels.map(level => ({
       name: level.name,
       hint: level.hint || '',
-      snapshot: JSON.parse(JSON.stringify(level.snapshot))
+      snapshot: cloneData(level.snapshot)
     }));
     this.levels = this.demoLevels.map(level => ({
       name: level.name,
       hint: level.hint,
-      snapshot: JSON.parse(JSON.stringify(level.snapshot))
+      snapshot: cloneData(level.snapshot)
     }));
     this.currentLevelIndex = 0;
+    this.announcedAssets = new Map();
     this.render();
     this.bindEvents();
   }
@@ -177,7 +180,7 @@ export class UIOverlayEditor {
         <span class="toolbar-label">World size</span>
         <label>Width <input id="world-cols" type="number" min="8" max="256" step="1" value="${this.stateManager.cols}"></label>
         <span class="dimension-separator">×</span>
-        <label>Height <input id="world-rows" type="number" min="8" max="40" step="1" value="${this.stateManager.rows}"></label>
+        <label>Height <input id="world-rows" type="number" min="8" max="100" step="1" value="${this.stateManager.rows}"></label>
         <span class="toolbar-unit">tiles</span>
         <button class="secondary-button toolbar-icon-button" type="submit"
           aria-label="Resize world" data-tooltip="Resize world">↔</button>
@@ -318,7 +321,7 @@ export class UIOverlayEditor {
       this.levels = this.demoLevels.map(level => ({
         name: level.name,
         hint: level.hint,
-        snapshot: JSON.parse(JSON.stringify(level.snapshot))
+        snapshot: cloneData(level.snapshot)
       }));
       this.currentLevelIndex = 0;
       this.applyLevelSnapshot(this.levels[0].snapshot);
@@ -423,6 +426,9 @@ export class UIOverlayEditor {
     });
     this.toolbar.querySelector('#play-btn').addEventListener('click', () => this.eventBus.emit('play'));
     this.eventBus.on('status', message => this.setStatus(message));
+    this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.announcedAssets.set(tileId, dataUrl));
+    this.eventBus.on('spriteAnimationUploaded', ({ entityType, animationType, dataUrl }) =>
+      this.announcedAssets.set(`${entityType}:${animationType}`, dataUrl));
   }
 
   setStatus(message) {
@@ -525,14 +531,35 @@ export class UIOverlayEditor {
   }
 
   applyLevelSnapshot(snapshot) {
+    perf.start('editor.applyLevel');
     this.stateManager.restoreWorld(snapshot);
     this.toolbar.querySelector('#world-theme').value = this.stateManager.worldTheme;
     this.commandManager.clearHistory();
     this.syncWorldSize();
     this.gridCanvas.refresh();
+    // Sprites identical to the ones already announced are skipped, so switching levels
+    // does not decode every embedded image again.
+    const announced = this.announcedAssets;
+    const nextAnnounced = new Map();
+    let skipped = 0;
+    let emitted = 0;
     for (const [tileId, metadata] of Object.entries(this.stateManager.spriteMetadata)) {
-      if (metadata.dataUrl) this.eventBus.emit('spriteUploaded', { tileId, ...metadata });
+      if (metadata.dataUrl) {
+        nextAnnounced.set(tileId, metadata.dataUrl);
+        if (announced.get(tileId) === metadata.dataUrl) skipped++;
+        else {
+          emitted++;
+          this.eventBus.emit('spriteUploaded', { tileId, ...metadata });
+        }
+      }
       for (const [animationType, animation] of Object.entries(metadata.animations || {})) {
+        const key = `${tileId}:${animationType}`;
+        nextAnnounced.set(key, animation.dataUrl);
+        if (announced.get(key) === animation.dataUrl) {
+          skipped++;
+          continue;
+        }
+        emitted++;
         this.eventBus.emit('spriteAnimationUploaded', {
           entityType: tileId,
           animationType,
@@ -540,6 +567,7 @@ export class UIOverlayEditor {
         });
       }
     }
+    this.announcedAssets = nextAnnounced;
     this.eventBus.emit('tileVariantsChanged', {
       catalog: this.stateManager.tileVariantCatalog,
       selectedTileVariants: this.stateManager.selectedTileVariants
@@ -555,6 +583,7 @@ export class UIOverlayEditor {
     });
     this.updateHistory();
     this.renderCampaignOptions();
+    perf.end('editor.applyLevel', { emitted, skipped });
   }
 
   saveCurrentLevel() {
@@ -635,7 +664,7 @@ export class UIOverlayEditor {
     return {
       name: this.levels[index].name,
       hint: this.levels[index].hint || '',
-      snapshot: JSON.parse(JSON.stringify(this.levels[index].snapshot))
+      snapshot: cloneData(this.levels[index].snapshot)
     };
   }
 
@@ -663,7 +692,7 @@ export class UIOverlayEditor {
     try {
       // Let the browser paint the popup before heavy synchronous work blocks the thread.
       await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
-      await task();
+      await perf.measure(`ui.${message}`, task);
     } finally {
       await minimumVisible;
       overlay.remove();
@@ -712,7 +741,7 @@ export class UIOverlayEditor {
         return {
           name: level.name.trim().slice(0, 60),
           hint: level.hint || '',
-          snapshot: JSON.parse(JSON.stringify(level.snapshot))
+          snapshot: cloneData(level.snapshot)
         };
       });
       this.levels = levels;

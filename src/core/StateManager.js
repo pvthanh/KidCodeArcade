@@ -1,3 +1,4 @@
+import { cloneData } from './CloneData.js';
 import { characterArt, creepyArt, playerCharacterArt } from '../assets/demo/CharacterArt.js';
 import groundSprite from '../assets/demo/MeadowGround.svg?inline';
 import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
@@ -14,7 +15,7 @@ import mossBrickSprite from '../assets/demo/Brick-Moss.svg?inline';
 const MIN_COLS = 8;
 const MAX_COLS = 256;
 const MIN_ROWS = 8;
-const MAX_ROWS = 40;
+const MAX_ROWS = 100;
 export const BOSS_TYPES = [
   { id: 'slimeKing', name: 'Slime King' },
   { id: 'roboCrab', name: 'Robo Crab' },
@@ -228,7 +229,7 @@ const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType
 BUILTIN_TILE_VARIANTS.Ground.push(builtinVariant('ice', 'Ice', iceGroundSprite, 'Ground-Ice.svg'));
 BUILTIN_TILE_VARIANTS.Brick.push(builtinVariant('moss', 'Mossy', mossBrickSprite, 'Brick-Moss.svg'));
 
-const clone = value => JSON.parse(JSON.stringify(value));
+const clone = cloneData;
 const mergeVariantCatalog = catalog => {
   const merged = clone(BUILTIN_TILE_VARIANTS);
   for (const [tileType, variants] of Object.entries(catalog || {})) {
@@ -329,7 +330,7 @@ export class StateManager {
     this.tileVariants = [];
     this.tileVariantCatalog = clone(BUILTIN_TILE_VARIANTS);
     this.selectedTileVariants = Object.fromEntries(TILE_VARIANT_TYPES.map(type => [type, 'classic']));
-    this.spriteMetadata = JSON.parse(JSON.stringify(BUILTIN_SPRITES));
+    this.spriteMetadata = cloneData(BUILTIN_SPRITES);
     this.soundEffects = {};
     this.backgroundMusic = null;
     this.mysteryBoxReward = 'Mushroom';
@@ -875,10 +876,10 @@ export class StateManager {
       tileVariants: this.tileVariants.map(row => [...row]),
       activeTileType: this.activeTileType,
       playerCharacterId: this.playerCharacterId,
-      spriteMetadata: JSON.parse(JSON.stringify(this.spriteMetadata)),
+      spriteMetadata: cloneData(this.spriteMetadata),
       tileVariantCatalog: clone(this.tileVariantCatalog),
       selectedTileVariants: { ...this.selectedTileVariants },
-      soundEffects: JSON.parse(JSON.stringify(this.soundEffects)),
+      soundEffects: cloneData(this.soundEffects),
       backgroundMusic: this.backgroundMusic ? { ...this.backgroundMusic } : null,
       mysteryBoxReward: this.mysteryBoxReward,
       bossConfig: { ...this.bossConfig },
@@ -911,8 +912,8 @@ export class StateManager {
       ? snapshot.activeTileType
       : 'Ground';
     this.spriteMetadata = {
-      ...JSON.parse(JSON.stringify(BUILTIN_SPRITES)),
-      ...JSON.parse(JSON.stringify(snapshot.spriteMetadata || {}))
+      ...cloneData(BUILTIN_SPRITES),
+      ...cloneData(snapshot.spriteMetadata || {})
     };
     this.playerCharacterId = PLAYER_CHARACTER_BY_ID.has(snapshot.playerCharacterId)
       ? snapshot.playerCharacterId
@@ -936,7 +937,7 @@ export class StateManager {
         ]))
       };
     }
-    this.soundEffects = JSON.parse(JSON.stringify(snapshot.soundEffects || {}));
+    this.soundEffects = cloneData(snapshot.soundEffects || {});
     this.backgroundMusic = snapshot.backgroundMusic ? { ...snapshot.backgroundMusic } : null;
     this.mysteryBoxReward = MYSTERY_BOX_REWARDS.includes(snapshot.mysteryBoxReward)
       ? snapshot.mysteryBoxReward

@@ -10,6 +10,7 @@ import {
 } from '../core/StateManager.js';
 import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
 import { SoundManager } from './SoundManager.js';
+import { perf } from '../core/Perf.js';
 
 const PLAYER_TILE_ALIGNMENT_OFFSET = (CHARACTER_DISPLAY_SIZE - 32) / 2;
 const PLAYER_ART_FOOT_INSET = 4;
@@ -82,55 +83,87 @@ export class GameScene extends Scene {
     );
   }
 
-  preload() {
-    this.load.image('Pipe-body', pipeBodySprite);
-    for (const [bossId, dataUrl] of Object.entries(characterArt.bosses)) {
-      this.load.image(`Boss-${bossId}`, dataUrl);
+  // Only the artwork this level can actually show is loaded. Decoded images are the
+  // largest part of the memory a level uses, so unused creatures and variants are skipped.
+  collectUsedAssets() {
+    const snapshot = this.worldSnapshot;
+    const types = new Set(['Player', 'Coin', ...POWER_UP_TYPES]);
+    const variants = new Set();
+    snapshot.tiles.forEach((row, rowIndex) => row.forEach((tileType, colIndex) => {
+      if (!tileType) return;
+      types.add(tileType);
+      variants.add(`${tileType}--variant--${snapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic'}`);
+    }));
+    for (const type of POWER_UP_TYPES) {
+      variants.add(`${type}--variant--${snapshot.selectedTileVariants?.[type] || 'classic'}`);
     }
+    return { types, variants };
+  }
 
-    for (const [entityType, metadata] of Object.entries(this.worldSnapshot.spriteMetadata || {})) {
-      if (!metadata.dataUrl) continue;
-      if (metadata.imageWidth && metadata.imageHeight) {
-        this.load.spritesheet(entityType, metadata.dataUrl, {
-          frameWidth: metadata.frameWidth || metadata.imageWidth,
-          frameHeight: metadata.frameHeight || metadata.imageHeight
-        });
-      } else {
-        this.load.image(entityType, metadata.dataUrl);
+  preload() {
+    const snapshot = this.worldSnapshot;
+    const { types, variants } = this.collectUsedAssets();
+    let imageCount = 0;
+    const loadImage = (key, url) => {
+      imageCount++;
+      this.load.image(key, url);
+    };
+    const loadSheet = (key, url, frameWidth, frameHeight) => {
+      imageCount++;
+      this.load.spritesheet(key, url, { frameWidth, frameHeight });
+    };
+    perf.start('game.preload');
+    this.load.once('complete', () => perf.end('game.preload', { images: imageCount }));
+
+    this.load.image('Pipe-body', pipeBodySprite);
+    const bossId = snapshot.bossConfig?.type;
+    if (types.has('Boss')) {
+      for (const [id, dataUrl] of Object.entries(characterArt.bosses)) {
+        if (id === bossId || id === 'slimeKing') loadImage(`Boss-${id}`, dataUrl);
+      }
+      for (const boss of snapshot.customBosses || []) {
+        if (boss.id === bossId) loadImage(`Boss-${boss.id}`, boss.dataUrl);
       }
     }
 
-    for (const [tileType, variants] of Object.entries(this.worldSnapshot.tileVariantCatalog || {})) {
-      variants.forEach(variant => {
-        if (variant.dataUrl) {
-          this.load.image(`${tileType}--variant--${variant.id}`, variant.dataUrl);
+    for (const [entityType, metadata] of Object.entries(snapshot.spriteMetadata || {})) {
+      if (!types.has(entityType)) continue;
+      if (metadata.dataUrl) {
+        if (metadata.imageWidth && metadata.imageHeight) {
+          loadSheet(
+            entityType,
+            metadata.dataUrl,
+            metadata.frameWidth || metadata.imageWidth,
+            metadata.frameHeight || metadata.imageHeight
+          );
+        } else {
+          loadImage(entityType, metadata.dataUrl);
         }
-      });
-    }
-
-    for (const [entityType, metadata] of Object.entries(this.worldSnapshot.spriteMetadata || {})) {
+      }
       for (const [animationType, animation] of Object.entries(metadata.animations || {})) {
         const key = `${entityType}-${animationType}`;
         if (animation.imageWidth && animation.imageHeight) {
-          this.load.spritesheet(key, animation.dataUrl, {
-            frameWidth: animation.frameWidth,
-            frameHeight: animation.frameHeight
-          });
+          loadSheet(key, animation.dataUrl, animation.frameWidth, animation.frameHeight);
         } else {
-          this.load.image(key, animation.dataUrl);
+          loadImage(key, animation.dataUrl);
         }
       }
-
-      for (const boss of this.worldSnapshot.customBosses || []) {
-        this.load.image(`Boss-${boss.id}`, boss.dataUrl);
-      }
     }
-    for (const creepy of this.worldSnapshot.customCreeps || []) {
-      this.load.image(creepy.tileId, creepy.dataUrl);
+
+    for (const [tileType, tileVariants] of Object.entries(snapshot.tileVariantCatalog || {})) {
+      tileVariants.forEach(variant => {
+        const key = `${tileType}--variant--${variant.id}`;
+        if (variant.dataUrl && variants.has(key)) loadImage(key, variant.dataUrl);
+      });
+    }
+
+    for (const creepy of snapshot.customCreeps || []) {
+      if (types.has(creepy.tileId)) loadImage(creepy.tileId, creepy.dataUrl);
     }
   }
 
   create() {
+    perf.start('game.create');
     const tileSize = 32;
     const worldWidth = this.worldSnapshot.cols * tileSize;
     const worldHeight = this.worldSnapshot.rows * tileSize;
@@ -164,6 +197,12 @@ export class GameScene extends Scene {
     this.fireGeysers = [];
     let spawnPoint = null;
 
+    const customCreepsByTile = new Map(
+      (this.worldSnapshot.customCreeps || []).map(creepy => [creepy.tileId, creepy])
+    );
+    const creepyTypesById = new Map(CREEPY_TYPES.map(type => [type.id, type]));
+    const variantsByTile = new Map(Object.entries(this.worldSnapshot.tileVariantCatalog || {})
+      .map(([type, list]) => [type, new Map(list.map(item => [item.id, item]))]));
     this.worldSnapshot.tiles.forEach((row, rowIndex) => {
       row.forEach((tileType, colIndex) => {
         if (!tileType) return;
@@ -183,16 +222,14 @@ export class GameScene extends Scene {
         }
         const animations = this.worldSnapshot.spriteMetadata?.[tileType]?.animations || {};
         const animationType = animations.idle ? 'idle' : animations.walk ? 'walk' : null;
-        const customCreepy = (this.worldSnapshot.customCreeps || [])
-          .find(creepy => creepy.tileId === tileType);
-        const isCreepy = CREEPY_TYPES.some(type => type.id === tileType) || customCreepy;
-        const defaultConfig = CREEPY_TYPES.find(type => type.id === tileType) ||
+        const customCreepy = customCreepsByTile.get(tileType);
+        const isCreepy = creepyTypesById.has(tileType) || customCreepy;
+        const defaultConfig = creepyTypesById.get(tileType) ||
           { movement: 'ground', speed: 45, health: 1 };
         const config = this.worldSnapshot.creepyConfigs?.[tileType] || defaultConfig;
         const flying = config.movement === 'flying';
         const variantId = this.worldSnapshot.tileVariants?.[rowIndex]?.[colIndex] || 'classic';
-        const variant = this.worldSnapshot.tileVariantCatalog?.[tileType]
-          ?.find(item => item.id === variantId);
+        const variant = variantsByTile.get(tileType)?.get(variantId);
         const legacyCustomSprite = variantId === 'classic' &&
           this.worldSnapshot.spriteMetadata?.[tileType]?.fileName;
         const isDefaultPipeBody = tileType === 'Pipe' && rowIndex > 0 &&
@@ -470,6 +507,11 @@ export class GameScene extends Scene {
     this.flyingEnemies.children.iterate(enemy =>
       this.spriteAnimator.play(enemy, enemy.getData('tileType'), 'walk'));
     this.updateHud();
+    perf.end('game.create', {
+      tiles: this.worldSnapshot.cols * this.worldSnapshot.rows,
+      objects: this.children.length,
+      textures: this.textures.getTextureKeys().length
+    });
     this.eventBus.emit('gameReady');
   }
 

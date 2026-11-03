@@ -1,4 +1,5 @@
 import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
+import { perf } from '../core/Perf.js';
 
 const TILE_COLORS = {
   Ground: '#58a65c',
@@ -71,6 +72,9 @@ export class GridCanvas {
     this.eventBus = eventBus;
     this.board = document.getElementById('editor-board');
     if (!this.board) throw new Error('The editor board was not found.');
+    this.stage = this.canvas.parentElement;
+    this.origin = { x: 0, y: 0 };
+    this.refreshFrame = 0;
     this.context = this.canvas.getContext('2d');
     if (!this.context) throw new Error('A 2D canvas context is unavailable.');
     this.tileTintCanvas = document.createElement('canvas');
@@ -94,6 +98,10 @@ export class GridCanvas {
     this.lastPanPosition = null;
     this.lastPaintedCell = '';
     this.bindEvents();
+    this.board.addEventListener('scroll', () => this.refreshNow(), { passive: true });
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => this.refresh()).observe(this.board);
+    }
     this.eventBus.on('spriteAnimationUploaded', ({ entityType, animationType, dataUrl }) => {
       const hasIdle = this.stateManager.spriteMetadata[entityType]?.animations?.idle;
       if (animationType !== 'idle' && hasIdle) return;
@@ -101,7 +109,7 @@ export class GridCanvas {
     });
     this.eventBus.on('levelLoaded', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
     this.eventBus.on('creepyTypesChanged', ({ customCreeps = [] } = {}) => this.loadCreepySprites(customCreeps));
-    this.refresh();
+    this.refreshNow();
   }
 
   loadCreepySprites(customCreeps) {
@@ -214,10 +222,10 @@ export class GridCanvas {
   }
 
   canvasPoint(event) {
-    const bounds = this.canvas.getBoundingClientRect();
+    const bounds = this.stage.getBoundingClientRect();
     return {
-      x: (event.clientX - bounds.left) * this.canvas.width / bounds.width,
-      y: (event.clientY - bounds.top) * this.canvas.height / bounds.height
+      x: event.clientX - bounds.left - this.stage.clientLeft,
+      y: event.clientY - bounds.top - this.stage.clientTop
     };
   }
 
@@ -349,22 +357,56 @@ export class GridCanvas {
     image.src = variant.dataUrl;
   }
 
+  // The backing canvas only covers the visible part of the world. Huge levels would
+  // otherwise need hundreds of MB of canvas memory, which crashes tablets.
   updateCanvasSize() {
     const { width, height } = this.stateManager.getWorldSize();
-    if (this.canvas.width !== width) this.canvas.width = width;
-    if (this.canvas.height !== height) this.canvas.height = height;
+    this.worldWidth = width;
+    this.worldHeight = height;
+    this.stage.style.width = `${width}px`;
+    this.stage.style.height = `${height}px`;
+    const viewWidth = Math.max(1, Math.min(width, this.board.clientWidth || width));
+    const viewHeight = Math.max(1, Math.min(height, this.board.clientHeight || height));
+    if (this.canvas.width !== viewWidth) this.canvas.width = viewWidth;
+    if (this.canvas.height !== viewHeight) this.canvas.height = viewHeight;
   }
 
+  // Coalesces bursts of redraw requests (image loads, painting) into one per frame.
   refresh() {
+    if (this.refreshFrame) return;
+    this.refreshFrame = requestAnimationFrame(() => {
+      this.refreshFrame = 0;
+      this.refreshNow();
+    });
+  }
+
+  refreshNow() {
+    if (this.refreshFrame) {
+      cancelAnimationFrame(this.refreshFrame);
+      this.refreshFrame = 0;
+    }
+    const begin = performance.now();
     this.theme = WORLD_THEMES.find(item => item.id === this.stateManager.worldTheme) || WORLD_THEMES[0];
     this.updateCanvasSize();
     const ctx = this.context;
     const tileSize = this.stateManager.tileSize;
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const stageBounds = this.stage.getBoundingClientRect();
+    const canvasBounds = this.canvas.getBoundingClientRect();
+    const originX = Math.max(0, Math.min(this.worldWidth - this.canvas.width,
+      Math.round(canvasBounds.left - stageBounds.left - this.stage.clientLeft)));
+    const originY = Math.max(0, Math.min(this.worldHeight - this.canvas.height,
+      Math.round(canvasBounds.top - stageBounds.top - this.stage.clientTop)));
+    this.origin = { x: originX, y: originY };
+    ctx.setTransform(1, 0, 0, 1, -originX, -originY);
+    ctx.clearRect(originX, originY, this.canvas.width, this.canvas.height);
     this.drawBackdrop(ctx);
 
-    for (let row = 0; row < this.stateManager.rows; row++) {
-      for (let col = 0; col < this.stateManager.cols; col++) {
+    const firstRow = Math.max(0, Math.floor(originY / tileSize));
+    const lastRow = Math.min(this.stateManager.rows - 1, Math.floor((originY + this.canvas.height) / tileSize));
+    const firstCol = Math.max(0, Math.floor(originX / tileSize));
+    const lastCol = Math.min(this.stateManager.cols - 1, Math.floor((originX + this.canvas.width) / tileSize));
+    for (let row = firstRow; row <= lastRow; row++) {
+      for (let col = firstCol; col <= lastCol; col++) {
         const type = this.stateManager.getTile(row, col);
         const x = col * tileSize;
         const y = row * tileSize;
@@ -375,6 +417,10 @@ export class GridCanvas {
       }
     }
     if (this.selectionMode) this.drawSelectionOverlay(ctx, tileSize);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (perf.verbose) {
+      perf.record('editor.draw', { ms: Math.round((performance.now() - begin) * 10) / 10 });
+    }
   }
 
   drawSelectionOverlay(ctx, tileSize) {
@@ -404,7 +450,7 @@ export class GridCanvas {
         const x = (cell.col + offset.deltaCol) * tileSize;
         const y = (cell.row + offset.deltaRow) * tileSize;
         const inside = x >= 0 && y >= 0 &&
-          x + tileSize <= this.canvas.width && y + tileSize <= this.canvas.height;
+          x + tileSize <= this.worldWidth && y + tileSize <= this.worldHeight;
         ctx.fillStyle = this.isMovingSelection
           ? inside ? 'rgba(64, 190, 132, 0.2)' : 'rgba(228, 77, 77, 0.2)'
           : 'rgba(255, 255, 255, 0.17)';
@@ -488,8 +534,8 @@ export class GridCanvas {
   }
 
   drawBackdrop(ctx) {
-    const width = this.canvas.width;
-    const height = this.canvas.height;
+    const width = this.worldWidth;
+    const height = this.worldHeight;
     const theme = this.theme;
     const sky = ctx.createLinearGradient(0, 0, 0, height);
     sky.addColorStop(0, theme.sky[0]);

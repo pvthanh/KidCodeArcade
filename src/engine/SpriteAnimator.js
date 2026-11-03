@@ -1,3 +1,14 @@
+const PLAYER_FALLBACKS = {
+  idle: ['idle'],
+  walk: ['walk', 'run'],
+  run: ['run', 'walk'],
+  jump: ['jump', 'walk', 'idle']
+};
+const CREATURE_FALLBACKS = {
+  idle: ['idle', 'walk'],
+  walk: ['walk', 'idle']
+};
+
 export class SpriteAnimator {
   constructor(eventBus) {
     this.eventBus = eventBus;
@@ -34,17 +45,7 @@ export class SpriteAnimator {
   play(entity, entityType, animationType) {
     if (!entity) return false;
     const availableAnimations = entity.scene.worldSnapshot.spriteMetadata?.[entityType]?.animations || {};
-    const fallbackOrder = entityType === 'Player'
-      ? {
-          idle: ['idle'],
-          walk: ['walk', 'run'],
-          run: ['run', 'walk'],
-          jump: ['jump', 'walk', 'idle']
-        }
-      : {
-          idle: ['idle', 'walk'],
-          walk: ['walk', 'idle']
-        };
+    const fallbackOrder = entityType === 'Player' ? PLAYER_FALLBACKS : CREATURE_FALLBACKS;
     for (const candidate of fallbackOrder[animationType] || [animationType]) {
       if (!availableAnimations[candidate]) continue;
       const key = `${entityType}-${candidate}`;
