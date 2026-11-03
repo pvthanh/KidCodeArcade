@@ -9,6 +9,7 @@ import starSprite from '../assets/demo/SunnyStar.svg?inline';
 import extraLifeSprite from '../assets/demo/SunnyHeart.svg?inline';
 import fireFlowerSprite from '../assets/demo/SunnyFireFlower.svg?inline';
 import boomFlowerSprite from '../assets/demo/SunnyBoomFlower.svg?inline';
+import tntFlowerSprite from '../assets/demo/SunnyTntFlower.svg?inline';
 import iceGroundSprite from '../assets/demo/Ground-Ice.svg?inline';
 import mossBrickSprite from '../assets/demo/Brick-Moss.svg?inline';
 
@@ -75,17 +76,17 @@ const MAX_CUSTOM_CREEPS = 12;
 const LEGACY_TILE_TYPES = ['Updraft', 'Downdraft'];
 
 const TILE_TYPES = [
-  'Player', 'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
+  'Player', 'Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform',
   'OneWayPlatform', 'RotatingFirebar', 'FireGeyser', 'Lava', 'Switch', 'Door', 'Checkpoint',
   ...CREEPY_TYPES.map(({ id }) => id), 'Coin', 'Flag',
-  'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower'
+  'Boss', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower', 'TNTFlower'
 ];
 const TILE_VARIANT_TYPES = [
-  'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
+  'Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'MysteryBox', 'Pipe', 'Spring', 'MovingPlatform', 'OneWayPlatform',
   'Switch', 'Door', 'Checkpoint', 'Coin', 'Flag', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower',
-  'BoomFlower'
+  'BoomFlower', 'TNTFlower'
 ];
-export const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower'];
+export const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower', 'TNTFlower'];
 export const MYSTERY_BOX_REWARDS = ['Random', ...POWER_UP_TYPES];
 const SOUND_EVENTS = [
   'jump', 'enemyStomp', 'playerHit', 'coin', 'powerUp', 'brickBreak', 'mysteryBox',
@@ -195,7 +196,8 @@ const BUILTIN_SPRITES = {
   Star: { dataUrl: starSprite },
   ExtraLife: { dataUrl: extraLifeSprite },
   FireFlower: { dataUrl: fireFlowerSprite },
-  BoomFlower: { dataUrl: boomFlowerSprite }
+  BoomFlower: { dataUrl: boomFlowerSprite },
+  TNTFlower: { dataUrl: tntFlowerSprite }
 };
 
 for (const [tileType, art] of Object.entries(creepyArt)) {
@@ -221,7 +223,7 @@ const BUILTIN_TILE_VARIANTS = Object.fromEntries(TILE_VARIANT_TYPES.map(tileType
     tileType === 'Ground' ? 'Sunny meadow' : tileType === 'Brick' ? 'Pastel brick' : 'Classic',
     BUILTIN_SPRITES[tileType]?.dataUrl || null,
     null,
-    ['MysteryBox', 'Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower'].includes(tileType)
+    ['MysteryBox', 'Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower', 'TNTFlower'].includes(tileType)
       ? 128
       : 32
   )]
@@ -1173,7 +1175,7 @@ export class StateManager {
 
   isSolid(tileType) {
     return [
-      'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'Pipe', 'MysteryBox', 'Spring',
+      'Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'Pipe', 'MysteryBox', 'Spring',
       'MovingPlatform', 'OneWayPlatform', 'Door', 'Lava'
     ].includes(tileType);
   }

@@ -16,6 +16,7 @@ const TILES = [
   { id: 'Player', name: 'Player', icon: '🧑', description: 'Place the player start', color: '#347bd1' },
   { id: 'Ground', name: 'Ground', icon: '🟩', description: 'Solid platform', color: '#58a65c' },
   { id: 'Sand', name: 'Sand', icon: '🏜️', description: 'Warm sandy ground', color: '#d8b56b' },
+  { id: 'Steel', name: 'Steel', icon: '🔩', description: 'Indestructible; Boom and TNT blasts cannot break it', color: '#5b6b78' },
   { id: 'Stone', name: 'Stone', icon: '🪨', description: 'Solid rocky ground', color: '#788994' },
   { id: 'Snow', name: 'Snow', icon: '❄️', description: 'Snow-covered ground', color: '#b8ddeb' },
   { id: 'Brick', name: 'Brick', icon: '🧱', description: 'Breakable block', color: '#b9683f' },
@@ -38,6 +39,7 @@ const TILES = [
   { id: 'ExtraLife', name: 'Extra life', icon: '❤️', description: 'Add one player life', color: '#e76568' },
   { id: 'FireFlower', name: 'Fire flower', icon: '🔥', description: 'Adds five fireballs; shoot with X, J, or the touch button', color: '#ed7645' },
   { id: 'BoomFlower', name: 'Boom flower', icon: '🌼', description: 'Adds five bombs; press B or the bomb button to drop one at the player', color: '#f3a43b' },
+  { id: 'TNTFlower', name: 'TNT flower', icon: '🧨', description: 'Adds five TNT; drop with B or the bomb button, detonate with the fire button', color: '#e2463a' },
   { id: 'Flag', name: 'Goal', icon: '🏁', description: 'Reach to win', color: '#378bd0' },
   { id: 'Eraser', name: 'Eraser', icon: '🧽', description: 'Remove a tile', color: '#85939c' }
 ];
@@ -48,12 +50,13 @@ const MYSTERY_REWARD_LABELS = {
   Star: 'Star power',
   ExtraLife: 'Extra life',
   FireFlower: 'Fire flower',
-  BoomFlower: 'Boom flower'
+  BoomFlower: 'Boom flower',
+  TNTFlower: 'TNT flower'
 };
 
 const TOOL_GROUPS = [
   { id: 'start-goal', name: 'Start & Goal', tileIds: ['Player', 'Checkpoint', 'Flag'] },
-  { id: 'terrain', name: 'Terrain', tileIds: ['Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'Pipe'] },
+  { id: 'terrain', name: 'Terrain', tileIds: ['Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'Pipe'] },
   {
     id: 'mechanics',
     name: 'Platforms & Mechanics',
@@ -65,7 +68,7 @@ const TOOL_GROUPS = [
   {
     id: 'collectibles',
     name: 'Collectibles & Power-ups',
-    tileIds: ['Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower']
+    tileIds: ['Coin', 'Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower', 'TNTFlower']
   }
 ];
 
@@ -89,6 +92,7 @@ const QUICK_TOOL_ARTWORK = {
   Door: '<rect x="3" y="2" width="26" height="28" rx="4" fill="#765b90"/><rect x="7" y="8" width="18" height="19" fill="#c9b4d7"/><circle cx="21" cy="18" r="2" fill="#765b90"/>',
   Checkpoint: '<rect x="7" y="5" width="4" height="25" fill="#5c5044"/><path d="m11 6 16 5-16 5z" fill="#43a5a1"/>',
   Sand: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#d8b56b"/><path d="M2 9h28M2 20h28" stroke="#f0d79c" stroke-width="2"/><circle cx="8" cy="15" r="1.5" fill="#b68e4d"/><circle cx="23" cy="26" r="1.5" fill="#b68e4d"/>',
+  Steel: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#5b6b78"/><rect x="4" y="4" width="24" height="24" fill="none" stroke="#c5d0d8" stroke-width="2"/><path d="M4 4l24 24M28 4L4 28" stroke="#c5d0d8" stroke-width="2"/>',
   Stone: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#788994"/><path d="M1 11h30M1 22h30M12 1v10m9 0v11M8 22v9" stroke="#bdc8cc" stroke-width="2"/><path d="M2 2h28" stroke="#e4eaec" stroke-width="2"/>',
   Snow: '<rect x="1" y="1" width="30" height="30" rx="3" fill="#83b9cc"/><path d="M1 9q6-5 12 0t18 0v22H1z" fill="#f3fbff"/><path d="M3 13q5-3 10 0" fill="none" stroke="#d7eff8" stroke-width="2"/>'
 };

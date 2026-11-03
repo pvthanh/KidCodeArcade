@@ -2,6 +2,7 @@ const COLORS = {
   Ground: 0x58a65c,
   Sand: 0xd8b56b,
   Stone: 0x788994,
+  Steel: 0x5b6b78,
   Snow: 0xb8ddeb,
   Brick: 0xb9683f,
   Lava: 0xc83e31,
@@ -22,7 +23,8 @@ const COLORS = {
   Star: 0xf1ad3e,
   ExtraLife: 0xe76568,
   FireFlower: 0xed7645,
-  BoomFlower: 0xf3a43b
+  BoomFlower: 0xf3a43b,
+  TNTFlower: 0xe2463a
 };
 
 export const CHARACTER_DISPLAY_SIZE = 48;
@@ -37,6 +39,7 @@ export class EntityFactory {
       ['Ground', (scene, x, y, options = {}) => this.createPlatform(scene, 'Ground', x, y, options)],
       ['Sand', (scene, x, y, options = {}) => this.createPlatform(scene, 'Sand', x, y, options)],
       ['Stone', (scene, x, y, options = {}) => this.createPlatform(scene, 'Stone', x, y, options)],
+      ['Steel', (scene, x, y, options = {}) => this.createPlatform(scene, 'Steel', x, y, options)],
       ['Snow', (scene, x, y, options = {}) => this.createPlatform(scene, 'Snow', x, y, options)],
       ['Brick', (scene, x, y, options = {}) => this.createPlatform(scene, 'Brick', x, y, options)],
       ['Lava', (scene, x, y, options = {}) => this.createPlatform(scene, 'Lava', x, y, options)],
@@ -58,7 +61,8 @@ export class EntityFactory {
       ['Star', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'Star').setDisplaySize(32, 32)],
       ['ExtraLife', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'ExtraLife').setDisplaySize(32, 32)],
       ['FireFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'FireFlower').setDisplaySize(32, 32)],
-      ['BoomFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'BoomFlower').setDisplaySize(40, 40)]
+      ['BoomFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'BoomFlower').setDisplaySize(40, 40)],
+      ['TNTFlower', (scene, x, y, options = {}) => scene.physics.add.sprite(x, y, options.textureKey || 'TNTFlower').setDisplaySize(40, 40)]
     ]);
   }
 
@@ -127,6 +131,7 @@ export class EntityFactory {
       Ground: { color: COLORS.Ground, shape: 'block' },
       Sand: { color: COLORS.Sand, shape: 'sand' },
       Stone: { color: COLORS.Stone, shape: 'stone' },
+      Steel: { color: COLORS.Steel, shape: 'steel' },
       Snow: { color: COLORS.Snow, shape: 'snow' },
       Brick: { color: COLORS.Brick, shape: 'block' },
       Lava: { color: COLORS.Lava, shape: 'lava' },
@@ -147,6 +152,7 @@ export class EntityFactory {
       ExtraLife: { color: COLORS.ExtraLife, shape: 'heart' },
       FireFlower: { color: COLORS.FireFlower, shape: 'flower' },
       BoomFlower: { color: COLORS.BoomFlower, shape: 'boomFlower' },
+      TNTFlower: { color: COLORS.TNTFlower, shape: 'boomFlower' },
       Fireball: { color: 0xf45d2f, shape: 'fireball' }
     };
 
@@ -313,6 +319,18 @@ export class EntityFactory {
         graphics.lineBetween(8, 22, 8, 31);
         graphics.lineStyle(2, 0xe4eaec, 1);
         graphics.lineBetween(2, 2, 30, 2);
+      } else if (style.shape === 'steel') {
+        graphics.fillRect(1, 1, 30, 30);
+        graphics.fillStyle(0x8fa0ad, 1);
+        graphics.fillRect(1, 1, 30, 4);
+        graphics.fillStyle(0x3d4a55, 1);
+        graphics.fillRect(1, 27, 30, 4);
+        graphics.lineStyle(2, 0xc5d0d8, 1);
+        graphics.strokeRect(3, 3, 26, 26);
+        graphics.lineBetween(3, 3, 29, 29);
+        graphics.lineBetween(29, 3, 3, 29);
+        graphics.fillStyle(0xdfe7ec, 1);
+        [[6, 6], [26, 6], [6, 26], [26, 26]].forEach(([rx, ry]) => graphics.fillCircle(rx, ry, 2));
       } else if (style.shape === 'snow') {
         graphics.fillStyle(0x83b9cc, 1);
         graphics.fillRect(1, 1, 30, 30);

@@ -5,6 +5,7 @@ const TILE_COLORS = {
   Ground: '#58a65c',
   Sand: '#d8b56b',
   Stone: '#788994',
+  Steel: '#5b6b78',
   Snow: '#b8ddeb',
   Brick: '#b9683f',
   MysteryBox: '#e0aa28',
@@ -29,13 +30,15 @@ const TILE_COLORS = {
   Star: '#f1ad3e',
   ExtraLife: '#e76568',
   FireFlower: '#ed7645',
-  BoomFlower: '#f3a43b'
+  BoomFlower: '#f3a43b',
+  TNTFlower: '#e2463a'
 };
 
 const TILE_LABELS = {
   Ground: '',
   Sand: '',
   Stone: '',
+  Steel: '',
   Snow: '',
   Brick: '▦',
   MysteryBox: '?',
@@ -61,7 +64,8 @@ const TILE_LABELS = {
   Star: '★',
   ExtraLife: '+',
   FireFlower: 'F',
-  BoomFlower: 'B'
+  BoomFlower: 'B',
+  TNTFlower: 'T'
 };
 
 export class GridCanvas {
@@ -84,7 +88,6 @@ export class GridCanvas {
     if (!this.tileTintContext) throw new Error('A 2D tile preview context is unavailable.');
     this.spriteImages = new Map();
     this.variantImages = new Map();
-    this.loadingSpriteIds = new Set();
     this.isPainting = false;
     this.isPanning = false;
     this.panMode = false;
@@ -103,7 +106,9 @@ export class GridCanvas {
       new ResizeObserver(() => this.refresh()).observe(this.board);
     }
     this.eventBus.on('spriteAnimationUploaded', ({ entityType, animationType, dataUrl }) => {
-      const hasIdle = this.stateManager.spriteMetadata[entityType]?.animations?.idle;
+      const metadata = this.stateManager.spriteMetadata[entityType];
+      if (metadata?.dataUrl) return;
+      const hasIdle = metadata?.animations?.idle;
       if (animationType !== 'idle' && hasIdle) return;
       this.loadSprite(entityType, dataUrl);
     });
@@ -330,31 +335,33 @@ export class GridCanvas {
   }
 
   loadSprite(tileId, dataUrl) {
-    if (this.loadingSpriteIds.has(tileId)) return;
-    this.loadingSpriteIds.add(tileId);
-    const image = new Image();
-    image.onload = () => {
-      this.loadingSpriteIds.delete(tileId);
-      this.spriteImages.set(tileId, image);
-      this.refresh();
-    };
-    image.onerror = () => {
-      this.loadingSpriteIds.delete(tileId);
-      this.eventBus.emit('status', `Could not display the uploaded ${tileId} image.`);
-    };
-    image.src = dataUrl;
+    return this.loadCachedImage(this.spriteImages, tileId, dataUrl,
+      `Could not display the ${tileId} image.`);
   }
 
   loadSpriteVariant(tileType, variant) {
     const key = `${tileType}:${variant.id}`;
-    if (this.variantImages.has(key)) return;
+    return this.loadCachedImage(this.variantImages, key, variant.dataUrl,
+      `Could not display the ${variant.name} ${tileType} image.`);
+  }
+
+  loadCachedImage(cache, key, dataUrl, errorMessage) {
+    if (!dataUrl) return null;
+    const current = cache.get(key);
+    if (current?.dataUrl === dataUrl) return current.image;
     const image = new Image();
+    const entry = { dataUrl, image: null };
+    cache.set(key, entry);
     image.onload = () => {
-      this.variantImages.set(key, image);
+      if (cache.get(key) !== entry) return;
+      entry.image = image;
       this.refresh();
     };
-    image.onerror = () => this.eventBus.emit('status', `Could not display the ${variant.name} ${tileType} image.`);
-    image.src = variant.dataUrl;
+    image.onerror = () => {
+      if (cache.get(key) === entry) this.eventBus.emit('status', errorMessage);
+    };
+    image.src = dataUrl;
+    return null;
   }
 
   // The backing canvas only covers the visible part of the world. Huge levels would
@@ -517,7 +524,8 @@ export class GridCanvas {
       Star: '#f1ad3e',
       ExtraLife: '#e76568',
       FireFlower: '#ed7645',
-      BoomFlower: '#f3a43b'
+      BoomFlower: '#f3a43b',
+      TNTFlower: '#e2463a'
     };
     ctx.beginPath();
     ctx.arc(x + tileSize - 5, y + tileSize - 5, 8, 0, Math.PI * 2);
@@ -596,30 +604,36 @@ export class GridCanvas {
       ?.find(variant => variant.id === variantId);
     const spriteMetadata = this.stateManager.spriteMetadata[type];
     const customCreepy = this.stateManager.getCreepyType(type);
-    if (customCreepy && !this.spriteImages.has(type)) {
-      this.loadSprite(type, customCreepy.dataUrl);
-    }
     const legacyCustomSprite = variantId === 'classic' && spriteMetadata?.fileName;
+    const idleAnimation = spriteMetadata?.animations?.idle;
+    const spritePreview = idleAnimation?.source === 'upload'
+      ? idleAnimation
+      : spriteMetadata?.dataUrl
+        ? spriteMetadata
+        : idleAnimation || Object.values(spriteMetadata?.animations || {})[0];
     const selectedBoss = type === 'Boss'
       ? this.stateManager.customBosses.find(boss => boss.id === this.stateManager.bossConfig.type)
       : null;
-    const bossImageKey = selectedBoss ? `Boss:${selectedBoss.id}` : null;
-    let image = selectedBoss ? this.spriteImages.get(bossImageKey) : undefined;
-    if (selectedBoss && !image) {
-      this.loadBossSprite(bossImageKey, selectedBoss);
-    }
-    image ||= legacyCustomSprite
-      ? this.spriteImages.get(type)
-      : this.variantImages.get(`${type}:${variantId}`) || this.spriteImages.get(type);
-    const metadata = customCreepy
+    const metadata = selectedBoss
+      ? selectedBoss
+      : customCreepy
       ? { frameWidth: customCreepy.imageWidth, frameHeight: customCreepy.imageHeight }
       : legacyCustomSprite
-      ? spriteMetadata
+      ? spritePreview
       : variantMetadata?.dataUrl
       ? variantMetadata
-      : spriteMetadata?.dataUrl
-      ? spriteMetadata
-      : spriteMetadata?.animations?.idle || Object.values(spriteMetadata?.animations || {})[0];
+      : spritePreview;
+    let image;
+    if (selectedBoss) {
+      image = this.loadCachedImage(this.spriteImages, `Boss:${selectedBoss.id}`, selectedBoss.dataUrl,
+        `Could not display the ${selectedBoss.name} boss image.`);
+    } else if (customCreepy) {
+      image = this.loadSprite(type, customCreepy.dataUrl);
+    } else if (!legacyCustomSprite && variantMetadata?.dataUrl) {
+      image = this.loadSpriteVariant(type, variantMetadata);
+    } else {
+      image = this.loadSprite(type, metadata?.dataUrl);
+    }
     if (image?.complete && image.naturalWidth) {
       const frameWidth = metadata?.frameWidth || image.naturalWidth;
       const frameHeight = metadata?.frameHeight || image.naturalHeight;
@@ -833,6 +847,23 @@ export class GridCanvas {
       ctx.fillStyle = 'rgba(132, 95, 43, 0.55)';
       ctx.fillRect(x + 7, y + 12, 2, 2);
       ctx.fillRect(x + 22, y + 25, 2, 2);
+    } else if (type === 'Steel') {
+      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.strokeStyle = '#c5d0d8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 3, y + 3, tileSize - 6, tileSize - 6);
+      ctx.beginPath();
+      ctx.moveTo(x + 3, y + 3);
+      ctx.lineTo(x + tileSize - 3, y + tileSize - 3);
+      ctx.moveTo(x + tileSize - 3, y + 3);
+      ctx.lineTo(x + 3, y + tileSize - 3);
+      ctx.stroke();
+      ctx.fillStyle = '#dfe7ec';
+      [[6, 6], [tileSize - 6, 6], [6, tileSize - 6], [tileSize - 6, tileSize - 6]].forEach(([dx, dy]) => {
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
     } else if (type === 'Stone') {
       ctx.fillRect(x, y, tileSize, tileSize);
       ctx.strokeStyle = 'rgba(229, 238, 241, 0.5)';
@@ -925,18 +956,4 @@ export class GridCanvas {
     }
   }
 
-  loadBossSprite(key, boss) {
-    if (this.spriteImages.has(key)) return;
-    this.spriteImages.set(key, null);
-    const image = new Image();
-    image.onload = () => {
-      this.spriteImages.set(key, image);
-      this.refresh();
-    };
-    image.onerror = () => {
-      this.spriteImages.delete(key);
-      this.eventBus.emit('status', `Could not display the ${boss.name} boss image.`);
-    };
-    image.src = boss.dataUrl;
-  }
 }

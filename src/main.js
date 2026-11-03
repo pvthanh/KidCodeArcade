@@ -175,7 +175,8 @@ eventBus.on('mysteryBoxRewardSelected', rewardType => {
     Star: 'star power',
     ExtraLife: 'an extra life',
     FireFlower: 'a fire flower',
-    BoomFlower: 'a boom flower'
+    BoomFlower: 'a boom flower',
+    TNTFlower: 'a TNT flower'
   };
   eventBus.emit('status', `Mystery boxes now contain ${rewardLabels[rewardType] || 'a super mushroom'}.`);
 });
@@ -274,9 +275,20 @@ eventBus.on('redo', () => {
   eventBus.emit('status', `Redid: ${commandManager.getLastCommandSummary()}`);
 });
 
+const pendingSpriteUploads = new Map();
 eventBus.on('spriteUploaded', metadata => {
+  const request = {};
+  pendingSpriteUploads.set(metadata.tileId, request);
+  if (metadata.restored) {
+    pendingSpriteUploads.delete(metadata.tileId);
+    return;
+  }
+  const spriteMetadata = stateManager.spriteMetadata;
   const image = new Image();
   image.onload = () => {
+    if (stateManager.spriteMetadata !== spriteMetadata ||
+      pendingSpriteUploads.get(metadata.tileId) !== request) return;
+    pendingSpriteUploads.delete(metadata.tileId);
     try {
       stateManager.registerSprite(metadata.tileId, {
         ...metadata,
@@ -289,11 +301,18 @@ eventBus.on('spriteUploaded', metadata => {
       eventBus.emit('status', error.message);
     }
   };
-  image.onerror = () => eventBus.emit('status', `Could not load the ${metadata.tileId} sprite.`);
+  image.onerror = () => {
+    if (stateManager.spriteMetadata === spriteMetadata &&
+      pendingSpriteUploads.get(metadata.tileId) === request) {
+      pendingSpriteUploads.delete(metadata.tileId);
+      eventBus.emit('status', `Could not load the ${metadata.tileId} sprite.`);
+    }
+  };
   image.src = metadata.dataUrl;
 });
 
 eventBus.on('spriteAnimationUploaded', metadata => {
+  if (metadata.restored) return;
   try {
     stateManager.registerAnimation(metadata.entityType, metadata.animationType, metadata);
     gridCanvas.refresh();
@@ -359,6 +378,7 @@ const initialCampaignProgress = () => ({
   hasFire: false,
   fireCharges: 0,
   bombCharges: 0,
+  tntCharges: 0,
   starPowerRemainingMs: 0
 });
 let campaignProgress = initialCampaignProgress();
@@ -419,7 +439,7 @@ function startGame() {
       <header class="game-header">
         <div>
           <strong>Play your level</strong>
-          <span>Move: arrows/A-D · Jump: W/↑/Space · Pipe: ↓/S · Fire: X/J · Bomb: B (after Boom Flower)</span>
+          <span>Move: arrows/A-D · Jump: W/↑/Space · Pipe: ↓/S · Fire: X/J · Drop Boom/TNT: B · Detonate TNT: X/J</span>
           <span class="game-level-hint" hidden></span>
         </div>
         <div class="game-header-actions">
@@ -454,7 +474,7 @@ function startGame() {
           <button type="button" data-control="up" aria-label="Jump or enter pipe">▲</button>
           <button type="button" data-control="down" aria-label="Use pipe">▼</button>
           <button type="button" data-control="shoot" aria-label="Shoot fireball" title="Shoot fireball">🔥</button>
-          <button type="button" data-control="placeBomb" aria-label="Drop a bomb at the player" title="Drop a bomb at the player">💣</button>
+          <button type="button" data-control="placeBomb" aria-label="Drop a boom or TNT at the player" title="Drop boom/TNT at the player (fire detonates TNT)">💣</button>
         </div>
       </div>
     </div>

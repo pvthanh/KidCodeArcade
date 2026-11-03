@@ -549,7 +549,7 @@ export class UIOverlayEditor {
         if (announced.get(tileId) === metadata.dataUrl) skipped++;
         else {
           emitted++;
-          this.eventBus.emit('spriteUploaded', { tileId, ...metadata });
+          this.eventBus.emit('spriteUploaded', { tileId, ...metadata, restored: true });
         }
       }
       for (const [animationType, animation] of Object.entries(metadata.animations || {})) {
@@ -563,7 +563,8 @@ export class UIOverlayEditor {
         this.eventBus.emit('spriteAnimationUploaded', {
           entityType: tileId,
           animationType,
-          ...animation
+          ...animation,
+          restored: true
         });
       }
     }

@@ -57,6 +57,10 @@ export class GameScene extends Scene {
       campaignProgress.bombCharges >= 0
       ? campaignProgress.bombCharges
       : 0;
+    this.tntCharges = Number.isSafeInteger(campaignProgress.tntCharges) &&
+      campaignProgress.tntCharges >= 0
+      ? campaignProgress.tntCharges
+      : 0;
     this.starPowerRemainingMs = Number.isFinite(campaignProgress.starPowerRemainingMs)
       ? Math.max(0, campaignProgress.starPowerRemainingMs)
       : 0;
@@ -72,6 +76,7 @@ export class GameScene extends Scene {
     this.touchJumpWasDown = false;
     this.touchShootWasDown = false;
     this.bombs = [];
+    this.tnts = [];
     this.touchPipeWasDown = false;
     this.jumpWasHeld = false;
     this.wallJumpDirection = 0;
@@ -275,7 +280,7 @@ export class GameScene extends Scene {
           entity.setData('pipeCol', colIndex);
           pipes.add(entity);
         } else if ([
-          'Ground', 'Sand', 'Stone', 'Snow', 'Brick', 'MysteryBox', 'Spring', 'OneWayPlatform'
+          'Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'MysteryBox', 'Spring', 'OneWayPlatform'
         ].includes(tileType)) {
           platforms.add(entity);
         } else if (tileType === 'Lava') {
@@ -352,7 +357,7 @@ export class GameScene extends Scene {
           coins.add(entity);
         } else if (tileType === 'Flag') {
           flags.add(entity);
-        } else if (['Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower'].includes(tileType)) {
+        } else if (POWER_UP_TYPES.includes(tileType)) {
           entity.setData('powerUpType', tileType);
           entity.body.setSize(22 / entity.scaleX, 24 / entity.scaleY);
           this.powerUps.add(entity);
@@ -656,9 +661,13 @@ export class GameScene extends Scene {
     this.touchShootWasDown = this.touchState.shoot;
     const touchBombPressed = this.touchState.placeBombRequested;
     this.touchState.placeBombRequested = false;
-    if (touchBombPressed) this.dropBombAtPlayer();
+    if (touchBombPressed) this.dropExplosiveAtPlayer();
     if (Input.Keyboard.JustDown(this.keys.shootX) ||
-      Input.Keyboard.JustDown(this.keys.shootJ) || touchShootPressed) this.shootFireball();
+      Input.Keyboard.JustDown(this.keys.shootJ) || touchShootPressed) {
+      // Fire detonates planted TNT first; otherwise it shoots a fireball.
+      if (this.tnts.length) this.detonateTnt();
+      else this.shootFireball();
+    }
     if (jumpPressed) this.jumpBufferUntil = this.time.now + 120;
     if (this.player.body.blocked.down || this.player.body.touching.down) {
       this.coyoteUntil = this.time.now + 120;
@@ -1203,7 +1212,8 @@ export class GameScene extends Scene {
       Star: 0xffe477,
       ExtraLife: 0xff7183,
       FireFlower: 0xff8a4c,
-      BoomFlower: 0xf3a43b
+      BoomFlower: 0xf3a43b,
+      TNTFlower: 0xe2463a
     };
     this.emitBurst(item.x, item.y, powerUpColors[powerUpType] || 0xffffff, 12, 34);
     item.destroy();
@@ -1217,6 +1227,8 @@ export class GameScene extends Scene {
       this.hasFire = true;
     } else if (powerUpType === 'BoomFlower') {
       this.bombCharges += 5;
+    } else if (powerUpType === 'TNTFlower') {
+      this.tntCharges += 5;
     } else if (powerUpType === 'Star') {
       this.starPowerUntil = this.time.now + 8000;
       player.setTint(0xffe477);
@@ -1574,6 +1586,7 @@ export class GameScene extends Scene {
       hasFire: this.hasFire,
       fireCharges: this.fireCharges,
       bombCharges: this.bombCharges,
+      tntCharges: this.tntCharges,
       starPowerRemainingMs: Math.max(0, this.starPowerUntil - this.time.now)
     };
   }
@@ -1646,6 +1659,7 @@ export class GameScene extends Scene {
     if (this.mushroomGrowth > 0) powers.push(`Big ×${this.mushroomGrowth}`);
     if (this.hasFire) powers.push(`Fire ×${this.fireCharges}`);
     if (this.bombCharges > 0) powers.push(`Bomb ×${this.bombCharges}`);
+    if (this.tntCharges > 0 || this.tnts?.length) powers.push(`TNT ×${this.tntCharges}`);
     if (hasStar) powers.push('Star');
     this.powerLabel = powers.length ? powers.join(' + ') : 'Normal';
   }
@@ -1714,6 +1728,13 @@ export class GameScene extends Scene {
         icon.fillPath();
         icon.fillStyle(0xffe27a, 1);
         icon.fillCircle(0, 3, 3);
+      } else if (type === 'tnt') {
+        icon.fillStyle(color, 1);
+        icon.fillRoundedRect(-4, -8, 8, 16, 2);
+        icon.fillStyle(0xffe9c0, 1);
+        icon.fillRect(-4, -2, 8, 3);
+        icon.lineStyle(2, 0xffb24c, 1);
+        icon.lineBetween(0, -8, 4, -12);
       } else {
         icon.fillStyle(0x263849, 1);
         icon.fillCircle(0, 1, 7);
@@ -1737,8 +1758,11 @@ export class GameScene extends Scene {
     const bomb = createIndicator('bomb', 0xf3a43b);
     this.fireIndicator = fire.container;
     this.fireIndicatorCount = fire.count;
+    const tnt = createIndicator('tnt', 0xe2463a);
     this.bombIndicator = bomb.container;
     this.bombIndicatorCount = bomb.count;
+    this.tntIndicator = tnt.container;
+    this.tntIndicatorCount = tnt.count;
     this.updateFireIndicator();
   }
 
@@ -1748,6 +1772,9 @@ export class GameScene extends Scene {
     this.fireIndicatorCount.setText(this.fireCharges > 99 ? '99+' : String(this.fireCharges));
     this.bombIndicator.setVisible(this.bombCharges > 0);
     this.bombIndicatorCount.setText(this.bombCharges > 99 ? '99+' : String(this.bombCharges));
+    this.tntIndicator.setVisible(this.tntCharges > 0 || this.tnts.length > 0);
+    this.tntIndicatorCount.setText(this.tnts.length ? `▶${this.tnts.length}` : String(this.tntCharges));
+    this.tntIndicator.setPosition(this.player.x, this.player.y - 30);
     const handSide = this.player.flipX ? -1 : 1;
     const badgeY = this.player.y + 8;
     this.fireIndicator.setPosition(this.player.x + handSide * 18, badgeY);
@@ -1757,9 +1784,57 @@ export class GameScene extends Scene {
     );
   }
 
+  // The drop control plants a timed Boom bomb when one is available, otherwise TNT.
+  dropExplosiveAtPlayer() {
+    if (this.gameEnded || !this.player?.active) return;
+    if (this.bombCharges > 0) this.dropBombAtPlayer();
+    else this.placeTnt(this.player.x, this.player.body.bottom - 12);
+  }
+
   dropBombAtPlayer() {
     if (this.bombCharges <= 0 || this.gameEnded || !this.player?.active) return;
     this.placeBomb(this.player.x, this.player.body.bottom - 12);
+  }
+
+  placeTnt(x, y) {
+    if (this.tntCharges <= 0 || this.gameEnded) return;
+    const container = this.add.container(x, y).setDepth(10);
+    const stick = this.add.rectangle(0, 0, 18, 24, 0xe2463a).setStrokeStyle(2, 0x7a2118, 1);
+    const band = this.add.rectangle(0, 0, 18, 8, 0xffe9c0);
+    const label = this.add.text(0, 0, 'TNT', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '7px',
+      fontStyle: 'bold',
+      color: '#7a2118'
+    }).setOrigin(0.5);
+    const fuse = this.add.graphics();
+    fuse.lineStyle(3, 0xf3a43b, 1);
+    fuse.lineBetween(0, -12, 5, -18);
+    fuse.fillStyle(0xffe27a, 1);
+    fuse.fillCircle(6, -19, 3);
+    container.add([stick, band, label, fuse]);
+    this.tweens.add({
+      targets: container,
+      scale: 1.12,
+      yoyo: true,
+      repeat: -1,
+      duration: 380
+    });
+    this.tnts.push({ x, y, container });
+    this.tntCharges -= 1;
+    this.updateHud();
+  }
+
+  detonateTnt() {
+    if (!this.tnts.length || this.gameEnded) return;
+    const planted = this.tnts;
+    this.tnts = [];
+    planted.forEach(tnt => {
+      this.tweens.killTweensOf(tnt.container);
+      tnt.container.destroy();
+      this.explodeBomb(tnt.x, tnt.y);
+    });
+    this.updateHud();
   }
 
   placeBomb(x, y) {
