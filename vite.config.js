@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { createHash } from 'node:crypto';
 
 function offlineAppShell() {
   return {
@@ -15,8 +16,12 @@ function offlineAppShell() {
       ])].filter(fileName =>
         fileName !== 'service-worker.js' && !fileName.endsWith('.map')
       );
+      const version = createHash('sha256')
+        .update(JSON.stringify(precacheFiles))
+        .update(bundle['index.html']?.source || '')
+        .digest('hex').slice(0, 12);
       const source = `
-const CACHE_NAME = 'little-level-lab-v1';
+const CACHE_NAME = 'little-level-lab-${version}';
 const PRECACHE_FILES = ${JSON.stringify(precacheFiles)};
 const APP_SCOPE = self.registration.scope;
 
@@ -46,19 +51,10 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request, { ignoreVary: true }).then(cached => {
-        if (cached) return cached;
-        return fetch(request)
-          .then(response => {
-            if (response.ok) {
-              const copy = response.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-            }
-            return response;
-          })
-          .catch(async () => (await caches.match(new URL('index.html', APP_SCOPE), { ignoreVary: true }))
-            || Response.error());
-      })
+      fetch(request).catch(async () =>
+        (await caches.match(request, { ignoreVary: true })) ||
+        (await caches.match(new URL('index.html', APP_SCOPE), { ignoreVary: true })) ||
+        Response.error())
     );
     return;
   }
