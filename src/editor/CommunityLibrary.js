@@ -1,4 +1,6 @@
 import { compactCommunityLevel, validateCommunityLevel } from '../core/CommunityLevel.js';
+import { createCommunityPreview } from '../core/CommunityPreview.js';
+import { renderCommunityPreview } from './CommunityPreview.js';
 
 const API_URL = import.meta.env.VITE_COMMUNITY_API_URL ||
   'https://little-level-lab-library.phanthanhbl88.workers.dev';
@@ -14,7 +16,7 @@ export class CommunityLibrary {
         <header class="level-dialog-header">
           <span class="eyebrow">COMMUNITY</span>
           <h2 id="community-title">Community levels</h2>
-          <p>Discover levels and add them to your campaign. Public levels are not pre-screened.</p>
+          <p>Discover levels and add them to your campaign. The images are simplified maps, not game screenshots. Blue marks the player, red marks enemies and hazards, and white marks flags. Public levels are not pre-screened.</p>
         </header>
         <p data-community-message role="status" aria-live="polite"></p>
         <div data-community-list class="community-list"></div>
@@ -90,6 +92,14 @@ export class CommunityLibrary {
     this.cardIds.add(item.id);
     const card = document.createElement('article');
     card.className = 'community-card';
+    const preview = document.createElement('div');
+    preview.className = 'community-preview-container';
+    try {
+      preview.append(renderCommunityPreview(item.preview || createCommunityPreview(item.level), item.title));
+    } catch (error) {
+      console.error('Could not display community level preview:', error);
+      preview.textContent = 'Preview unavailable';
+    }
     const name = document.createElement('strong');
     name.textContent = item.title;
     const author = document.createElement('span');
@@ -104,7 +114,7 @@ export class CommunityLibrary {
     copy.className = 'secondary-button';
     copy.dataset.communityCopy = item.id;
     copy.textContent = 'Copy link';
-    card.append(name, author, add, copy);
+    card.append(preview, name, author, add, copy);
     return card;
   }
 
@@ -193,7 +203,7 @@ export class CommunityLibrary {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, author, level })
       });
-      if (!this.cardIds.has(result.id)) this.list.prepend(this.makeCard({ id: result.id, title, author }));
+      if (!this.cardIds.has(result.id)) this.list.prepend(this.makeCard({ id: result.id, title, author, level }));
       this.message.textContent = 'Published! Use Copy link to share your level.';
     } catch (error) {
       this.showError(error);

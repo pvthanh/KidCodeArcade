@@ -1,4 +1,5 @@
 import { validateCommunityLevel } from '../src/core/CommunityLevel.js';
+import { createCommunityPreview } from '../src/core/CommunityPreview.js';
 
 const ORIGINS = new Set(['https://pvthanh.github.io', 'http://localhost:3000', 'http://127.0.0.1:3000']);
 const MAX_BYTES = 512 * 1024;
@@ -66,9 +67,11 @@ export default {
         }
         const [timestamp, id] = cursor ? cursor.split(':') : [String(Date.now() + 1), ''];
         const result = await env.DB.prepare(
-          'SELECT id, title, author, created_at FROM levels WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT 21'
+          'SELECT id, title, author, created_at, level FROM levels WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT 21'
         ).bind(Number(timestamp), Number(timestamp), id).all();
-        const items = result.results.slice(0, 20);
+        const items = result.results.slice(0, 20).map(({ level, ...item }) => ({
+          ...item, preview: createCommunityPreview(JSON.parse(level))
+        }));
         const last = items.at(-1);
         return response({ levels: items, next: result.results.length > 20 ? `${last.created_at}:${last.id}` : null }, 200, origin);
       }

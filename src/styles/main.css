@@ -814,7 +814,7 @@ button {
 }
 
 .community-list {
-  max-height: 260px;
+  max-height: 380px;
   overflow: auto;
 }
 
@@ -830,6 +830,23 @@ button {
 
 .community-card strong { flex: 1 1 180px; }
 .community-card span { color: var(--muted); }
+.community-preview-container {
+  flex: 1 0 100%;
+  display: grid;
+  place-items: center;
+  min-height: 60px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #e8eef0;
+  color: #435b69;
+}
+.community-preview {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
 .community-share { border-top: 1px solid var(--border); padding-top: 12px; }
 .community-share h3, .community-share p, [data-community-message] { margin: 0; }
 

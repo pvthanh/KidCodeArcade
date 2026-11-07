@@ -74,6 +74,10 @@ Keep the terminal running while you use the editor. To stop the server, focus th
 Choose the **🌐 Community levels** button next to the campaign controls to
 browse public levels. **Add to campaign** inserts a copy after the current
 level and opens it for editing; your existing levels remain in the campaign.
+Each card has a simplified, color-coded map of the whole level, not a game
+screenshot; its sky color reflects the level theme. Existing published levels
+get previews too. Blue marks the player, red marks enemies and hazards, and
+white marks goal and checkpoint flags.
 Use **Save campaign** to download a backup: adding a level does not
 automatically save the campaign to your device. A campaign can contain up to
 50 levels.
