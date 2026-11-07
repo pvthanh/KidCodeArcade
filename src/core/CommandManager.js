@@ -212,6 +212,38 @@ export class SetTileVariantCommand extends Command {
   }
 }
 
+export class SetSelectedTileVariantCommand extends Command {
+  constructor(cells, tileType, variantId) {
+    super('SetSelectedTileVariant');
+    this.cells = cells.map(cell => ({ ...cell }));
+    this.tileType = tileType;
+    this.variantId = variantId;
+    this.previousVariants = [];
+  }
+
+  execute(stateManager) {
+    this.previousVariants = [];
+    for (const cell of this.cells) {
+      if (stateManager.getTile(cell.row, cell.col) !== this.tileType) continue;
+      const previous = stateManager.getTileVariant(cell.row, cell.col);
+      if (stateManager.setTileVariant(cell.row, cell.col, this.variantId)) {
+        this.previousVariants.push({ ...cell, variantId: previous });
+      }
+    }
+    return this.previousVariants.length > 0;
+  }
+
+  undo(stateManager) {
+    for (const cell of this.previousVariants) {
+      stateManager.setTileVariant(cell.row, cell.col, cell.variantId);
+    }
+  }
+
+  getSummary() {
+    return `Change selected ${this.tileType} appearance`;
+  }
+}
+
 export class ResizeWorldCommand extends Command {
   constructor(newCols, newRows) {
     super('ResizeWorld');

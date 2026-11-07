@@ -4,12 +4,14 @@ import { createServer } from 'vite';
 
 let server;
 let GridCanvas;
+let characterArt;
 let originalImage;
 let images;
 
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   ({ GridCanvas } = await server.ssrLoadModule('/src/editor/GridCanvas.js'));
+  ({ characterArt } = await server.ssrLoadModule('/src/assets/demo/CharacterArt.js'));
   originalImage = globalThis.Image;
   globalThis.Image = class {
     constructor() {
@@ -105,4 +107,34 @@ test('previews an uploaded idle animation using its own frame dimensions', () =>
   const context = { drawImage: (...args) => calls.push(args) };
   grid.drawTile(context, 'Player', 0, 0, 32);
   assert.deepEqual(calls.at(-1), [images[0], 0, 0, 48, 64, 0, 0, 32, 32]);
+});
+
+test('draws the configured built-in boss and refreshes when its type changes', () => {
+  const grid = createGrid();
+  grid.stateManager.bossConfig.type = 'roboCrab';
+  const calls = [];
+  const context = {
+    drawImage: (...args) => calls.push(args), fillRect() {}, fillText() {},
+    beginPath() {}, ellipse() {}, fill() {}
+  };
+  grid.drawTile(context, 'Boss', 0, 0, 32);
+  assert.equal(images[0].src, characterArt.bosses.roboCrab);
+  images[0].onload();
+  grid.drawTile(context, 'Boss', 0, 0, 32);
+  assert.deepEqual(calls.at(-1), [images[0], 0, 0, 128, 128, 0, 0, 32, 32]);
+  grid.stateManager.bossConfig.type = 'skyDragon';
+  grid.drawTile(context, 'Boss', 0, 0, 32);
+  assert.equal(images[1].src, characterArt.bosses.skyDragon);
+});
+
+test('draws the selected custom boss image', () => {
+  const grid = createGrid();
+  grid.stateManager.bossConfig.type = 'custom-test';
+  grid.stateManager.customBosses = [{ id: 'custom-test', name: 'Test', dataUrl: 'custom' }];
+  const context = {
+    drawImage() {}, fillRect() {}, fillText() {},
+    beginPath() {}, ellipse() {}, fill() {}
+  };
+  grid.drawTile(context, 'Boss', 0, 0, 32);
+  assert.equal(images[0].src, 'custom');
 });

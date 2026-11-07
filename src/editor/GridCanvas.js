@@ -1,5 +1,6 @@
 import { THEMED_TILE_TYPES, WORLD_THEMES } from '../core/StateManager.js';
 import { perf } from '../core/Perf.js';
+import { characterArt } from '../assets/demo/CharacterArt.js';
 
 const TILE_COLORS = {
   Ground: '#58a65c',
@@ -198,6 +199,7 @@ export class GridCanvas {
         row: cell.row + deltaRow,
         col: cell.col + deltaCol
       }));
+      this.syncSelectedObject();
       this.refresh();
     });
     this.eventBus.on('levelLoaded', () => {
@@ -259,6 +261,7 @@ export class GridCanvas {
 
     const nextSelection = this.pipeGroupAt(cell);
     this.selectedCells = nextSelection;
+    this.syncSelectedObject(cell);
     const isPipe = tileType === 'Pipe';
     const groupBottom = nextSelection.at(-1);
     const handleX = (groupBottom.col + 1) * this.stateManager.tileSize - 7;
@@ -277,6 +280,20 @@ export class GridCanvas {
     }
     this.canvas.setPointerCapture(event.pointerId);
     this.refresh();
+  }
+
+  syncSelectedObject(cell = this.selectedCells[0]) {
+    if (!this.selectionMode || !cell) return;
+    const tileType = this.stateManager.getTile(cell.row, cell.col);
+    if (!tileType) {
+      this.selectedCells = [];
+      this.refresh();
+      return;
+    }
+    this.eventBus.emit('boardObjectSelected', {
+      tileType,
+      variantId: this.stateManager.getTileVariant(cell.row, cell.col)
+    });
   }
 
   updateSelectionGesture(event) {
@@ -611,9 +628,11 @@ export class GridCanvas {
       : spriteMetadata?.dataUrl
         ? spriteMetadata
         : idleAnimation || Object.values(spriteMetadata?.animations || {})[0];
+    const bossType = this.stateManager.bossConfig?.type;
     const selectedBoss = type === 'Boss'
-      ? this.stateManager.customBosses.find(boss => boss.id === this.stateManager.bossConfig.type)
+      ? this.stateManager.customBosses.find(boss => boss.id === bossType)
       : null;
+    const bossImage = type === 'Boss' ? selectedBoss?.dataUrl || characterArt.bosses[bossType] : null;
     const metadata = selectedBoss
       ? selectedBoss
       : customCreepy
@@ -624,9 +643,9 @@ export class GridCanvas {
       ? variantMetadata
       : spritePreview;
     let image;
-    if (selectedBoss) {
-      image = this.loadCachedImage(this.spriteImages, `Boss:${selectedBoss.id}`, selectedBoss.dataUrl,
-        `Could not display the ${selectedBoss.name} boss image.`);
+    if (bossImage) {
+      image = this.loadCachedImage(this.spriteImages, `Boss:${bossType}`, bossImage,
+        `Could not display the ${selectedBoss?.name || bossType} boss image.`);
     } else if (customCreepy) {
       image = this.loadSprite(type, customCreepy.dataUrl);
     } else if (!legacyCustomSprite && variantMetadata?.dataUrl) {

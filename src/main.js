@@ -8,6 +8,7 @@ import {
   MoveTilesCommand,
   PlaceTileCommand,
   RemoveTileCommand,
+  SetSelectedTileVariantCommand,
   SetPipeLinksCommand,
   SetTileVariantCommand
 } from './core/CommandManager.js';
@@ -80,6 +81,16 @@ eventBus.on('tileVariantSelected', ({ tileId, variantId }) => {
   if (!stateManager.selectTileVariant(tileId, variantId)) {
     eventBus.emit('status', `Could not select the ${tileId} appearance.`);
   }
+});
+
+eventBus.on('selectedObjectVariantChanged', ({ tileId, variantId }) => {
+  if (!gridCanvas.selectionMode || !gridCanvas.selectedCells.length) return;
+  const command = new SetSelectedTileVariantCommand(gridCanvas.selectedCells, tileId, variantId);
+  if (!commandManager.executeWithManager(command, stateManager)) return;
+  gridCanvas.refresh();
+  uiOverlayEditor.updateHistory();
+  uiOverlayEditor.saveCurrentLevel();
+  eventBus.emit('status', `Updated selected ${tileId} appearance. You can undo this change.`);
 });
 
 eventBus.on('bossConfigChanged', config => {
@@ -264,6 +275,7 @@ eventBus.on('undo', () => {
   gridCanvas.refresh();
   uiOverlayEditor.syncWorldSize();
   uiOverlayEditor.updateHistory();
+  gridCanvas.syncSelectedObject();
   eventBus.emit('status', `Undid: ${commandManager.redoStack.at(-1).getSummary()}`);
 });
 
@@ -272,6 +284,7 @@ eventBus.on('redo', () => {
   gridCanvas.refresh();
   uiOverlayEditor.syncWorldSize();
   uiOverlayEditor.updateHistory();
+  gridCanvas.syncSelectedObject();
   eventBus.emit('status', `Redid: ${commandManager.getLastCommandSummary()}`);
 });
 

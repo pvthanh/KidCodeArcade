@@ -69,8 +69,9 @@ export const CREEPY_TYPES = [
 ];
 export const DEFAULT_CREEPY_CONFIGS = Object.fromEntries(CREEPY_TYPES.map(creepy => [
   creepy.id,
-  { movement: creepy.movement, speed: creepy.speed, health: creepy.health }
+  { movement: creepy.movement, speed: creepy.speed, health: creepy.health, intelligence: 'patrol' }
 ]));
+export const CREEPY_INTELLIGENCE = ['patrol', 'tracker', 'hunter'];
 const CREEPY_MOVEMENTS = ['ground', 'flying'];
 const MAX_CUSTOM_CREEPS = 12;
 const LEGACY_TILE_TYPES = ['Updraft', 'Downdraft'];
@@ -660,16 +661,19 @@ export class StateManager {
   }
 
   setCreepyConfig(tileType, config) {
+    const intelligence = config?.intelligence ?? 'patrol';
     if (!this.getCreepyTypes().some(creepy => creepy.id === tileType) ||
       !CREEPY_MOVEMENTS.includes(config?.movement) ||
+      !CREEPY_INTELLIGENCE.includes(intelligence) ||
       !Number.isInteger(config?.speed) || config.speed < 20 || config.speed > 180 ||
       !Number.isInteger(config?.health) || config.health < 1 || config.health > 5) {
-      throw new TypeError('Creature settings need a supported movement, speed, and health value.');
+      throw new TypeError('Creature settings need a supported movement, intelligence, speed, and health value.');
     }
     this.creepyConfigs[tileType] = {
       movement: config.movement,
       speed: config.speed,
-      health: config.health
+      health: config.health,
+      intelligence
     };
   }
 
@@ -1137,6 +1141,7 @@ export class StateManager {
       ]);
       for (const [tileType, config] of Object.entries(data.creepyConfigs)) {
         if (!allowedCreepyTypes.has(tileType) || !CREEPY_MOVEMENTS.includes(config?.movement) ||
+          !CREEPY_INTELLIGENCE.includes(config?.intelligence ?? 'patrol') ||
           !Number.isInteger(config.speed) || config.speed < 20 || config.speed > 180 ||
           !Number.isInteger(config.health) || config.health < 1 || config.health > 5) {
           throw new TypeError(`The level file contains invalid settings for "${tileType}".`);

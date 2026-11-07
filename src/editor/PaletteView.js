@@ -261,6 +261,7 @@ export class PaletteView {
         this.selectedTileVariants[tileId] = variantSelect.value;
         this.updateTilePreview(tileId, variantSelect.value);
         this.eventBus.emit('tileVariantSelected', { tileId, variantId: variantSelect.value });
+        this.eventBus.emit('selectedObjectVariantChanged', { tileId, variantId: variantSelect.value });
         return;
       }
 
@@ -323,6 +324,16 @@ export class PaletteView {
         description.textContent = enabled
           ? 'Select an object to move it, or drag a pipe handle to connect pipes.'
           : 'Choose an object, then paint it on the board.';
+      }
+    });
+    this.eventBus.on('boardObjectSelected', ({ tileType, variantId }) => {
+      this.selectTile(tileType, { reveal: true });
+      const variantSelect = this.container.querySelector(`[data-variant-select="${tileType}"]`);
+      if (variantSelect && [...variantSelect.options].some(option => option.value === variantId)) {
+        variantSelect.value = variantId;
+        this.selectedTileVariants[tileType] = variantId;
+        this.updateTilePreview(tileType, variantId);
+        this.eventBus.emit('tileVariantSelected', { tileId: tileType, variantId });
       }
     });
     this.eventBus.on('levelLoaded', ({
@@ -423,7 +434,7 @@ export class PaletteView {
     });
   }
 
-  selectTile(tileId, { configure = false, focus = false } = {}) {
+  selectTile(tileId, { configure = false, focus = false, reveal = false } = {}) {
     const isCreepy = CREEPY_TYPES.some(type => type.id === tileId) ||
       this.customCreeps.some(creepy => creepy.tileId === tileId);
     if (!this.tileTypes.some(tile => tile.id === tileId) && !isCreepy) return;
@@ -432,6 +443,7 @@ export class PaletteView {
       const creatureSelect = this.container.querySelector('[data-creepy-setting="type"]');
       if (creatureSelect) creatureSelect.value = tileId;
       this.setCreepyConfigControls(this.creepyConfigs[tileId]);
+      this.updateCreepyPreview();
     }
     this.selectedTileId = tileId;
     const selectedCardId = isCreepy ? 'Creepy' : tileId;
@@ -477,6 +489,8 @@ export class PaletteView {
           selectedCard?.querySelector('.tile-select')
         : selectedCard?.querySelector('.tile-select');
       focusTarget?.focus({ preventScroll: true });
+      selectedCard?.scrollIntoView({ block: 'nearest' });
+    } else if (reveal) {
       selectedCard?.scrollIntoView({ block: 'nearest' });
     }
     this.eventBus.emit('tileSelected', tileId);
@@ -718,6 +732,14 @@ export class PaletteView {
                       <option value="flying">Flying</option>
                     </select>
                   </label>
+                  <label>
+                    Intelligence
+                    <select data-creepy-setting="intelligence" aria-label="Creature intelligence">
+                      <option value="patrol">Patrol</option>
+                      <option value="tracker">Tracker (nearby player)</option>
+                      <option value="hunter">Hunter (longer range)</option>
+                    </select>
+                  </label>
                   <label class="boss-range-label">
                     Health <output data-creepy-health-value>1 hit</output>
                     <input type="range" min="1" max="5" step="1" value="1"
@@ -746,7 +768,7 @@ export class PaletteView {
                       Appearance
                       <select data-variant-select="${tile.id}" aria-label="${tile.name} appearance"></select>
                     </label>
-                    <span class="variant-help">Choose the look to paint; use Apply all for existing tiles.</span>
+                    <span class="variant-help">Choose the look to paint or change the selected object; use Apply all for every matching tile.</span>
                     ${tile.id === 'MysteryBox' ? `
                       <label class="mystery-reward-settings">
                         Reward for all boxes
@@ -815,11 +837,13 @@ export class PaletteView {
     const config = {
       tileType: this.selectedCreepyType,
       movement: this.container.querySelector('[data-creepy-setting="movement"]').value,
+      intelligence: this.container.querySelector('[data-creepy-setting="intelligence"]').value,
       speed: Number(this.container.querySelector('[data-creepy-setting="speed"]').value),
       health: Number(this.container.querySelector('[data-creepy-setting="health"]').value)
     };
     this.creepyConfigs[config.tileType] = {
       movement: config.movement,
+      intelligence: config.intelligence,
       speed: config.speed,
       health: config.health
     };
@@ -829,6 +853,7 @@ export class PaletteView {
   setCreepyConfigControls(config = {}) {
     const current = {
       movement: config.movement || 'ground',
+      intelligence: config.intelligence ?? 'patrol',
       speed: config.speed || 45,
       health: config.health || 1
     };

@@ -9,6 +9,7 @@ import {
   WORLD_THEMES
 } from '../core/StateManager.js';
 import { CHARACTER_COLLISION_SIZE, CHARACTER_DISPLAY_SIZE } from './EntityFactory.js';
+import { hasSafeGround, patrolDirection, trackingDirection } from './EnemyNavigation.js';
 import { SoundManager } from './SoundManager.js';
 import { perf } from '../core/Perf.js';
 
@@ -309,14 +310,16 @@ export class GameScene extends Scene {
             (CHARACTER_DISPLAY_SIZE - CHARACTER_COLLISION_SIZE) / entity.scaleY
           );
           (flying ? this.flyingEnemies : this.enemies).add(entity);
+          entity.setCollideWorldBounds(true);
           entity.setData('tileType', tileType);
           entity.setData('patrolSpeed', config.speed);
+          entity.setData('intelligence', config.intelligence ?? 'patrol');
+          entity.setData('patrolDirection', -1);
           entity.setData('health', config.health);
           entity.setData('maxHealth', config.health);
           entity.setData('hurtUntil', 0);
           if (!flying) {
             entity.setVelocityX(-config.speed);
-            entity.setBounceX(1);
           } else {
             entity.setData('flightOrigin', y);
             entity.setData('flightPhase', colIndex);
@@ -326,12 +329,14 @@ export class GameScene extends Scene {
         } else if (tileType === 'Boss') {
           const config = this.worldSnapshot.bossConfig;
           this.bosses.add(entity);
+          entity.setCollideWorldBounds(true);
           entity.setData('bossType', config.type);
           entity.setData('movement', config.movement);
           entity.setData('ability', config.ability);
           entity.setData('maxHealth', config.health);
           entity.setData('health', config.health);
           entity.setData('speed', config.speed);
+          entity.setData('patrolDirection', -1);
           const size = Math.max(MIN_BOSS_SIZE, config.size || MIN_BOSS_SIZE);
           const collisionScale = size / CHARACTER_DISPLAY_SIZE;
           entity.setData('size', size);
@@ -727,11 +732,30 @@ export class GameScene extends Scene {
       this.spriteAnimator.play(this.player, 'Player', 'jump');
     }
 
+    this.navigationSurfaces = [
+      ...this.platforms.getChildren(),
+      ...this.pipes.getChildren(),
+      ...this.doors.getChildren(),
+      ...this.movingPlatforms.getChildren()
+    ];
     this.enemies.children.iterate(enemy => {
       if (!enemy?.active) return;
       const speed = enemy.getData('patrolSpeed');
-      if (enemy.body.blocked.left) enemy.setVelocityX(speed);
-      if (enemy.body.blocked.right) enemy.setVelocityX(-speed);
+      const grounded = enemy.body.blocked.down || enemy.body.touching.down;
+      if (grounded) {
+        const chase = trackingDirection(enemy, this.player, enemy.getData('intelligence'));
+        let direction = chase ?? enemy.getData('patrolDirection');
+        const safe = direction && this.hasSafeGroundAhead(enemy, direction);
+        const nextDirection = direction && patrolDirection(enemy.body, direction, safe);
+        if (chase !== null) {
+          if (nextDirection !== direction) direction = 0;
+        } else {
+          direction = nextDirection;
+          enemy.setData('patrolDirection', direction);
+          if (!this.hasSafeGroundAhead(enemy, direction)) direction = 0;
+        }
+        enemy.setVelocityX(direction * speed);
+      }
       enemy.setFlipX(enemy.body.velocity.x > 0);
       this.spriteAnimator.play(
         enemy,
@@ -742,13 +766,25 @@ export class GameScene extends Scene {
 
     this.flyingEnemies.children.iterate(enemy => {
       if (!enemy?.active) return;
-      const halfWidth = enemy.body.width / 2;
       const speed = enemy.getData('patrolSpeed');
-      if (enemy.x < halfWidth) enemy.setVelocityX(speed);
-      if (enemy.x > worldWidth - halfWidth) enemy.setVelocityX(-speed);
+      const chase = trackingDirection(enemy, this.player, enemy.getData('intelligence'));
+      let direction = chase ?? enemy.getData('patrolDirection');
+      const safe = direction < 0 ? enemy.body.left > 1 : enemy.body.right < worldWidth - 1;
+      const nextDirection = direction && patrolDirection(enemy.body, direction, safe);
+      if (chase !== null && direction !== nextDirection) direction = 0;
+      else if (chase === null) {
+        direction = nextDirection;
+        enemy.setData('patrolDirection', direction);
+      }
+      enemy.setVelocityX(direction * speed);
       enemy.setFlipX(enemy.body.velocity.x > 0);
-      enemy.setY(enemy.getData('flightOrigin') +
-        Math.sin(this.time.now / 240 + enemy.getData('flightPhase')) * 12);
+      const height = this.worldSnapshot.rows * 32;
+      const targetY = chase !== null && enemy.getData('intelligence') === 'hunter'
+        ? this.player.y
+        : enemy.getData('flightOrigin') + Math.sin(this.time.now / 240 + enemy.getData('flightPhase')) * 12;
+      const velocityY = Math.max(-speed, Math.min(speed, (targetY - enemy.y) * 3));
+      enemy.setVelocityY((enemy.body.top <= 1 && velocityY < 0) ||
+        (enemy.body.bottom >= height - 1 && velocityY > 0) ? 0 : velocityY);
       this.spriteAnimator.play(enemy, enemy.getData('tileType'), 'walk');
     });
 
@@ -877,6 +913,10 @@ export class GameScene extends Scene {
     return true;
   }
 
+  hasSafeGroundAhead(entity, direction, distance = 4) {
+    return hasSafeGround(entity.body, direction, this.navigationSurfaces, this.worldSnapshot.cols * 32, distance);
+  }
+
   updateBoss(boss) {
     if (!boss?.active || !boss.body?.enable || boss.getData('health') <= 0) return;
     // Bosses are clamped to the world bounds, so resting on the bottom edge means no ground is left.
@@ -890,14 +930,19 @@ export class GameScene extends Scene {
     const grounded = boss.body.blocked.down || boss.body.touching.down;
     const wasAirborne = boss.getData('wasAirborne');
 
-    if (movement === 'chase') {
-      boss.setVelocityX(Math.sign(this.player.x - boss.x) * speed);
-    } else if (movement === 'patrol') {
-      if (boss.x <= boss.getData('minX') || boss.body.blocked.left) {
-        boss.setVelocityX(speed);
-      } else if (boss.x >= boss.getData('maxX') || boss.body.blocked.right) {
-        boss.setVelocityX(-speed);
-      }
+    if (grounded && movement === 'leap') boss.setVelocityX(0);
+    if (grounded && movement === 'chase') {
+      const direction = Math.sign(this.player.x - boss.x);
+      const safe = direction && this.hasSafeGroundAhead(boss, direction);
+      const next = direction && patrolDirection(boss.body, direction, safe);
+      boss.setVelocityX(direction === next ? direction * speed : 0);
+    } else if (grounded && movement === 'patrol') {
+      let direction = boss.getData('patrolDirection');
+      if ((direction < 0 && boss.x <= boss.getData('minX')) ||
+        (direction > 0 && boss.x >= boss.getData('maxX'))) direction = -direction;
+      direction = patrolDirection(boss.body, direction, this.hasSafeGroundAhead(boss, direction));
+      boss.setData('patrolDirection', direction);
+      boss.setVelocityX(this.hasSafeGroundAhead(boss, direction) ? direction * speed : 0);
     } else if (movement === 'leap' && grounded && this.time.now >= boss.getData('nextLeapAt') &&
       Math.abs(this.player.x - boss.x) < 360) {
       this.leapBoss(boss, speed);
@@ -921,7 +966,8 @@ export class GameScene extends Scene {
     if (usesFireballs && this.time.now >= boss.getData('nextAttackAt') &&
       Math.abs(this.player.x - boss.x) < 850) {
       this.spawnBossFireball(boss);
-      boss.setData('nextAttackAt', this.time.now + 1700);
+      boss.setData('nextAttackAt', this.time.now +
+        (boss.getData('health') <= boss.getData('maxHealth') / 2 ? 1100 : 1700));
     }
 
     const health = boss.getData('health');
@@ -940,6 +986,8 @@ export class GameScene extends Scene {
 
   leapBoss(boss, speed) {
     const direction = Math.sign(this.player.x - boss.x) || 1;
+    const jumpDistance = speed * 1.4 * (940 / 800);
+    if (!this.hasSafeGroundAhead(boss, direction, jumpDistance)) return;
     boss.setVelocity(direction * speed * 1.4, -470);
     boss.setData('wasAirborne', true);
   }
@@ -947,11 +995,15 @@ export class GameScene extends Scene {
   spawnBossFireball(boss) {
     const direction = Math.sign(this.player.x - boss.x) || 1;
     const size = boss.getData('size') || MIN_BOSS_SIZE;
+    const originY = boss.y - size * 0.1;
+    const flightTime = Math.min(1.5, Math.abs(this.player.x - boss.x) / 320);
+    const targetY = this.player.y + this.player.body.velocity.y * flightTime * 0.35;
+    const velocityY = Math.max(-180, Math.min(180, (targetY - originY) / Math.max(0.2, flightTime)));
     this.spawnBossProjectile(
       boss.x + direction * size * 0.42,
-      boss.y - size * 0.1,
+      originY,
       direction * 320,
-      0,
+      velocityY,
       4500
     );
   }
