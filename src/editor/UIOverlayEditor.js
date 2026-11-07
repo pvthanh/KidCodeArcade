@@ -118,6 +118,8 @@ export class UIOverlayEditor {
           aria-label="Save campaign" data-tooltip="Save campaign">💾</button>
         <button id="open-campaign-button" class="secondary-button toolbar-icon-button" type="button"
           aria-label="Open campaign" data-tooltip="Open campaign">📂</button>
+        <button id="community-library" class="secondary-button toolbar-icon-button" type="button"
+          aria-label="Community levels" data-tooltip="Community levels">🌐</button>
         <input id="open-campaign" type="file" accept="application/json,application/gzip,.json,.gz" hidden>
       </div>
       <dialog id="new-level-dialog" class="level-dialog" aria-labelledby="new-level-title">

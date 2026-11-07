@@ -799,6 +799,40 @@ button {
   padding-top: 2px;
 }
 
+.community-dialog {
+  max-height: min(90vh, 900px);
+  overflow: auto;
+}
+
+[data-community-more][hidden] {
+  display: none;
+}
+
+.community-list, .community-share {
+  display: grid;
+  gap: 10px;
+}
+
+.community-list {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.community-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.community-card strong { flex: 1 1 180px; }
+.community-card span { color: var(--muted); }
+.community-share { border-top: 1px solid var(--border); padding-top: 12px; }
+.community-share h3, .community-share p, [data-community-message] { margin: 0; }
+
 .help-icon-button {
   border-radius: 50%;
   font-size: 19px;

@@ -4,7 +4,7 @@ A browser-based platformer level editor built with Vite and Phaser.
 
 ## Requirements
 
-- Node.js 18 or newer
+- Node.js 22 or newer (required by the Cloudflare deployment tooling)
 - npm (included with Node.js)
 
 To check that they are installed, open a terminal and run:
@@ -69,6 +69,31 @@ Keep the terminal running while you use the editor. To stop the server, focus th
 - During play, the player has three lives. Enemy hits cost a life; falling below the level or losing all lives ends the run.
 - Use **Save** to download a level file and **Open** to load one.
 
+## Community level library
+
+Choose the **🌐 Community levels** button next to the campaign controls to
+browse public levels. **Add to campaign** inserts a copy after the current
+level and opens it for editing; your existing levels remain in the campaign.
+Use **Save campaign** to download a backup: adding a level does not
+automatically save the campaign to your device. A campaign can contain up to
+50 levels.
+
+To share the current level, enter a level name and a builder nickname and
+choose **Publish level**. Choose **Copy link** to send a direct link to a
+specific level. The library needs an internet connection. Published levels
+are public immediately and are **not moderated or pre-screened**: anyone can
+publish potentially inappropriate names or designs. Children should browse
+with an adult, use nicknames rather than real names or other personal
+information, and avoid putting personal information in level names or designs.
+
+Shared copies use built-in assets only. Uploaded images and tile appearances,
+custom creatures and bosses, and uploaded sounds and music are omitted or
+replaced with built-in alternatives; a warning appears before publication
+when custom content is detected. Your original stays unchanged. Requests
+are limited to 512 KB and rate-limited; free Cloudflare quotas can also make
+the library temporarily unavailable. There is no account, private sharing,
+editing or in-app removal of published entries.
+
 ## Production build (optional)
 
 To make a production build:
@@ -106,8 +131,43 @@ source only when the account/organization plan supports Pages for private
 repositories. On accounts without that support, make the repository public or
 use a hosting provider that supports private Git sources. Even if source code
 is in a private repository, a publicly deployed site is visible to anyone with
-its URL. The game has no server; levels and uploads remain in the visitor's
-browser or downloaded files.
+its URL. The editor runs in the browser; published community level copies and
+their public names are stored by the separate Cloudflare Worker and D1 database.
+Other uploads and unsaved projects remain in the browser or downloaded files.
+
+## Community library deployment and removal
+
+The site remains on GitHub Pages; `community-worker/` supplies the API and D1
+schema. The configured database and Worker belong to the Cloudflare account
+owner. To deploy updates, install dependencies, sign in with `npx wrangler
+login`, and run:
+
+```sh
+npx wrangler d1 migrations apply little-level-lab-library --remote --config community-worker/wrangler.jsonc
+npx wrangler deploy --config community-worker/wrangler.jsonc
+```
+
+For a different account, create a D1 database, update its name and ID in
+`community-worker/wrangler.jsonc`, update the permitted frontend origins in
+`community-worker/worker.js`, and set `VITE_COMMUNITY_API_URL` to the deployed
+Worker URL when building the frontend. Redeploy the frontend separately.
+Keep Cloudflare credentials private.
+For local development, the configured API accepts `localhost:3000` and
+`127.0.0.1:3000`; add other development origins to the Worker allowlist and
+redeploy it if Vite uses a different port.
+
+To remove an inappropriate published entry, the account owner can use the
+Cloudflare dashboard's D1 console or authenticated Wrangler. Find its ID
+(also present in its share link) and verify the title before deleting it:
+
+```sh
+npx wrangler d1 execute little-level-lab-library --remote --config community-worker/wrangler.jsonc --command "SELECT id, title, author FROM levels ORDER BY created_at DESC LIMIT 100"
+npx wrangler d1 execute little-level-lab-library --remote --config community-worker/wrangler.jsonc --command "DELETE FROM levels WHERE id = 'REPLACE-WITH-VERIFIED-LEVEL-ID'"
+```
+
+Deletion is permanent. The public API deliberately provides no delete
+endpoint. Rate limits reduce abuse but do not prevent it, and Cloudflare's
+free-plan quotas and availability are subject to change.
 
 ## Install as an app
 

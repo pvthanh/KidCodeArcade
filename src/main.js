@@ -16,6 +16,7 @@ import { EventBus } from './core/EventBus.js';
 import { PaletteView } from './editor/PaletteView.js';
 import { GridCanvas } from './editor/GridCanvas.js';
 import { UIOverlayEditor } from './editor/UIOverlayEditor.js';
+import { CommunityLibrary } from './editor/CommunityLibrary.js';
 import { SoundEffectsEditor } from './editor/SoundEffectsEditor.js';
 import { GameScene } from './engine/GameScene.js';
 import { EntityFactory } from './engine/EntityFactory.js';
@@ -51,6 +52,7 @@ const uiOverlayEditor = new UIOverlayEditor(
   demoCampaign
 );
 const soundEffectsEditor = new SoundEffectsEditor(stateManager, eventBus);
+new CommunityLibrary(uiOverlayEditor);
 
 for (const [tileId, metadata] of Object.entries(stateManager.spriteMetadata)) {
   eventBus.emit('spriteUploaded', { tileId, ...metadata });
