@@ -258,6 +258,7 @@ eventBus.on('pipeLinkRequested', ({ source, destination }) => {
       return;
     }
     gridCanvas.refresh();
+    gridCanvas.syncSelectedObject();
     uiOverlayEditor.updateHistory();
     uiOverlayEditor.saveCurrentLevel();
     eventBus.emit(
@@ -268,6 +269,25 @@ eventBus.on('pipeLinkRequested', ({ source, destination }) => {
     console.error('Could not connect the selected pipes:', error);
     eventBus.emit('status', `Could not connect pipes: ${error.message}`);
   }
+});
+
+eventBus.on('unlinkSelectedPipe', () => {
+  if (!gridCanvas.selectionMode || !gridCanvas.selectedCells.length) return;
+  const first = gridCanvas.selectedCells[0];
+  if (stateManager.getTile(first.row, first.col) !== 'Pipe') return;
+  const pipe = gridCanvas.pipeGroupAt(first)[0];
+  const links = stateManager.pipeLinks.filter(link =>
+    ![link.source, link.destination].some(endpoint => endpoint.row === pipe.row && endpoint.col === pipe.col)
+  );
+  if (!commandManager.executeWithManager(new SetPipeLinksCommand(links), stateManager)) {
+    eventBus.emit('status', 'The selected pipe has no connection.');
+    return;
+  }
+  gridCanvas.refresh();
+  gridCanvas.syncSelectedObject();
+  uiOverlayEditor.updateHistory();
+  uiOverlayEditor.saveCurrentLevel();
+  eventBus.emit('status', 'Pipe connection removed. Use Undo to restore it.');
 });
 
 eventBus.on('undo', () => {

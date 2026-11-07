@@ -69,6 +69,9 @@ const TILE_LABELS = {
   TNTFlower: 'T'
 };
 
+const EDGE_SCROLL_ZONE = 56;
+const EDGE_SCROLL_SPEED = 900;
+
 export class GridCanvas {
   constructor(canvasId, stateManager, eventBus) {
     this.canvas = document.getElementById(canvasId);
@@ -97,6 +100,9 @@ export class GridCanvas {
     this.movePreview = null;
     this.linkDragSource = null;
     this.pointerPosition = null;
+    this.linkPointerClient = null;
+    this.edgeScrollFrame = 0;
+    this.edgeScrollTime = null;
     this.isMovingSelection = false;
     this.isLinkingPipes = false;
     this.lastPanPosition = null;
@@ -180,6 +186,7 @@ export class GridCanvas {
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
     this.eventBus.on('boardPanModeChanged', enabled => {
+      if (enabled) this.clearSelectionGesture();
       this.panMode = enabled;
       this.isPainting = false;
       this.isPanning = false;
@@ -191,6 +198,7 @@ export class GridCanvas {
       this.selectionMode = enabled;
       this.selectedCells = [];
       this.clearSelectionGesture();
+      this.eventBus.emit('pipeSelectionChanged', { selected: false, linked: false });
       this.board.classList.toggle('is-selecting', enabled);
       this.refresh();
     });
@@ -205,6 +213,7 @@ export class GridCanvas {
     this.eventBus.on('levelLoaded', () => {
       this.selectedCells = [];
       this.clearSelectionGesture();
+      this.eventBus.emit('pipeSelectionChanged', { selected: false, linked: false });
       this.refresh();
     });
     this.eventBus.on('spriteUploaded', ({ tileId, dataUrl }) => this.loadSprite(tileId, dataUrl));
@@ -255,6 +264,7 @@ export class GridCanvas {
     const tileType = this.stateManager.getTile(cell.row, cell.col);
     if (!tileType) {
       this.selectedCells = [];
+      this.eventBus.emit('pipeSelectionChanged', { selected: false, linked: false });
       this.refresh();
       return;
     }
@@ -273,6 +283,8 @@ export class GridCanvas {
       this.isLinkingPipes = true;
       this.linkDragSource = { ...nextSelection[0] };
       this.pointerPosition = point;
+      this.linkPointerClient = { clientX: event.clientX, clientY: event.clientY };
+      this.eventBus.emit('status', 'Drag to another pipe. Hold near a board edge to scroll.');
     } else {
       this.isMovingSelection = true;
       this.moveStartCell = startCell;
@@ -287,9 +299,15 @@ export class GridCanvas {
     const tileType = this.stateManager.getTile(cell.row, cell.col);
     if (!tileType) {
       this.selectedCells = [];
+      this.eventBus.emit('pipeSelectionChanged', { selected: false, linked: false });
       this.refresh();
       return;
     }
+    const pipe = tileType === 'Pipe' ? this.pipeGroupAt(cell)[0] : null;
+    const linked = pipe && this.stateManager.pipeLinks.some(link =>
+      [link.source, link.destination].some(endpoint => endpoint.row === pipe.row && endpoint.col === pipe.col)
+    );
+    this.eventBus.emit('pipeSelectionChanged', { selected: Boolean(pipe), linked: Boolean(linked) });
     this.eventBus.emit('boardObjectSelected', {
       tileType,
       variantId: this.stateManager.getTileVariant(cell.row, cell.col)
@@ -299,6 +317,10 @@ export class GridCanvas {
   updateSelectionGesture(event) {
     const point = this.canvasPoint(event);
     this.pointerPosition = point;
+    if (this.isLinkingPipes) {
+      this.linkPointerClient = { clientX: event.clientX, clientY: event.clientY };
+      this.startEdgeScroll();
+    }
     if (this.isMovingSelection && this.moveStartCell) {
       const cell = this.stateManager.getTileFromPixel(point.x, point.y);
       if (cell) {
@@ -309,6 +331,44 @@ export class GridCanvas {
       }
     }
     this.refresh();
+  }
+
+  startEdgeScroll() {
+    if (!this.edgeScrollFrame) {
+      this.edgeScrollTime = null;
+      this.edgeScrollFrame = requestAnimationFrame(time => this.scrollLinkAtEdge(time));
+    }
+  }
+
+  scrollLinkAtEdge(time) {
+    this.edgeScrollFrame = 0;
+    if (!this.isLinkingPipes || !this.linkPointerClient) return;
+    const bounds = this.board.getBoundingClientRect();
+    const left = bounds.left + this.board.clientLeft;
+    const top = bounds.top + this.board.clientTop;
+    const edgeVelocity = (position, start, size) => {
+      const zone = Math.min(EDGE_SCROLL_ZONE, size / 2);
+      if (position < start + zone) return -Math.min(1, (start + zone - position) / zone);
+      if (position > start + size - zone) return Math.min(1, (position - (start + size - zone)) / zone);
+      return 0;
+    };
+    const dx = edgeVelocity(this.linkPointerClient.clientX, left, this.board.clientWidth);
+    const dy = edgeVelocity(this.linkPointerClient.clientY, top, this.board.clientHeight);
+    const canScrollX = dx < 0 ? this.board.scrollLeft > 0
+      : dx > 0 && this.board.scrollLeft < this.board.scrollWidth - this.board.clientWidth;
+    const canScrollY = dy < 0 ? this.board.scrollTop > 0
+      : dy > 0 && this.board.scrollTop < this.board.scrollHeight - this.board.clientHeight;
+    if (!canScrollX && !canScrollY) {
+      this.edgeScrollTime = null;
+      return;
+    }
+    const elapsed = this.edgeScrollTime === null ? 0 : Math.min(50, time - this.edgeScrollTime);
+    this.edgeScrollTime = time;
+    this.board.scrollLeft += dx * EDGE_SCROLL_SPEED * elapsed / 1000;
+    this.board.scrollTop += dy * EDGE_SCROLL_SPEED * elapsed / 1000;
+    this.pointerPosition = this.canvasPoint(this.linkPointerClient);
+    this.refresh();
+    this.edgeScrollFrame = requestAnimationFrame(nextTime => this.scrollLinkAtEdge(nextTime));
   }
 
   finishSelectionGesture(event) {
@@ -343,6 +403,10 @@ export class GridCanvas {
   }
 
   clearSelectionGesture() {
+    if (this.edgeScrollFrame) cancelAnimationFrame(this.edgeScrollFrame);
+    this.edgeScrollFrame = 0;
+    this.edgeScrollTime = null;
+    this.linkPointerClient = null;
     this.isMovingSelection = false;
     this.isLinkingPipes = false;
     this.linkDragSource = null;

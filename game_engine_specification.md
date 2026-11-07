@@ -258,7 +258,7 @@ physics or gameplay behavior.
 |---|---|
 | Ground, Sand, Stone, Snow | Solid terrain tiles with distinct appearances. |
 | Brick | Solid terrain that breaks when hit from below. |
-| Pipe | Solid terrain. The Pipe link dialog pairs two placed pipe tiles in the same level. Press ↓/S on the entry pipe to travel to the paired exit with an animated camera pan; jump beside the exit and press ↑ to return. Unlinked pipes are solid scenery. |
+| Pipe | Solid terrain. In Select mode, drag a pipe's bottom handle to another pipe in the same level; holding near a board edge scrolls to distant pipes. A selected pipe's toolbox can unlink it. Press ↓/S on the entry pipe to travel to the paired exit with an animated camera pan; jump beside the exit and press ↑ to return. Unlinked pipes are solid scenery. |
 | Mystery Box | Hit from below once to release the selected reward, which emerges and moves right. Random mode chooses Mushroom, Star, Extra Life, Fire Flower, or Boom Flower independently for each box hit. Bomb blasts also open it. |
 | Spring | Landing launches the player upward at 640 px/s. |
 | Moving platform | Moves horizontally 64 pixels either side of its placement at 56 px/s; carries the player from above and ignores side/underside contact to prevent snagging. |

@@ -1,7 +1,6 @@
 import {
   ClearGridCommand,
-  ResizeWorldCommand,
-  SetPipeLinksCommand
+  ResizeWorldCommand
 } from '../core/CommandManager.js';
 import { WORLD_THEMES } from '../core/StateManager.js';
 import { cloneData } from '../core/CloneData.js';
@@ -119,8 +118,6 @@ export class UIOverlayEditor {
           aria-label="Save campaign" data-tooltip="Save campaign">💾</button>
         <button id="open-campaign-button" class="secondary-button toolbar-icon-button" type="button"
           aria-label="Open campaign" data-tooltip="Open campaign">📂</button>
-        <button id="pipe-link-button" class="secondary-button toolbar-icon-button" type="button"
-          aria-label="Configure pipe link" data-tooltip="Pipe link">🔗</button>
         <input id="open-campaign" type="file" accept="application/json,application/gzip,.json,.gz" hidden>
       </div>
       <dialog id="new-level-dialog" class="level-dialog" aria-labelledby="new-level-title">
@@ -142,37 +139,6 @@ export class UIOverlayEditor {
           <footer class="level-dialog-actions">
             <button id="cancel-new-level" class="secondary-button" type="button">Cancel</button>
             <button class="primary-button" type="submit">Create level</button>
-          </footer>
-        </form>
-      </dialog>
-      <dialog id="pipe-link-dialog" class="level-dialog" aria-labelledby="pipe-link-title">
-        <form id="pipe-link-form" class="level-dialog-form">
-          <header class="level-dialog-header">
-            <span class="eyebrow">SAME-LEVEL TRAVEL</span>
-            <h2 id="pipe-link-title">Connect two pipes</h2>
-            <p>Travel between these pipes without leaving this level. Place both pipes first.</p>
-          </header>
-          <div class="pipe-arrival-fields">
-            <fieldset class="pipe-endpoint-fields">
-              <legend>Entry pipe (press ↓)</legend>
-              <label class="level-dialog-field" for="pipe-source">
-                Choose placed pipe
-                <select id="pipe-source" name="source" required></select>
-              </label>
-            </fieldset>
-            <fieldset class="pipe-endpoint-fields">
-              <legend>Exit pipe (jump + press ↑ to return)</legend>
-              <label class="level-dialog-field" for="pipe-target">
-                Choose placed pipe
-                <select id="pipe-target" name="target" required></select>
-              </label>
-            </fieldset>
-          </div>
-          <p class="pipe-arrival-note" id="pipe-links-summary"></p>
-          <footer class="level-dialog-actions">
-            <button id="clear-pipe-links" class="secondary-button" type="button">Clear connections</button>
-            <button id="cancel-pipe-link" class="secondary-button" type="button">Cancel</button>
-            <button class="primary-button" type="submit">Connect pipes</button>
           </footer>
         </form>
       </dialog>
@@ -383,31 +349,6 @@ export class UIOverlayEditor {
       this.toolbar.querySelector('#open-campaign').click());
     this.toolbar.querySelector('#open-campaign').addEventListener('change', event =>
       this.runWithLoading('Loading campaign…', () => this.loadCampaign(event.target.files?.[0])));
-    this.toolbar.querySelector('#pipe-link-button').addEventListener('click', () =>
-      this.showPipeLinkDialog());
-    this.toolbar.querySelector('#cancel-pipe-link').addEventListener('click', () =>
-      this.toolbar.querySelector('#pipe-link-dialog').close());
-    this.toolbar.querySelector('#clear-pipe-links').addEventListener('click', () => {
-      if (this.commandManager.executeWithManager(
-        new SetPipeLinksCommand([]),
-        this.stateManager
-      )) {
-        this.gridCanvas.refresh();
-        this.saveCurrentLevel();
-        this.updateHistory();
-      }
-      this.toolbar.querySelector('#pipe-link-dialog').close();
-      this.setStatus('All same-level pipe connections were removed.');
-    });
-    this.toolbar.querySelector('#pipe-link-form').addEventListener('submit', event => {
-      event.preventDefault();
-      try {
-        this.savePipeLink();
-      } catch (error) {
-        console.error('Could not save pipe link:', error);
-        this.setStatus(`Could not save pipe link: ${error.message}`);
-      }
-    });
     this.toolbar.querySelector('#save-level').addEventListener('click', () => this.saveLevel());
     this.toolbar.querySelector('#load-level-button').addEventListener('click', () => this.toolbar.querySelector('#load-level').click());
     this.toolbar.querySelector('#load-level').addEventListener('change', event =>
@@ -458,76 +399,6 @@ export class UIOverlayEditor {
     select.value = String(this.currentLevelIndex);
     this.toolbar.querySelector('#remove-campaign-level').disabled = this.levels.length <= 1;
     this.toolbar.querySelector('#add-campaign-level').disabled = this.levels.length >= 50;
-  }
-
-  showPipeLinkDialog() {
-    const dialog = this.toolbar.querySelector('#pipe-link-dialog');
-    const options = [new Option('Choose a pipe', '')];
-    this.stateManager.tiles.forEach((row, rowIndex) => {
-      row.forEach((tile, colIndex) => {
-        if (tile === 'Pipe' && this.stateManager.tiles[rowIndex - 1]?.[colIndex] !== 'Pipe') {
-          options.push(new Option(
-            `Row ${rowIndex + 1}, column ${colIndex + 1}`,
-            `${rowIndex}:${colIndex}`
-          ));
-        }
-      });
-    });
-    for (const id of ['pipe-source', 'pipe-target']) {
-      const select = this.toolbar.querySelector(`#${id}`);
-      select.replaceChildren(...options.map(option => option.cloneNode(true)));
-    }
-    this.updatePipeLinksSummary();
-    dialog.showModal();
-  }
-
-  updatePipeLinksSummary() {
-    const count = this.stateManager.pipeLinks.length;
-    this.toolbar.querySelector('#pipe-links-summary').textContent = count
-      ? `${count} connection${count === 1 ? '' : 's'} saved. Hold ↓ on top of the entry pipe to travel down; jump and press ↑ beside the exit pipe to return.`
-      : 'Choose two different placed pipes. Row and column labels start at 1.';
-  }
-
-  savePipeLink() {
-    const readEndpoint = name => {
-      const value = this.toolbar.querySelector(`#pipe-${name}`).value;
-      if (!value.includes(':')) {
-        throw new TypeError('Choose a placed pipe for both ends.');
-      }
-      const [row, col] = value.split(':').map(Number);
-      return { row, col };
-    };
-    const source = readEndpoint('source');
-    const destination = readEndpoint('target');
-    for (const endpoint of [source, destination]) {
-      if (!Number.isInteger(endpoint.row) || !Number.isInteger(endpoint.col) ||
-        this.stateManager.getTile(endpoint.row, endpoint.col) !== 'Pipe') {
-        throw new TypeError('Choose a placed pipe for both ends.');
-      }
-    }
-    const sameEndpoint = (left, right) => left.row === right.row && left.col === right.col;
-    const remainingLinks = this.stateManager.pipeLinks.filter(link =>
-      ![link.source, link.destination].some(endpoint =>
-        sameEndpoint(endpoint, source) || sameEndpoint(endpoint, destination)
-      )
-    );
-    const pipeLinks = [...remainingLinks, { source, destination }];
-    if (!this.commandManager.executeWithManager(
-      new SetPipeLinksCommand(pipeLinks),
-      this.stateManager
-    )) {
-      this.toolbar.querySelector('#pipe-link-dialog').close();
-      this.setStatus('Those pipes are already connected.');
-      return;
-    }
-    this.gridCanvas.refresh();
-    this.updateHistory();
-    this.saveCurrentLevel();
-    this.updatePipeLinksSummary();
-    this.toolbar.querySelector('#pipe-link-dialog').close();
-    this.setStatus(
-      `Pipe at row ${source.row + 1}, column ${source.col + 1} now connects to row ${destination.row + 1}, column ${destination.col + 1}.`
-    );
   }
 
   applyLevelSnapshot(snapshot) {

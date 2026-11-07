@@ -197,6 +197,11 @@ export class PaletteView {
         return;
       }
 
+      if (event.target.closest('[data-unlink-pipe]')) {
+        this.eventBus.emit('unlinkSelectedPipe');
+        return;
+      }
+
       const applyVariantButton = event.target.closest('[data-apply-variant]');
       if (applyVariantButton) {
         event.stopPropagation();
@@ -335,6 +340,12 @@ export class PaletteView {
         this.updateTilePreview(tileType, variantId);
         this.eventBus.emit('tileVariantSelected', { tileId: tileType, variantId });
       }
+    });
+    this.eventBus.on('pipeSelectionChanged', ({ selected, linked }) => {
+      const button = this.container.querySelector('[data-unlink-pipe]');
+      if (!button) return;
+      button.hidden = !selected;
+      button.disabled = !linked;
     });
     this.eventBus.on('levelLoaded', ({
       mysteryBoxReward = 'Mushroom',
@@ -769,6 +780,9 @@ export class PaletteView {
                       <select data-variant-select="${tile.id}" aria-label="${tile.name} appearance"></select>
                     </label>
                     <span class="variant-help">Choose the look to paint or change the selected object; use Apply all for every matching tile.</span>
+                    ${tile.id === 'Pipe' ? `
+                      <button class="secondary-button" type="button" data-unlink-pipe hidden disabled>Unlink selected pipe</button>
+                    ` : ''}
                     ${tile.id === 'MysteryBox' ? `
                       <label class="mystery-reward-settings">
                         Reward for all boxes

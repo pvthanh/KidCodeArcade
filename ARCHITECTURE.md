@@ -107,12 +107,14 @@ position. `UIOverlayEditor` inserts a snapshot with an all-empty tile grid,
 selects the Player tool, and makes the new level active. On touch devices,
 **Move board** toggles `GridCanvas` between painting and drag-to-pan input so
 navigation does not place tiles accidentally.
-The **Pipe link** dialog stores endpoint coordinates as `pipeLinks` in the
+Visual pipe connections store endpoint coordinates as `pipeLinks` in the
 current level snapshot. Both endpoints must be distinct placed pipes, and no
 pipe can belong to more than one pair. Old cross-level pipe fields are ignored
 when loading legacy snapshots.
 `GridCanvas` select mode draws existing connections and supports object moves
-and pipe-link drags from a selected pipe's bottom handle. `MoveTilesCommand`
+and pipe-link drags from a selected pipe's bottom handle, with edge-scrolling
+to reach pipes outside the viewport. The selected pipe's toolbox can unlink it.
+`MoveTilesCommand`
 preserves links when moving a pipe stack; `SetPipeLinksCommand` makes link edits
 undoable. Pipe travel uses a slow sink, camera pan, and emerge sequence so the
 player's movement between floors is visible.

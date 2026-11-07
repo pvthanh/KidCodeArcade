@@ -30,10 +30,13 @@ test('selecting an object notifies the toolbox and empty selection does not', ()
   grid.eventBus = { emit: (...args) => events.push(args) };
   grid.refresh = () => {};
   grid.syncSelectedObject();
-  assert.deepEqual(events, [['boardObjectSelected', { tileType: 'Boss', variantId: 'classic' }]]);
+  assert.deepEqual(events, [
+    ['pipeSelectionChanged', { selected: false, linked: false }],
+    ['boardObjectSelected', { tileType: 'Boss', variantId: 'classic' }]
+  ]);
   grid.syncSelectedObject({ row: 0, col: 0 });
   assert.deepEqual(grid.selectedCells, []);
-  assert.equal(events.length, 1);
+  assert.equal(events.length, 3);
 });
 
 test('changing selected appearances is scoped and undoable', () => {

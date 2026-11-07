@@ -792,50 +792,11 @@ button {
   font-size: 14px;
 }
 
-.pipe-arrival-note {
-  margin: -8px 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.pipe-arrival-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.pipe-endpoint-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.pipe-endpoint-fields legend {
-  padding: 0 5px;
-  color: #435b69;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.pipe-endpoint-fields .level-dialog-field {
-  grid-column: 1 / -1;
-}
-
 .level-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 9px;
   padding-top: 2px;
-}
-
-#clear-pipe-links {
-  margin-right: auto;
 }
 
 .help-icon-button {
