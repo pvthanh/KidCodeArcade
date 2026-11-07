@@ -1,3 +1,6 @@
+import { SOUND_PRESETS, MUSIC_PRESETS } from '../core/AudioPresets.js';
+import { SoundManager } from '../engine/SoundManager.js';
+
 const SOUND_EVENTS = [
   { id: 'jump', label: 'Jump', description: 'When the player jumps' },
   { id: 'enemyStomp', label: 'Stomp enemy', description: 'When the player defeats an enemy' },
@@ -21,11 +24,13 @@ export class SoundEffectsEditor {
     this.stateManager = stateManager;
     this.eventBus = eventBus;
     this.dialog = null;
-    this.previewAudio = null;
+    this.previewManager = null;
     this.eventBus.on('openSoundSettings', () => this.open());
+    this.eventBus.on('levelLoaded', () => { if (this.dialog) this.close(); });
   }
 
   open() {
+    this.stopPreview();
     this.dialog?.remove();
     this.dialog = document.createElement('section');
     this.dialog.className = 'sound-modal';
@@ -38,7 +43,7 @@ export class SoundEffectsEditor {
           <div>
             <span class="eyebrow">GAME AUDIO</span>
             <h2 id="sound-dialog-title">Sounds &amp; music</h2>
-            <p>Configure looping background music and a separate sound for each game event.</p>
+            <p>Choose music and sounds for this level. Changes do not affect other levels.</p>
           </div>
           <button class="sound-dialog-close" type="button" aria-label="Close sound settings">✕</button>
         </header>
@@ -48,10 +53,15 @@ export class SoundEffectsEditor {
               <strong>Background music</strong>
               <span>Loops throughout this level while it is being played</span>
               <span class="sound-file-name" data-music-file>
-                ${this.escapeHtml(this.stateManager.backgroundMusic?.fileName || 'No music uploaded')}
+                ${this.escapeHtml(this.stateManager.backgroundMusic?.fileName || 'Built-in music')}
               </span>
             </div>
             <div class="sound-controls">
+              <label class="sound-preset-control">Music
+                <select data-music-preset aria-label="Background music choice">
+                  ${this.presetOptions(MUSIC_PRESETS, this.stateManager.backgroundMusic, 'classic')}
+                </select>
+              </label>
               <label class="sound-upload-button">
                 <span>Choose music</span>
                 <input type="file" data-music-upload accept="audio/*" aria-label="Upload background music">
@@ -65,16 +75,14 @@ export class SoundEffectsEditor {
               </label>
               <label class="sound-enabled-control">
                 <input type="checkbox" data-music-enabled
-                  ${this.stateManager.backgroundMusic?.enabled === false ? '' : 'checked'}
-                  ${this.stateManager.backgroundMusic ? '' : 'disabled'}>
+                  ${this.stateManager.backgroundMusic?.enabled === false ? '' : 'checked'}>
                 Enabled
               </label>
               <button type="button" class="sound-preview-button" data-music-preview
-                ${this.stateManager.backgroundMusic ? '' : 'disabled'}
                 aria-label="Preview background music">▶</button>
               <button type="button" class="sound-remove-button" data-music-remove
                 ${this.stateManager.backgroundMusic ? '' : 'disabled'}
-                aria-label="Remove background music">Remove</button>
+                aria-label="Reset background music">Reset</button>
             </div>
           </article>
           ${SOUND_EVENTS.map(event => `
@@ -82,9 +90,14 @@ export class SoundEffectsEditor {
               <div class="sound-copy">
                 <strong>${event.label}</strong>
                 <span>${event.description}</span>
-                <span class="sound-file-name" data-sound-file>${this.escapeHtml(this.getSound(event.id)?.fileName || 'No sound uploaded')}</span>
+                <span class="sound-file-name" data-sound-file>${this.escapeHtml(this.getSound(event.id)?.fileName || 'Built-in sound')}</span>
               </div>
               <div class="sound-controls">
+                <label class="sound-preset-control">Sound
+                  <select data-sound-preset aria-label="${event.label} sound choice">
+                    ${this.presetOptions(SOUND_PRESETS, this.getSound(event.id), 'retro')}
+                  </select>
+                </label>
                 <label class="sound-upload-button">
                   <span>Choose audio</span>
                   <input type="file" data-sound-upload accept="audio/*" aria-label="Upload ${event.label} sound">
@@ -95,11 +108,11 @@ export class SoundEffectsEditor {
                   <span data-volume-value>${Math.round((this.getSound(event.id)?.volume ?? 0.7) * 100)}%</span>
                 </label>
                 <label class="sound-enabled-control">
-                  <input type="checkbox" data-sound-enabled ${this.getSound(event.id)?.enabled === false ? '' : 'checked'} ${this.getSound(event.id) ? '' : 'disabled'}>
+                  <input type="checkbox" data-sound-enabled ${this.getSound(event.id)?.enabled === false ? '' : 'checked'}>
                   Enabled
                 </label>
-                <button type="button" class="sound-preview-button" data-sound-preview ${this.getSound(event.id) ? '' : 'disabled'} aria-label="Preview ${event.label} sound">▶</button>
-                <button type="button" class="sound-remove-button" data-sound-remove ${this.getSound(event.id) ? '' : 'disabled'} aria-label="Remove ${event.label} sound">Remove</button>
+                <button type="button" class="sound-preview-button" data-sound-preview aria-label="Preview ${event.label} sound">▶</button>
+                <button type="button" class="sound-remove-button" data-sound-remove ${this.getSound(event.id) ? '' : 'disabled'} aria-label="Reset ${event.label} sound">Reset</button>
               </div>
             </article>
           `).join('')}
@@ -131,13 +144,12 @@ export class SoundEffectsEditor {
       if (musicVolume) {
         const volume = Number(musicVolume.value) / 100;
         dialog.querySelector('[data-music-volume-value]').textContent = `${musicVolume.value}%`;
-        if (this.previewingMusic && this.previewAudio) this.previewAudio.volume = volume;
-        if (this.stateManager.backgroundMusic) {
-          this.stateManager.registerBackgroundMusic({
-            ...this.stateManager.backgroundMusic,
-            volume
-          });
+        if (this.previewingMusic && this.previewManager) {
+          for (const audio of this.previewManager.activeAudio) audio.volume = volume;
         }
+        if (this.previewingMusic && this.previewManager?.musicGain) this.previewManager.musicGain.gain.value = volume;
+        this.stateManager.registerBackgroundMusic({ ...this.currentMusic(), volume });
+        dialog.querySelector('[data-music-remove]').disabled = false;
         return;
       }
 
@@ -145,12 +157,38 @@ export class SoundEffectsEditor {
       if (!input) return;
       const row = input.closest('.sound-row');
       const eventId = row.dataset.soundEvent;
-      const sound = this.getSound(eventId);
       row.querySelector('[data-volume-value]').textContent = `${input.value}%`;
-      if (sound) this.updateSound(eventId, { volume: Number(input.value) / 100 });
+      this.updateSound(eventId, { volume: Number(input.value) / 100 });
+      row.querySelector('[data-sound-remove]').disabled = false;
     });
 
     dialog.addEventListener('change', async event => {
+      const musicPreset = event.target.closest('[data-music-preset]');
+      if (musicPreset && musicPreset.value !== 'uploaded') {
+        this.stopPreview();
+        const current = this.currentMusic();
+        this.stateManager.registerBackgroundMusic({
+          preset: musicPreset.value, volume: current.volume, enabled: current.enabled
+        });
+        musicPreset.querySelector('option[value="uploaded"]')?.remove();
+        const row = musicPreset.closest('.sound-row');
+        row.querySelector('[data-music-file]').textContent = 'Built-in music';
+        row.querySelector('[data-music-remove]').disabled = false;
+        return;
+      }
+      const soundPreset = event.target.closest('[data-sound-preset]');
+      if (soundPreset && soundPreset.value !== 'uploaded') {
+        this.stopPreview();
+        const row = soundPreset.closest('.sound-row');
+        const current = this.currentSound(row.dataset.soundEvent);
+        this.stateManager.registerSoundEffect(row.dataset.soundEvent, {
+          preset: soundPreset.value, volume: current.volume, enabled: current.enabled
+        });
+        soundPreset.querySelector('option[value="uploaded"]')?.remove();
+        row.querySelector('[data-sound-file]').textContent = 'Built-in sound';
+        row.querySelector('[data-sound-remove]').disabled = false;
+        return;
+      }
       const musicUpload = event.target.closest('[data-music-upload]');
       if (musicUpload?.files?.[0]) {
         await this.uploadBackgroundMusic(musicUpload.files[0]);
@@ -169,15 +207,19 @@ export class SoundEffectsEditor {
       if (enabled) {
         const row = enabled.closest('.sound-row');
         this.updateSound(row.dataset.soundEvent, { enabled: enabled.checked });
+        row.querySelector('[data-sound-remove]').disabled = false;
+        if (!enabled.checked) this.stopPreview();
         return;
       }
 
       const musicEnabled = event.target.closest('[data-music-enabled]');
-      if (musicEnabled && this.stateManager.backgroundMusic) {
+      if (musicEnabled) {
         this.stateManager.registerBackgroundMusic({
-          ...this.stateManager.backgroundMusic,
+          ...this.currentMusic(),
           enabled: musicEnabled.checked
         });
+        dialog.querySelector('[data-music-remove]').disabled = false;
+        if (!musicEnabled.checked) this.stopPreview();
       }
     });
 
@@ -202,6 +244,7 @@ export class SoundEffectsEditor {
   }
 
   async uploadSound(row, file) {
+    const dialog = this.dialog;
     row.classList.add('loading');
     try {
       if (!file.type.startsWith('audio/')) throw new TypeError('Choose an audio file.');
@@ -213,6 +256,7 @@ export class SoundEffectsEditor {
         reader.readAsDataURL(file);
       });
       const duration = await this.validateAudio(dataUrl);
+      if (this.dialog !== dialog) return;
       const eventId = row.dataset.soundEvent;
       const existing = this.getSound(eventId);
       const volume = Number(row.querySelector('[data-sound-volume]').value) / 100;
@@ -225,7 +269,9 @@ export class SoundEffectsEditor {
         volume,
         enabled: existing?.enabled ?? true
       });
+      this.stopPreview();
       row.querySelector('[data-sound-file]').textContent = file.name;
+      this.setUploadedOption(row.querySelector('[data-sound-preset]'));
       row.querySelector('[data-sound-enabled]').disabled = false;
       row.querySelector('[data-sound-enabled]').checked = this.getSound(eventId).enabled;
       row.querySelector('[data-sound-preview]').disabled = false;
@@ -240,7 +286,8 @@ export class SoundEffectsEditor {
   }
 
   async uploadBackgroundMusic(file) {
-    const row = this.dialog.querySelector('.background-music-row');
+    const dialog = this.dialog;
+    const row = dialog.querySelector('.background-music-row');
     row.classList.add('loading');
     try {
       if (!file.type.startsWith('audio/')) throw new TypeError('Choose an audio file.');
@@ -252,6 +299,7 @@ export class SoundEffectsEditor {
         reader.readAsDataURL(file);
       });
       const duration = await this.validateAudio(dataUrl);
+      if (this.dialog !== dialog) return;
       const existing = this.stateManager.backgroundMusic;
       const volume = Number(row.querySelector('[data-music-volume]').value) / 100;
       this.stateManager.registerBackgroundMusic({
@@ -263,7 +311,9 @@ export class SoundEffectsEditor {
         volume,
         enabled: existing?.enabled ?? true
       });
+      this.stopPreview();
       row.querySelector('[data-music-file]').textContent = file.name;
+      this.setUploadedOption(row.querySelector('[data-music-preset]'));
       row.querySelector('[data-music-enabled]').disabled = false;
       row.querySelector('[data-music-enabled]').checked = this.stateManager.backgroundMusic.enabled;
       row.querySelector('[data-music-preview]').disabled = false;
@@ -300,71 +350,84 @@ export class SoundEffectsEditor {
   }
 
   updateSound(eventId, updates) {
-    const existing = this.getSound(eventId);
-    if (!existing) return;
+    const existing = this.currentSound(eventId);
     this.stateManager.registerSoundEffect(eventId, { ...existing, ...updates });
   }
 
   playPreview(eventId) {
-    const sound = this.getSound(eventId);
-    if (!sound?.dataUrl) return;
-    this.previewAudio?.pause();
-    this.previewingMusic = false;
-    this.previewAudio = new Audio(sound.dataUrl);
-    this.previewAudio.volume = sound.enabled ? sound.volume : 0;
-    this.previewAudio.play().catch(error => {
-      console.error(`Could not preview the ${eventId} sound:`, error);
-      this.eventBus.emit('status', `Could not preview the ${this.getLabel(eventId)} sound.`);
-    });
+    this.stopPreview();
+    this.previewManager = new SoundManager(this.eventBus, { [eventId]: this.currentSound(eventId) });
+    this.previewManager.play(eventId);
   }
 
   playMusicPreview() {
-    const music = this.stateManager.backgroundMusic;
-    if (!music?.dataUrl) return;
-    this.previewAudio?.pause();
+    this.stopPreview();
     this.previewingMusic = true;
-    this.previewAudio = new Audio(music.dataUrl);
-    this.previewAudio.loop = true;
-    this.previewAudio.volume = music.enabled ? music.volume : 0;
-    this.previewAudio.play().catch(error => {
-      console.error('Could not preview background music:', error);
-      this.eventBus.emit('status', 'Could not preview the background music.');
-    });
+    this.previewManager = new SoundManager(this.eventBus, {}, this.currentMusic());
+    this.previewManager.startMusic();
   }
 
   removeBackgroundMusic() {
     this.stateManager.removeBackgroundMusic();
-    this.previewAudio?.pause();
-    this.previewAudio = null;
-    this.previewingMusic = false;
+    this.stopPreview();
     const row = this.dialog.querySelector('.background-music-row');
-    row.querySelector('[data-music-file]').textContent = 'No music uploaded';
+    row.querySelector('[data-music-file]').textContent = 'Built-in music';
+    row.querySelector('[data-music-preset]').value = 'classic';
+    row.querySelector('[data-music-preset] option[value="uploaded"]')?.remove();
     row.querySelector('[data-music-volume]').value = '25';
     row.querySelector('[data-music-volume-value]').textContent = '25%';
     row.querySelector('[data-music-enabled]').checked = true;
-    row.querySelector('[data-music-enabled]').disabled = true;
-    row.querySelector('[data-music-preview]').disabled = true;
+    row.querySelector('[data-music-enabled]').disabled = false;
+    row.querySelector('[data-music-preview]').disabled = false;
     row.querySelector('[data-music-remove]').disabled = true;
     this.eventBus.emit('status', 'Background music removed.');
   }
 
   removeSound(eventId) {
     this.stateManager.removeSoundEffect(eventId);
-    this.previewAudio?.pause();
-    this.previewAudio = null;
+    this.stopPreview();
     const row = this.dialog.querySelector(`[data-sound-event="${eventId}"]`);
-    row.querySelector('[data-sound-file]').textContent = 'No sound uploaded';
+    row.querySelector('[data-sound-file]').textContent = 'Built-in sound';
+    row.querySelector('[data-sound-preset]').value = 'retro';
+    row.querySelector('[data-sound-preset] option[value="uploaded"]')?.remove();
     row.querySelector('[data-sound-volume]').value = '70';
     row.querySelector('[data-volume-value]').textContent = '70%';
     row.querySelector('[data-sound-enabled]').checked = true;
-    row.querySelector('[data-sound-enabled]').disabled = true;
-    row.querySelector('[data-sound-preview]').disabled = true;
+    row.querySelector('[data-sound-enabled]').disabled = false;
+    row.querySelector('[data-sound-preview]').disabled = false;
     row.querySelector('[data-sound-remove]').disabled = true;
     this.eventBus.emit('status', `${this.getLabel(eventId)} sound removed.`);
   }
 
   getSound(eventId) {
     return this.stateManager.soundEffects[eventId];
+  }
+
+  currentSound(eventId) {
+    return this.getSound(eventId) || { preset: 'retro', volume: 0.7, enabled: true };
+  }
+
+  currentMusic() {
+    return this.stateManager.backgroundMusic || { preset: 'classic', volume: 0.25, enabled: true };
+  }
+
+  presetOptions(presets, settings, defaultId) {
+    const selected = settings?.preset || (settings?.dataUrl ? 'uploaded' : defaultId);
+    return presets.map(preset => `<option value="${preset.id}" ${selected === preset.id ? 'selected' : ''}>${preset.label}</option>`).join('') +
+      (settings?.dataUrl ? '<option value="uploaded" selected>Uploaded audio</option>' : '');
+  }
+
+  setUploadedOption(select) {
+    if (!select.querySelector('option[value="uploaded"]')) {
+      select.add(new Option('Uploaded audio', 'uploaded'));
+    }
+    select.value = 'uploaded';
+  }
+
+  stopPreview() {
+    this.previewManager?.stopAll();
+    this.previewManager = null;
+    this.previewingMusic = false;
   }
 
   getLabel(eventId) {
@@ -378,9 +441,7 @@ export class SoundEffectsEditor {
   }
 
   close() {
-    this.previewAudio?.pause();
-    this.previewAudio = null;
-    this.previewingMusic = false;
+    this.stopPreview();
     this.dialog?.remove();
     this.dialog = null;
   }

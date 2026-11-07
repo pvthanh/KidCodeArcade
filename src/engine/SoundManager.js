@@ -43,12 +43,21 @@ const RETRO_SOUNDS = {
   ] }
 };
 
-const BACKGROUND_MELODY = [
-  659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 587.33, 659.25,
-  783.99, 880, 783.99, 659.25, 523.25, 392, 523.25, 659.25
-];
+const MUSIC_TRACKS = {
+  classic: { notes: [
+    659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 587.33, 659.25,
+    783.99, 880, 783.99, 659.25, 523.25, 392, 523.25, 659.25
+  ], interval: 220, wave: 'triangle' },
+  sunny: { notes: [
+    523.25, 659.25, 783.99, 880, 783.99, 659.25, 587.33, 659.25,
+    698.46, 880, 1046.5, 880, 783.99, 659.25, 587.33, 523.25
+  ], interval: 190, wave: 'sine' },
+  moonlight: { notes: [
+    440, 523.25, 659.25, 783.99, 659.25, 523.25, 493.88, 392,
+    440, 523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440
+  ], interval: 310, wave: 'triangle' }
+};
 const BACKGROUND_MUSIC_VOLUME = 0.25;
-const BACKGROUND_NOTE_INTERVAL = 220;
 
 export class SoundManager {
   constructor(eventBus, soundEffects = {}, backgroundMusic = null) {
@@ -64,7 +73,7 @@ export class SoundManager {
   }
 
   startMusic() {
-    if (this.backgroundMusic) {
+    if (this.backgroundMusic && !this.backgroundMusic.preset) {
       if (!this.backgroundMusic.enabled || this.backgroundMusic.volume <= 0) return true;
       try {
         const audio = new Audio(this.backgroundMusic.dataUrl);
@@ -88,6 +97,7 @@ export class SoundManager {
         return false;
       }
     }
+    if (this.backgroundMusic && (!this.backgroundMusic.enabled || this.backgroundMusic.volume <= 0)) return true;
     if (this.musicGain) return true;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) {
@@ -100,7 +110,7 @@ export class SoundManager {
     try {
       this.audioContext ||= new AudioContextClass();
       this.musicGain = this.audioContext.createGain();
-      this.musicGain.gain.value = BACKGROUND_MUSIC_VOLUME;
+      this.musicGain.gain.value = this.backgroundMusic?.volume ?? BACKGROUND_MUSIC_VOLUME;
       this.musicGain.connect(this.audioContext.destination);
       this.musicNoteIndex = 0;
       const startLoop = () => {
@@ -129,13 +139,17 @@ export class SoundManager {
     if (!this.musicGain || !this.audioContext || this.audioContext.state !== 'running') return;
 
     const context = this.audioContext;
+    const track = MUSIC_TRACKS[this.backgroundMusic?.preset || 'classic'];
+    if (!track) throw new TypeError('Unknown built-in music preset.');
     const noteStart = context.currentTime + 0.01;
-    const noteEnd = noteStart + 0.17;
+    const noteEnd = noteStart + track.interval / 1000 * (0.17 / 0.22);
     const oscillator = context.createOscillator();
     const envelope = context.createGain();
-    oscillator.type = this.musicNoteIndex % 4 === 2 ? 'square' : 'triangle';
+    oscillator.type = this.backgroundMusic?.preset === 'sunny' ? 'sine' :
+      this.backgroundMusic?.preset === 'moonlight' ? 'triangle' :
+        this.musicNoteIndex % 4 === 2 ? 'square' : track.wave;
     oscillator.frequency.setValueAtTime(
-      BACKGROUND_MELODY[this.musicNoteIndex % BACKGROUND_MELODY.length],
+      track.notes[this.musicNoteIndex % track.notes.length],
       noteStart
     );
     envelope.gain.setValueAtTime(0.0001, noteStart);
@@ -148,12 +162,14 @@ export class SoundManager {
     oscillator.start(noteStart);
     oscillator.stop(noteEnd);
     this.musicNoteIndex += 1;
-    this.musicTimer = setTimeout(() => this.playNextMusicNote(), BACKGROUND_NOTE_INTERVAL);
+    this.musicTimer = setTimeout(() => this.playNextMusicNote(), track.interval);
   }
 
   play(event) {
     if (Object.hasOwn(this.soundEffects, event)) {
-      return this.playUploaded(event, this.soundEffects[event]);
+      const sound = this.soundEffects[event];
+      if (!sound.enabled || sound.volume <= 0) return false;
+      return sound.preset ? this.playRetro(event, sound.preset, sound.volume) : this.playUploaded(event, sound);
     }
     return this.playRetro(event);
   }
@@ -179,7 +195,7 @@ export class SoundManager {
     return true;
   }
 
-  playRetro(event) {
+  playRetro(event, style = 'retro', volume = 0.7) {
     const preset = RETRO_SOUNDS[event];
     if (!preset) return false;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -205,13 +221,14 @@ export class SoundManager {
         const gain = this.audioContext.createGain();
         const noteStart = start + (note.start || 0);
         const noteEnd = noteStart + note.duration;
-        oscillator.type = preset.wave;
-        oscillator.frequency.setValueAtTime(note.frequency, noteStart);
+        const pitch = style === 'bright' ? 1.35 : style === 'soft' ? 0.75 : 1;
+        oscillator.type = style === 'bright' ? 'sine' : style === 'soft' ? 'triangle' : preset.wave;
+        oscillator.frequency.setValueAtTime(note.frequency * pitch, noteStart);
         if (note.endFrequency) {
-          oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, noteEnd);
+          oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency * pitch, noteEnd);
         }
         gain.gain.setValueAtTime(0.0001, noteStart);
-        gain.gain.exponentialRampToValueAtTime(0.12, noteStart + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.12 * volume / 0.7, noteStart + 0.008);
         gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
         oscillator.connect(gain);
         gain.connect(this.audioContext.destination);

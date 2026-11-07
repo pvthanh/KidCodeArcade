@@ -1,3 +1,5 @@
+import { SOUND_EVENT_IDS, SOUND_PRESETS, MUSIC_PRESETS, validAudioSettings } from './AudioPresets.js';
+
 const tiles = [
   'Player', 'Ground', 'Sand', 'Stone', 'Steel', 'Snow', 'Brick', 'MysteryBox', 'Pipe',
   'Spring', 'MovingPlatform', 'OneWayPlatform', 'RotatingFirebar', 'FireGeyser', 'Lava',
@@ -27,7 +29,8 @@ export function compactCommunityLevel(snapshot) {
       (tileGrid[r][c] === 'Brick' && variant === 'moss') ? variant : 'classic';
   }));
   const customAssets = customTypes.size > 0 || (snapshot.customBosses || []).length > 0 ||
-    Object.keys(snapshot.soundEffects || {}).length > 0 || Boolean(snapshot.backgroundMusic) ||
+    Object.values(snapshot.soundEffects || {}).some(sound => !sound.preset) ||
+    Boolean(snapshot.backgroundMusic && !snapshot.backgroundMusic.preset) ||
     Object.entries(snapshot.tileVariantCatalog || {}).some(([type, list]) => list.some(v =>
       v.id !== 'classic' && !(type === 'Ground' && v.id === 'ice') &&
       !(type === 'Brick' && v.id === 'moss'))) ||
@@ -37,11 +40,19 @@ export function compactCommunityLevel(snapshot) {
   if (!bosses.includes(bossConfig.type)) bossConfig.type = 'slimeKing';
   const creepyConfigs = Object.fromEntries(Object.entries(snapshot.creepyConfigs || {})
     .filter(([type]) => creatures.includes(type)));
+  const soundEffects = Object.fromEntries(Object.entries(snapshot.soundEffects || {})
+    .filter(([, sound]) => sound.preset)
+    .map(([event, sound]) => [event, { preset: sound.preset, volume: sound.volume, enabled: sound.enabled }]));
+  const music = snapshot.backgroundMusic;
+  const backgroundMusic = music?.preset ?
+    { preset: music.preset, volume: music.volume, enabled: music.enabled } : null;
   const level = {
     version: 1, cols: snapshot.cols, rows: snapshot.rows,
     tiles: tileGrid, tileVariants: variants, pipeLinks: snapshot.pipeLinks,
     worldTheme: snapshot.worldTheme, playerCharacterId: snapshot.playerCharacterId,
-    bossConfig, creepyConfigs, mysteryBoxReward: snapshot.mysteryBoxReward
+    bossConfig, creepyConfigs, mysteryBoxReward: snapshot.mysteryBoxReward,
+    ...(Object.keys(soundEffects).length ? { soundEffects } : {}),
+    ...(backgroundMusic ? { backgroundMusic } : {})
   };
   validateCommunityLevel(level);
   return { level, customAssets };
@@ -49,7 +60,8 @@ export function compactCommunityLevel(snapshot) {
 
 export function validateCommunityLevel(level) {
   if (!keysOnly(level, ['version', 'cols', 'rows', 'tiles', 'tileVariants', 'pipeLinks',
-    'worldTheme', 'playerCharacterId', 'bossConfig', 'creepyConfigs', 'mysteryBoxReward']) ||
+    'worldTheme', 'playerCharacterId', 'bossConfig', 'creepyConfigs', 'mysteryBoxReward',
+    'soundEffects', 'backgroundMusic']) ||
     level.version !== 1 || !integer(level.cols, 8, 256) || !integer(level.rows, 8, 100) ||
     !themes.includes(level.worldTheme) || !heroes.includes(level.playerCharacterId) ||
     !rewards.includes(level.mysteryBoxReward)) throw new TypeError('Invalid level settings.');
@@ -96,6 +108,17 @@ export function validateCommunityLevel(level) {
     !['ground', 'flying'].includes(config.movement) || !integer(config.speed, 20, 180) ||
     !integer(config.health, 1, 5) || !['patrol', 'tracker', 'hunter'].includes(config.intelligence ?? 'patrol'))) {
     throw new TypeError('Invalid creature settings.');
+  }
+  const validPreset = (settings, presets) =>
+    keysOnly(settings, ['preset', 'volume', 'enabled']) &&
+    typeof settings.preset === 'string' && validAudioSettings(settings, presets);
+  if (level.soundEffects !== undefined && (!object(level.soundEffects) ||
+    Object.entries(level.soundEffects).some(([event, settings]) =>
+      !SOUND_EVENT_IDS.includes(event) || !validPreset(settings, SOUND_PRESETS)))) {
+    throw new TypeError('Invalid community sound settings.');
+  }
+  if (level.backgroundMusic != null && !validPreset(level.backgroundMusic, MUSIC_PRESETS)) {
+    throw new TypeError('Invalid community music settings.');
   }
   return level;
 }

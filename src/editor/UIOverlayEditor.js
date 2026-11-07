@@ -511,6 +511,8 @@ export class UIOverlayEditor {
     this.saveCurrentLevel();
     const snapshot = this.stateManager.getWorldSnapshot();
     snapshot.pipeLinks = [];
+    snapshot.soundEffects = {};
+    snapshot.backgroundMusic = null;
     snapshot.tiles = Array.from({ length: snapshot.rows }, (_, row) =>
       Array(snapshot.cols).fill(null));
     snapshot.tileVariants = Array.from({ length: snapshot.rows }, () =>

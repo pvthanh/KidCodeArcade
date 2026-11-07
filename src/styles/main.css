@@ -2386,6 +2386,25 @@ button {
   gap: 8px;
 }
 
+.sound-preset-control {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sound-preset-control select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+}
+
 .sound-upload-button {
   position: relative;
   display: inline-flex;

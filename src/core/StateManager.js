@@ -1,4 +1,5 @@
 import { cloneData } from './CloneData.js';
+import { SOUND_EVENT_IDS, SOUND_PRESETS, MUSIC_PRESETS, validAudioSettings } from './AudioPresets.js';
 import { characterArt, creepyArt, playerCharacterArt } from '../assets/demo/CharacterArt.js';
 import groundSprite from '../assets/demo/MeadowGround.svg?inline';
 import brickSprite from '../assets/demo/MeadowBrick.svg?inline';
@@ -89,10 +90,7 @@ const TILE_VARIANT_TYPES = [
 ];
 export const POWER_UP_TYPES = ['Mushroom', 'Star', 'ExtraLife', 'FireFlower', 'BoomFlower', 'TNTFlower'];
 export const MYSTERY_BOX_REWARDS = ['Random', ...POWER_UP_TYPES];
-const SOUND_EVENTS = [
-  'jump', 'enemyStomp', 'playerHit', 'coin', 'powerUp', 'brickBreak', 'mysteryBox',
-  'win', 'lose', 'spring', 'switch', 'checkpoint', 'fireball'
-];
+const SOUND_EVENTS = SOUND_EVENT_IDS;
 const DEMO_COLS = 96;
 const DEMO_ROWS = 18;
 
@@ -836,16 +834,8 @@ export class StateManager {
   }
 
   registerSoundEffect(event, metadata) {
-    if (!SOUND_EVENTS.includes(event) || typeof metadata?.dataUrl !== 'string' ||
-      !metadata.dataUrl.startsWith('data:audio/')) {
-      throw new TypeError('A supported game event and audio file are required to register a sound.');
-    }
-    if (typeof metadata.volume !== 'number' || !Number.isFinite(metadata.volume) ||
-      metadata.volume < 0 || metadata.volume > 1) {
-      throw new RangeError('Sound volume must be between 0 and 1.');
-    }
-    if (typeof metadata.enabled !== 'boolean') {
-      throw new TypeError('Sound enabled state must be a boolean.');
+    if (!SOUND_EVENTS.includes(event) || !validAudioSettings(metadata, SOUND_PRESETS)) {
+      throw new TypeError('A supported game event and valid sound settings are required.');
     }
     this.soundEffects[event] = { ...metadata };
   }
@@ -856,10 +846,8 @@ export class StateManager {
   }
 
   registerBackgroundMusic(metadata) {
-    if (typeof metadata?.dataUrl !== 'string' || !metadata.dataUrl.startsWith('data:audio/') ||
-      typeof metadata.volume !== 'number' || !Number.isFinite(metadata.volume) ||
-      metadata.volume < 0 || metadata.volume > 1 || typeof metadata.enabled !== 'boolean') {
-      throw new TypeError('Background music needs a valid audio file, volume, and enabled state.');
+    if (!validAudioSettings(metadata, MUSIC_PRESETS)) {
+      throw new TypeError('Background music needs a valid preset or audio file, volume, and enabled state.');
     }
     this.backgroundMusic = { ...metadata };
   }
@@ -1153,21 +1141,16 @@ export class StateManager {
       throw new TypeError('The level file contains invalid sound settings.');
     }
     for (const [event, sound] of Object.entries(data.soundEffects || {})) {
-      if (!SOUND_EVENTS.includes(event) || typeof sound?.dataUrl !== 'string' ||
-        !sound.dataUrl.startsWith('data:audio/') || typeof sound.volume !== 'number' ||
-        !Number.isFinite(sound.volume) || sound.volume < 0 || sound.volume > 1 ||
-        typeof sound.enabled !== 'boolean') {
+      if (!SOUND_EVENTS.includes(event) || !validAudioSettings(sound, SOUND_PRESETS)) {
         throw new TypeError(`The level file contains invalid sound settings for "${event}".`);
       }
     }
     if (data.backgroundMusic !== undefined && data.backgroundMusic !== null) {
       const music = data.backgroundMusic;
-      if (typeof music.dataUrl !== 'string' || !music.dataUrl.startsWith('data:audio/') ||
-        typeof music.volume !== 'number' || !Number.isFinite(music.volume) ||
-        music.volume < 0 || music.volume > 1 || typeof music.enabled !== 'boolean' ||
+      if (!validAudioSettings(music, MUSIC_PRESETS) ||
         (music.fileSize !== undefined &&
           (!Number.isInteger(music.fileSize) || music.fileSize < 0 || music.fileSize > 10 * 1024 * 1024)) ||
-        music.dataUrl.length > 10 * 1024 * 1024 * 1.4) {
+        (music.dataUrl && music.dataUrl.length > 10 * 1024 * 1024 * 1.4)) {
         throw new TypeError('The level file contains invalid background music settings.');
       }
     }

@@ -60,7 +60,7 @@ Keep the terminal running while you use the editor. To stop the server, focus th
 - Place a **Fire flower** to give the player five fireballs. Press **X** or **J** to shoot at ground and flying enemies; each flower adds five shots, and the HUD and hand-level flame badge show the remaining count. Fireballs do not control or redirect the environmental hazards. Fire flowers can also be selected as Mystery Box rewards.
 - Place a **Boom flower** to add five bombs. Press **B** or the 💣 touch button to drop one at the player's feet. The flower is drawn with a bomb icon in its center. A bomb counts down for five seconds and blasts within about three tiles: nearby creatures and bosses lose one health, terrain breaks, Mystery Boxes open, and the player loses one life if caught in the blast. Boom flowers can also be selected as Mystery Box rewards.
 - Place a **Checkpoint** flag to save a respawn point for the current run. Falling after reaching it costs a life and returns the player there; the player returns to normal size and loses temporary powers. Best scores are saved per campaign level in this browser and shown in the play HUD.
-- Choose **♫ Sounds** to upload and configure event sounds. Built-in retro tones play automatically; an uploaded sound overrides its matching tone and has its own preview, enable switch, and volume. Sounds can be configured for jumps, coins, enemies, switches, checkpoints, and more, and settings are included when you save a level.
+- Choose **♫ Sounds** to select and preview three built-in music tracks and three sound styles for each game event, or upload your own audio. Each choice has an enable switch and volume. Settings belong to the current level and are included when you save a level or campaign; new levels start with the classic defaults. Closing the dialog stops its preview.
 - Collecting coins or power-ups, defeating enemies, activating switches/checkpoints, and other key actions now show small particle bursts; major events also use brief camera shake.
 - Choose **Play level** to try the level. Use **A/D** or the arrow keys to move; use **W**, **↑**, or **Space** to jump. Hold **Shift** to run.
 - On a connected pipe, press **↓/S** from its top to travel to its paired pipe; jump beside the exit pipe and press **↑** to return. Touch controls place large, translucent left/right buttons on the left and jump/up, pipe/down, and fire buttons on the right. Use **Show touch controls** in the game header.
@@ -93,7 +93,8 @@ information, and avoid putting personal information in level names or designs.
 Shared copies use built-in assets only. Uploaded images and tile appearances,
 custom creatures and bosses, and uploaded sounds and music are omitted or
 replaced with built-in alternatives; a warning appears before publication
-when custom content is detected. Your original stays unchanged. Requests
+when custom content is detected. Built-in sound and music choices are preserved
+in shared levels. Your original stays unchanged. Requests
 are limited to 512 KB and rate-limited; free Cloudflare quotas can also make
 the library temporarily unavailable. There is no account, private sharing,
 editing or in-app removal of published entries.
